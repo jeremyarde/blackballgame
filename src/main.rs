@@ -1,10 +1,4 @@
 #[derive(Debug, Clone)]
-struct Player {
-    hand: Vec<Card>,
-    id: i32,
-}
-
-#[derive(Debug, Clone)]
 enum Suit {
     Heart,
     Diamond,
@@ -22,24 +16,43 @@ struct Card {
 
 #[derive(Debug, Clone)]
 struct GameServer {
-    players: Vec<Player>,
+    players: Vec<GameClient>,
     deck: Vec<Card>,
     round: i32,
     trump: Suit,
     player_order: Vec<i32>,
+    dealer: i32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct GameClient {
+    id: i32,
     hand: Vec<Card>,
     order: i32,
     trump: Suit,
     round: i32,
     state: PlayerState,
 }
+
+#[derive(Debug, Clone, Copy)]
+enum PlayerState {
+    Idle,
+    RequireInput,
+}
+
 use std::io::{self, Read};
 
 impl GameClient {
+    fn new(id: i32) -> Self {
+        return GameClient {
+            id,
+            state: PlayerState::Idle,
+            hand: vec![],
+            order: 0,
+            round: 0,
+            trump: Suit::Heart,
+        };
+    }
     fn play_card(&mut self) -> Card {
         let mut input = String::new();
         println!("Select the card you want to play");
@@ -53,16 +66,18 @@ impl GameClient {
     }
 }
 
-#[derive(Debug)]
-enum PlayerState {
-    Idle,
-    RequireInput,
-}
-
 impl GameServer {
     fn get_random_card(&mut self) -> Option<Card> {
         fastrand::shuffle(&mut self.deck);
         return self.deck.pop();
+    }
+
+    fn play_round(&mut self) {
+        // ask for input from each client in specific order (first person after dealer)
+        for x in &self.player_order {
+            let player = self.players.get(*x as usize).unwrap();
+            let card = player.play_card();
+        }
     }
 
     fn deal(&mut self) {
@@ -72,7 +87,7 @@ impl GameServer {
             // get random card, give to a player
             for playerid in self.player_order.clone() {
                 let card = self.get_random_card().unwrap();
-                let mut player: &mut Player = self.players.get_mut(playerid as usize).unwrap();
+                let mut player: &mut GameClient = self.players.get_mut(playerid as usize).unwrap();
                 // .get(playerid).unwrap();
                 player.hand.push(card.clone().to_owned());
             }
@@ -117,26 +132,19 @@ fn create_deck() -> Vec<Card> {
 }
 
 fn main() {
-    let players = vec![
-        Player {
-            hand: vec![],
-            id: 0,
-        },
-        Player {
-            hand: vec![],
-            id: 1,
-        },
-    ];
-
+    let players: Vec<GameClient> = (0..3).into_iter().map(|id| GameClient::new(id)).collect();
+    let dealerid = fastrand::usize(..&players.len()) as i32;
     let mut server = GameServer {
         players,
         deck: create_deck(),
         round: 1,
         trump: Suit::Heart,
         player_order: vec![0, 1],
+        dealer: dealerid,
     };
 
     server.deal();
+    server.play_round();
 
     // println!("{:#?}", server);
     println!("{:#?}", server.player_status());
