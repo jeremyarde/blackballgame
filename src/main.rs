@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Debug, Clone, PartialOrd, PartialEq, Ord, Eq)]
 enum Suit {
     Heart,
@@ -7,12 +9,31 @@ enum Suit {
     NoTrump,
 }
 
+impl fmt::Display for Suit {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let suit = match self {
+            &Self::Heart => "H",
+            &Self::Diamond => "D",
+            &Self::Club => "C",
+            &Self::Spade => "S",
+            &Self::NoTrump => "None",
+        };
+        write!(f, "{}", suit)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq)]
 struct Card {
     id: usize,
     suit: Suit,
     value: i32,
     played_by: Option<i32>,
+}
+
+impl fmt::Display for Card {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[{} {}]", self.value, self.suit)
+    }
 }
 
 // impl PartialOrd for Card {
@@ -74,53 +95,72 @@ impl GameClient {
             bids: vec![],
         };
     }
+
+    fn clear_hand(&mut self) {
+        self.hand = vec![];
+    }
+
     fn play_card(&mut self) -> Card {
         let mut input = String::new();
-        println!("Select the card you want to play");
-        println!("{:#?}", self.hand);
+        println!("Player {}, Select the card you want to play", self.id);
+        
+        for (i, card) in self.hand.iter().enumerate() {
+            println!("{}: {}", i, card);
+        }
+
         io::stdin()
             .read_line(&mut input)
             .expect("error: unable to read user input");
 
-        while input.parse::<i32>().is_err() {
-            println!("Please enter a valid card position");
+        let mut parse_result = input.trim().parse::<i32>();
+        while parse_result.is_err()
+            || !(0..self.hand.len()).contains(&(parse_result.clone().unwrap() as usize))
+        {
+            println!(
+                "{:?} is invalid, please enter a valid card position.",
+                parse_result
+            );
+            input = String::new();
             io::stdin()
                 .read_line(&mut input)
                 .expect("error: unable to read user input");
-        }
-        println!("{}", input);
+            parse_result = input.trim().parse::<i32>();
 
-        return self.hand.pop().unwrap();
+            println!("debug/ {:?}, {:?}", input, parse_result);
+        }
+        println!("range: {:?}, selected: {}", (0..self.hand.len() - 1), input);
+
+        return self.hand[(parse_result.unwrap()) as usize].clone();
     }
 
     fn get_client_bids(&mut self) -> i32 {
         let mut input = String::new();
+        let mut valid = 0;
         println!("How many tricks do you want?");
-        // println!("{:#?}", self.hand);
+
         io::stdin()
             .read_line(&mut input)
             .expect("error: unable to read user input");
 
         loop {
-            if input.parse::<i32>().is_err() {
+            let client_bid = input.trim().parse::<i32>();
+            if client_bid.is_err() {
                 continue;
             }
-            match validate_bid(input.parse::<i32>().unwrap(), self.round, self.bids) == BidError {
-                true => break,
-                false => {
-                    println!("Please enter a valid number of tricks");
-                    io::stdin()
-                        .read_line(&mut input)
-                        .expect("error: unable to read user input");
-                },
+            match validate_bid(client_bid.unwrap(), self.round, self.bids.clone()) {
+                Ok(x) => {
+                    println!("bid was: {}", x);
+                    valid = x;
+                    break;
+                }
+                Err(_) => {
+                    println!("Error with bid.")
+                }
             }
         }
 
-        println!("{}", input);
-        return input;
-
-
-
+        println!("{}", valid);
+        return valid;
     }
 }
 
@@ -155,41 +195,67 @@ impl GameServer {
         return self.deck.pop();
     }
 
+    fn advance_trump(&mut self) {
+        match self.trump {
+            Suit::Heart => self.trump = Suit::Diamond,
+            Suit::Diamond => self.trump = Suit::Club,
+            Suit::Club => self.trump = Suit::Spade,
+            Suit::Spade => self.trump = Suit::NoTrump,
+            Suit::NoTrump => self.trump = Suit::Heart,
+        }
+    }
+
     fn play_round(&mut self) {
-        // ask for input from each client in specific order (first person after dealer)
-        let mut played_cards: Vec<Card> = vec![];
-
-        let mut curr_winning_card: Card;
-
-        for (i, x) in self.player_order.iter().enumerate() {
+        for handnum in 0..self.round {
+            // need to use a few things to see who goes first
+            // 1. highest bid (at round start)
+            // 2. person who won the trick in last round goes first, then obey existing order
             
-
-            let player = self.players.get(*x as usize).unwrap();
-            let card = player.play_card();
-            played_cards.push(card.clone());
-
-            if i==0 {
-                curr_winning_card = card;
-                continue;
-            }
-
-            if card.suit == curr_winning_card.suit && card.value > curr_winning_card.value {
-                curr_winning_card = card.clone();
-            }
-            if card.suit == self.trump
-                && curr_winning_card.suit == self.trump
-                && &card.value > &curr_winning_card.value
-            {
-                curr_winning_card = card;
+            // ask for input from each client in specific order (first person after dealer)
+            let mut played_cards: Vec<Card> = vec![];
+            
+            let mut curr_winning_card: Option<Card> = None;
+            
+            for x in &self.player_order {
+                let player = self.players.get_mut(*x as usize).unwrap();
+                let card = player.play_card();
+                played_cards.push(card.clone());
+                
+                if curr_winning_card.is_none() {
+                    curr_winning_card = Some(card);
+                } else {
+                    let curr = curr_winning_card.clone().unwrap();
+                    if card.suit == curr.suit && card.value > curr.value {
+                        curr_winning_card = Some(card.clone());
+                    }
+                    if card.suit == self.trump && curr.suit == self.trump && card.value > curr.value {
+                        curr_winning_card = Some(card);
+                    }
+                }
+                
+                println!("Curr winning card: {:?}", curr_winning_card);
             }
         }
+            
+            // end of round
+            // 1. figure out who lost, who won
+        // 2. empty player hands, shuffle deck
+        // 3. redistribute cards based on the round
+        println!(
+            "End turn, trump={:?}, played cards={:#?}",
+            self.trump, played_cards
+        );
+        let winning_player_id = curr_winning_card.clone().unwrap().played_by;
+        for player in &mut self.players {
+            player.clear_hand();
+        }
+        self.advance_trump();
+        self.round += 1;
 
         // match curr_winning_card {
         //     Some(x) => x.played_by,
         //     None => println!("Error finding winning card. This is bad"),
         // }
-
-        println!("Winning card was: {:?}", curr_winning_card);
 
         // let winning_card = played_cards.sort_by(|card| card);
     }
@@ -203,7 +269,10 @@ impl GameServer {
                 let card = self.get_random_card().unwrap();
                 let mut player: &mut GameClient = self.players.get_mut(playerid as usize).unwrap();
                 // .get(playerid).unwrap();
-                player.hand.push(card.clone().to_owned());
+
+                let mut new_card = card.clone();
+                new_card.played_by = Some(player.id.clone());
+                player.hand.push(new_card);
             }
         }
     }
@@ -256,18 +325,16 @@ fn main() {
     let mut server = GameServer {
         players,
         deck: create_deck(),
-        round: 1,
+        round: 2,
         trump: Suit::Heart,
         player_order: vec![0, 1],
         dealer: dealerid,
     };
 
     // stages of the game
-    // server.deal();
-    // server.play_round();
+    server.deal();
+    server.play_round();
+    // server.update_scores();
 
-    println!("{:?}", server.deck.sort());
-
-    // println!("{:#?}", server);
-    println!("{:#?}", server.player_status());
+    println!("Player status: {:#?}", server.player_status());
 }
