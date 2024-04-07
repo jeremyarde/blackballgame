@@ -161,7 +161,7 @@ enum BidError {
     EqualsRound,
 }
 
-fn validate_bid(bid: &i32, curr_round: i32, curr_bids: HashMap<i32, i32>) -> Result<i32, BidError> {
+fn validate_bid(bid: &i32, curr_round: i32, curr_bids: &HashMap<i32, i32>) -> Result<i32, BidError> {
     // can bid between 0..=round number
     // dealer can't bid a number that will equal the round number
     if *bid > curr_round {
@@ -171,12 +171,12 @@ fn validate_bid(bid: &i32, curr_round: i32, curr_bids: HashMap<i32, i32>) -> Res
     if *bid < 0 {
         BidError::Low;
     }
-
-    if (bid + curr_bids.into_iter().sum::<i32>()) == curr_round {
+    let bid_sum = curr_bids.values().sum::<i32>();
+    if (bid + bid_sum) == curr_round {
         return Err(BidError::EqualsRound);
     }
 
-    return Ok(bid);
+    return Ok(bid.clone());
 }
 
 impl GameServer {
@@ -195,12 +195,12 @@ impl GameServer {
         }
     }
 
-    fn bids(&self) {
-        for client in &self.players {
-            let bid = &client.get_client_bids();
+    fn bids(&mut self) {
+        for client in &mut self.players {
+            let bid = client.get_client_bids();
 
             loop {
-                match validate_bid(&bid, self.round, self.bids) {
+                match validate_bid(&bid, self.round, &self.bids) {
                     Ok(x) => {
                         println!("bid was: {}", x);
                     }
