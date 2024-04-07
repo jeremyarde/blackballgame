@@ -135,6 +135,10 @@ impl GameClient {
     }
 
     fn get_client_bids(&mut self) -> i32 {
+        println!("Your hand:");
+        self.hand.iter().for_each(|card| println!("{}", card));
+
+
         let mut input = String::new();
         let mut valid = 0;
         println!("How many tricks do you want?");
@@ -197,15 +201,17 @@ impl GameServer {
 
     fn bids(&mut self) {
         for client in &mut self.players {
-            let bid = client.get_client_bids();
+            let mut bid = client.get_client_bids();
 
             loop {
                 match validate_bid(&bid, self.round, &self.bids) {
                     Ok(x) => {
                         println!("bid was: {}", x);
+                        break;
                     }
                     Err(_) => {
-                        println!("Error with bid.")
+                        println!("Error with bid.");
+                        bid = client.get_client_bids();
                     }
                 }
 
