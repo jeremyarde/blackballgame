@@ -67,6 +67,7 @@ struct GameServer {
     dealer: i32,
     bids: HashMap<i32, i32>,
     wins: HashMap<i32, i32>,
+    score: HashMap<i32, i32>,
 }
 
 #[derive(Debug, Clone)]
@@ -131,13 +132,15 @@ impl GameClient {
         }
         println!("range: {:?}, selected: {}", (0..self.hand.len() - 1), input);
 
-        return (parse_result.clone().unwrap() as usize, self.hand[(parse_result.unwrap()) as usize].clone());
+        return (
+            parse_result.clone().unwrap() as usize,
+            self.hand[(parse_result.unwrap()) as usize].clone(),
+        );
     }
 
     fn get_client_bids(&mut self) -> i32 {
         println!("Your hand:");
         self.hand.iter().for_each(|card| println!("{}", card));
-
 
         let mut input = String::new();
         let mut valid = 0;
@@ -166,7 +169,12 @@ enum BidError {
     EqualsRound,
 }
 
-fn validate_bid(bid: &i32, curr_round: i32, curr_bids: &HashMap<i32, i32>, is_dealer: bool) -> Result<i32, BidError> {
+fn validate_bid(
+    bid: &i32,
+    curr_round: i32,
+    curr_bids: &HashMap<i32, i32>,
+    is_dealer: bool,
+) -> Result<i32, BidError> {
     // can bid between 0..=round number
     // dealer can't bid a number that will equal the round number
     if *bid > curr_round {
@@ -184,20 +192,27 @@ fn validate_bid(bid: &i32, curr_round: i32, curr_bids: &HashMap<i32, i32>, is_de
     return Ok(bid.clone());
 }
 
+#[derive(Debug, Clone, Copy)]
 enum PlayedCardError {
     DidNotFollowSuit,
     CantUseTrump,
 }
 
-fn is_played_card_valid(played_cards: &Vec<Card>, hand: &mut Vec<Card>, played_card: Card, trump: &Suit) -> Result<Card, PlayedCardError> {
+fn is_played_card_valid(
+    played_cards: &Vec<Card>,
+    hand: &mut Vec<Card>,
+    played_card: Card,
+    trump: &Suit,
+) -> Result<Card, PlayedCardError> {
     // rules for figuring out if you can play a card:
     // 1. must follow suit if available
     // 2. can't play trump to start a round unless that is all the player has
 
     if played_cards.len() == 0 {
         if played_card.suit == *trump {
+            // all cards in hand must be trump
             for c in hand {
-                if c.suit == *trump {
+                if c.suit != *trump {
                     return Err(PlayedCardError::CantUseTrump);
                 }
             }
@@ -246,6 +261,7 @@ impl GameServer {
                 match validate_bid(&bid, self.round, &self.bids, self.dealer == client.id) {
                     Ok(x) => {
                         println!("bid was: {}", x);
+                        self.bids.insert(client.id, x);
                         break;
                     }
                     Err(e) => {
@@ -253,9 +269,10 @@ impl GameServer {
                         bid = client.get_client_bids();
                     }
                 }
-
             }
         }
+        println!("Biding over, bids are: {:?}", self.bids);
+
     }
 
     fn play_round(&mut self) {
@@ -272,16 +289,23 @@ impl GameServer {
 
             for x in &self.dealing_order {
                 let player = self.players.get_mut(*x as usize).unwrap();
-                
+
                 let (loc, mut card) = player.play_card();
                 loop {
-                    match is_played_card_valid(&played_cards.clone(), &mut player.hand, card.clone(), &self.trump) {
+                    match is_played_card_valid(
+                        &played_cards.clone(),
+                        &mut player.hand,
+                        card.clone(),
+                        &self.trump,
+                    ) {
                         Ok(x) => {
+                            println!("card is valid");
                             // remove the card from the players hand
                             player.hand.remove(loc);
                             break;
-                        },
-                        Err(_) => {
+                        }
+                        Err(e) => {
+                            println!("card is NOT valid: {:?}", e);
                             (_, card) = player.play_card();
                         }
                     }
@@ -295,29 +319,45 @@ impl GameServer {
                     if card.suit == curr.suit && card.value > curr.value {
                         curr_winning_card = Some(card.clone());
                     }
-                    if card.suit == self.trump && curr.suit == self.trump && card.clone().value > curr.value
+                    if card.suit == self.trump
+                        && curr.suit == self.trump
+                        && card.clone().value > curr.value
                     {
                         curr_winning_card = Some(card);
                     }
                 }
 
-                println!("Curr winning card: {:?}", curr_winning_card);
+                println!(
+                    "Curr winning card: {:?}",
+                    curr_winning_card.clone().unwrap()
+                );
             }
 
-            println!(
-                "End turn, trump={:?}, played cards:",
-                self.trump
-            );
+            println!("End turn, trump={:?}, played cards:", self.trump);
             played_cards.clone().iter().for_each(|c| println!("{}", c));
 
-            let winning_player_id = curr_winning_card.clone().unwrap().played_by;
+            let win_card = curr_winning_card.unwrap();
+            let winner = win_card.played_by;
+            println!("Player {:?} won. Winning card: {}", winner, win_card);
+
+            if let Some(x) = self.wins.get_mut(&winner.unwrap()) {
+                *x = *x + 1;
+            }
         }
 
         // end of round
         // 1. figure out who lost, who won
         // 2. empty player hands, shuffle deck
         // 3. redistribute cards based on the round
+
         for player in &mut self.players {
+            if self.wins.get(&player.id) == self.bids.get(&player.id) {
+                let bidscore = self.bids.get(&player.id).unwrap() + 10;
+                if let Some(x) = self.score.get_mut(&player.id) {
+                    *x = *x + bidscore;
+                }
+            }
+
             player.clear_hand();
         }
         self.advance_trump();
@@ -350,7 +390,8 @@ impl GameServer {
     }
 
     fn player_status(&self) {
-        println!("{:?}", self.players);
+        // println!("{:?}", self.players);
+        println!("Score:\n{:?}", self.score);
     }
 }
 
@@ -405,6 +446,7 @@ fn main() {
         dealer: 1,
         bids: HashMap::new(),
         wins: HashMap::new(),
+        score: HashMap::new(),
     };
 
     players.iter().for_each(|player| {
@@ -417,6 +459,7 @@ fn main() {
     server.bids();
     server.play_round();
     // server.update_scores();
+
 
     println!("Player status: {:#?}", server.player_status());
 }
