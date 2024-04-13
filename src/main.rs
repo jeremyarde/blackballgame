@@ -300,6 +300,7 @@ impl GameServer {
                     ) {
                         Ok(x) => {
                             println!("card is valid");
+                            card = x;
                             // remove the card from the players hand
                             player.hand.remove(loc);
                             break;
@@ -312,6 +313,7 @@ impl GameServer {
                 }
                 played_cards.push(card.clone());
 
+                // logic for finding the winning card
                 if curr_winning_card.is_none() {
                     curr_winning_card = Some(card);
                 } else {
@@ -350,12 +352,17 @@ impl GameServer {
         // 2. empty player hands, shuffle deck
         // 3. redistribute cards based on the round
 
+        println!("Bids won: {:#?}\nWins: {:#?}", self.wins, self.bids);
         for player in &mut self.players {
             if self.wins.get(&player.id) == self.bids.get(&player.id) {
+                println!("debug/ player won what they wanted, adding to score");
                 let bidscore = self.bids.get(&player.id).unwrap() + 10;
-                if let Some(x) = self.score.get_mut(&player.id) {
-                    *x = *x + bidscore;
-                }
+                let curr_score = self.score.get_mut(&player.id).unwrap();
+                *curr_score += bidscore;
+
+                // if let Some(x) = self.score.get_mut(&player.id) {
+                //     *x = *x + bidscore;
+                // }
             }
 
             player.clear_hand();
@@ -452,6 +459,7 @@ fn main() {
     players.iter().for_each(|player| {
         server.bids.insert(player.id, 0);
         server.wins.insert(player.id, 0);
+        server.score.insert(player.id, 0);
     });
 
     // stages of the game
