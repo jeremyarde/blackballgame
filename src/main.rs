@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::io;
+use std::ops::Rem;
 
 #[derive(Debug, Clone, PartialOrd, PartialEq, Ord, Eq)]
 enum Suit {
@@ -272,7 +273,6 @@ impl GameServer {
             }
         }
         println!("Biding over, bids are: {:?}", self.bids);
-
     }
 
     fn play_round(&mut self) {
@@ -440,16 +440,29 @@ fn create_deck() -> Vec<Card> {
 }
 
 fn main() {
-    let players: Vec<GameClient> = (0..2).into_iter().map(|id| GameClient::new(id)).collect();
-    // let dealerid = fastrand::usize(..&players.len()) as i32;
+    let num_players = 2;
+    let max_rounds = if 52i32.div_euclid(num_players) > 9 {
+        9
+    } else {
+        52i32.div_euclid(num_players)
+    };
+
+    println!("Players: {}\nRounds: {}", num_players, max_rounds);
+
+    let players: Vec<GameClient> = (0..num_players)
+        .into_iter()
+        .map(|id| GameClient::new(id))
+        .collect();
+    let mut deal_play_order: Vec<i32> = players.iter().map(|player| player.id.clone()).collect();
+    fastrand::shuffle(&mut deal_play_order);
 
     let mut server = GameServer {
         players: players.clone(),
         deck: create_deck(),
         round: 2,
         trump: Suit::Heart,
-        dealing_order: vec![0, 1],
-        play_order: vec![0, 1],
+        dealing_order: deal_play_order.clone(),
+        play_order: deal_play_order,
         dealer: 1,
         bids: HashMap::new(),
         wins: HashMap::new(),
@@ -467,7 +480,6 @@ fn main() {
     server.bids();
     server.play_round();
     // server.update_scores();
-
 
     println!("Player status: {:#?}", server.player_status());
 }
