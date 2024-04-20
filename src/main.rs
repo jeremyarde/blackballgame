@@ -236,6 +236,46 @@ fn is_played_card_valid(
 }
 
 impl GameServer {
+    fn play_game(&mut self) {
+        let num_players = self.players.len() as i32;
+        let max_rounds = if 52i32.div_euclid(num_players) > 9 {
+            9
+        } else {
+            52i32.div_euclid(num_players)
+        };
+
+        println!("Players: {}\nRounds: {}", num_players, max_rounds);
+
+        for round in 1..max_rounds {
+            println!("\n-- Round {} --", round);
+            self.deal();
+            self.bids();
+            self.play_round();
+
+            // end of round
+            // 1. figure out who lost, who won
+            // 2. empty player hands, shuffle deck
+            // 3. redistribute cards based on the round
+
+            println!("Bids won: {:#?}\nBids wanted: {:#?}", self.wins, self.bids);
+            for player in &mut self.players {
+                if self.wins.get(&player.id) == self.bids.get(&player.id) {
+                    println!("debug/ player won what they wanted, adding to score");
+                    let bidscore = self.bids.get(&player.id).unwrap() + 10;
+                    let curr_score = self.score.get_mut(&player.id).unwrap();
+                    *curr_score += bidscore;
+                }
+
+                player.clear_hand();
+            }
+            self.advance_trump();
+            self.round += 1;
+
+            println!("Player status: {:#?}", self.player_status());
+        }
+        // stages of the game
+    }
+
     fn get_random_card(&mut self) -> Option<Card> {
         fastrand::shuffle(&mut self.deck);
         return self.deck.pop();
@@ -276,8 +316,8 @@ impl GameServer {
     }
 
     fn play_round(&mut self) {
-        println!("=== Playing round ===");
         for handnum in 0..self.round {
+            println!("--- Hand #{}/{} ---", handnum, self.round);
             // need to use a few things to see who goes first
             // 1. highest bid (at round start)
             // 2. person who won the trick in last round goes first, then obey existing order
@@ -346,36 +386,6 @@ impl GameServer {
                 *x = *x + 1;
             }
         }
-
-        // end of round
-        // 1. figure out who lost, who won
-        // 2. empty player hands, shuffle deck
-        // 3. redistribute cards based on the round
-
-        println!("Bids won: {:#?}\nWins: {:#?}", self.wins, self.bids);
-        for player in &mut self.players {
-            if self.wins.get(&player.id) == self.bids.get(&player.id) {
-                println!("debug/ player won what they wanted, adding to score");
-                let bidscore = self.bids.get(&player.id).unwrap() + 10;
-                let curr_score = self.score.get_mut(&player.id).unwrap();
-                *curr_score += bidscore;
-
-                // if let Some(x) = self.score.get_mut(&player.id) {
-                //     *x = *x + bidscore;
-                // }
-            }
-
-            player.clear_hand();
-        }
-        self.advance_trump();
-        self.round += 1;
-
-        // match curr_winning_card {
-        //     Some(x) => x.played_by,
-        //     None => println!("Error finding winning card. This is bad"),
-        // }
-
-        // let winning_card = played_cards.sort_by(|card| card);
     }
 
     fn deal(&mut self) {
@@ -441,14 +451,6 @@ fn create_deck() -> Vec<Card> {
 
 fn main() {
     let num_players = 2;
-    let max_rounds = if 52i32.div_euclid(num_players) > 9 {
-        9
-    } else {
-        52i32.div_euclid(num_players)
-    };
-
-    println!("Players: {}\nRounds: {}", num_players, max_rounds);
-
     let players: Vec<GameClient> = (0..num_players)
         .into_iter()
         .map(|id| GameClient::new(id))
@@ -459,7 +461,7 @@ fn main() {
     let mut server = GameServer {
         players: players.clone(),
         deck: create_deck(),
-        round: 2,
+        round: 1,
         trump: Suit::Heart,
         dealing_order: deal_play_order.clone(),
         play_order: deal_play_order,
@@ -475,11 +477,5 @@ fn main() {
         server.score.insert(player.id, 0);
     });
 
-    // stages of the game
-    server.deal();
-    server.bids();
-    server.play_round();
-    // server.update_scores();
-
-    println!("Player status: {:#?}", server.player_status());
+    server.play_game();
 }
