@@ -35,7 +35,12 @@ struct Card {
 
 impl fmt::Display for Card {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[{} {}]", self.value, self.suit)
+        let played_by = if self.played_by.is_some() {
+            format!(" (Player {})", self.played_by.unwrap())
+        } else {
+            String::new()
+        };
+        write!(f, "[{} {}]{}", self.value, self.suit, played_by)
     }
 }
 
@@ -59,13 +64,13 @@ impl fmt::Display for Card {
 
 #[derive(Debug, Clone)]
 struct GameServer {
-    players: Vec<GameClient>,
+    players: HashMap<i32, GameClient>,
     deck: Vec<Card>,
-    round: i32,
+    curr_round: i32,
     trump: Suit,
     dealing_order: Vec<i32>,
     play_order: Vec<i32>,
-    dealer: i32,
+    dealer_idx: i32,
     bids: HashMap<i32, i32>,
     wins: HashMap<i32, i32>,
     score: HashMap<i32, i32>,
@@ -128,8 +133,6 @@ impl GameClient {
                 .read_line(&mut input)
                 .expect("error: unable to read user input");
             parse_result = input.trim().parse::<i32>();
-
-            println!("debug/ {:?}, {:?}", input, parse_result);
         }
         println!("range: {:?}, selected: {}", (0..self.hand.len() - 1), input);
 
@@ -236,9 +239,12 @@ fn is_played_card_valid(
 }
 
 impl GameServer {
-    fn play_game(&mut self) {
+    fn play_game(&mut self, max_rounds: Option<i32>) {
         let num_players = self.players.len() as i32;
-        let max_rounds = if 52i32.div_euclid(num_players) > 9 {
+
+        let max_rounds = if max_rounds.is_some() {
+            max_rounds.unwrap()
+        } else if 52i32.div_euclid(num_players) > 9 {
             9
         } else {
             52i32.div_euclid(num_players)
@@ -258,7 +264,9 @@ impl GameServer {
             // 3. redistribute cards based on the round
 
             println!("Bids won: {:#?}\nBids wanted: {:#?}", self.wins, self.bids);
-            for player in &mut self.players {
+            for player_id in self.play_order.iter() {
+                let player = self.players.get_mut(player_id).unwrap();
+
                 if self.wins.get(&player.id) == self.bids.get(&player.id) {
                     println!("debug/ player won what they wanted, adding to score");
                     let bidscore = self.bids.get(&player.id).unwrap() + 10;
@@ -266,10 +274,19 @@ impl GameServer {
                     *curr_score += bidscore;
                 }
 
+                // resetting the data structures for a round before round start
+                self.wins.insert(player.id, 0);
+                self.bids.insert(player.id, 0);
                 player.clear_hand();
             }
+            // self.clear_previous_round();
             self.advance_trump();
-            self.round += 1;
+            self.curr_round += 1;
+            let curr_dealer = self.dealing_order.remove(0);
+            self.dealing_order.push(curr_dealer);
+
+            let first_player = self.play_order.remove(0);
+            self.play_order.push(first_player);
 
             println!("Player status: {:#?}", self.player_status());
         }
@@ -295,11 +312,27 @@ impl GameServer {
         println!("=== Bidding ===");
         println!("Trump is {}", self.trump);
 
-        for client in &mut self.players {
+        for player_id in self.play_order.iter() {
+            // let curr_index = if self.dealer_idx == self.players.len() as i32 - 1 {
+            //     0
+            // } else {
+            //     self.dealer_idx + 1
+            // };
+
+            let mut client = self.players.get_mut(player_id).unwrap();
             let mut bid = client.get_client_bids();
 
             loop {
-                match validate_bid(&bid, self.round, &self.bids, self.dealer == client.id) {
+                println!(
+                    "\t/debug: bid={}, round={}, bids={:?}, dealer={}",
+                    bid, self.curr_round, self.bids, self.dealer_idx
+                );
+                match validate_bid(
+                    &bid,
+                    self.curr_round,
+                    &self.bids,
+                    self.dealer_idx == client.id,
+                ) {
                     Ok(x) => {
                         println!("bid was: {}", x);
                         self.bids.insert(client.id, x);
@@ -316,8 +349,8 @@ impl GameServer {
     }
 
     fn play_round(&mut self) {
-        for handnum in 0..self.round {
-            println!("--- Hand #{}/{} ---", handnum, self.round);
+        for handnum in 0..self.curr_round {
+            println!("--- Hand #{}/{} ---", handnum, self.curr_round);
             // need to use a few things to see who goes first
             // 1. highest bid (at round start)
             // 2. person who won the trick in last round goes first, then obey existing order
@@ -327,8 +360,8 @@ impl GameServer {
 
             let mut curr_winning_card: Option<Card> = None;
 
-            for x in &self.dealing_order {
-                let player = self.players.get_mut(*x as usize).unwrap();
+            for player_id in self.play_order.iter() {
+                let player = self.players.get_mut(player_id).unwrap();
 
                 let (loc, mut card) = player.play_card();
                 loop {
@@ -392,12 +425,11 @@ impl GameServer {
         println!("=== Dealing ===");
         fastrand::shuffle(&mut self.deck);
 
-        for i in 1..=self.round {
+        for i in 1..=self.curr_round {
             // get random card, give to a player
-            for playerid in self.dealing_order.clone() {
-                let card = self.get_random_card().unwrap();
-                let mut player: &mut GameClient = self.players.get_mut(playerid as usize).unwrap();
-                // .get(playerid).unwrap();
+            for player_id in self.dealing_order.iter() {
+                let card = self.get_random_card().clone().unwrap();
+                let player: &mut GameClient = self.players.get_mut(player_id).unwrap();
 
                 let mut new_card = card.clone();
                 new_card.played_by = Some(player.id.clone());
@@ -451,31 +483,37 @@ fn create_deck() -> Vec<Card> {
 
 fn main() {
     let num_players = 2;
-    let players: Vec<GameClient> = (0..num_players)
+    let max_rounds = Some(3);
+
+    let players: HashMap<i32, GameClient> = (0..num_players)
         .into_iter()
-        .map(|id| GameClient::new(id))
+        .map(|id| (id, GameClient::new(id)))
         .collect();
-    let mut deal_play_order: Vec<i32> = players.iter().map(|player| player.id.clone()).collect();
+    let mut deal_play_order: Vec<i32> = players.iter().map(|(id, player)| id.clone()).collect();
     fastrand::shuffle(&mut deal_play_order);
+
+    let mut play_order = deal_play_order.clone();
+    let first = play_order.swap_remove(0);
+    play_order.push(first);
 
     let mut server = GameServer {
         players: players.clone(),
         deck: create_deck(),
-        round: 1,
+        curr_round: 1,
         trump: Suit::Heart,
         dealing_order: deal_play_order.clone(),
-        play_order: deal_play_order,
-        dealer: 1,
+        play_order: play_order,
+        dealer_idx: 1,
         bids: HashMap::new(),
         wins: HashMap::new(),
         score: HashMap::new(),
     };
 
-    players.iter().for_each(|player| {
-        server.bids.insert(player.id, 0);
-        server.wins.insert(player.id, 0);
-        server.score.insert(player.id, 0);
+    players.iter().for_each(|(&id, player)| {
+        server.bids.insert(id, 0);
+        server.wins.insert(id, 0);
+        server.score.insert(id, 0);
     });
 
-    server.play_game();
+    server.play_game(max_rounds);
 }
