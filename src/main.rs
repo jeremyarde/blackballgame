@@ -108,11 +108,16 @@ impl GameClient {
         self.hand = vec![];
     }
 
-    fn play_card(&mut self) -> (usize, Card) {
+    fn play_card(&mut self, valid_choices: &Vec<Card>) -> (usize, Card) {
         let mut input = String::new();
         println!("Player {}, Select the card you want to play", self.id);
 
         for (i, card) in self.hand.iter().enumerate() {
+            println!("{}: {}", i, card);
+        }
+
+        println!("Valid cards:");
+        for (i, card) in valid_choices.iter().enumerate() {
             println!("{}: {}", i, card);
         }
 
@@ -397,11 +402,18 @@ impl GameServer {
             for player_id in self.play_order.iter() {
                 let player = self.players.get_mut(player_id).unwrap();
 
-                let valid_cards_to_play = player.hand.iter().map(|card| {
-                    is_played_card_valid(&played_cards, &player.hand, card, &self.trump)
-                });
+                let valid_cards_to_play = player
+                    .hand
+                    .iter()
+                    .filter_map(|card| {
+                        match is_played_card_valid(&played_cards, &player.hand, card, &self.trump) {
+                            Ok(x) => Some(x),
+                            Err(err) => None,
+                        }
+                    })
+                    .collect::<Vec<Card>>();
 
-                let (loc, mut card) = player.play_card();
+                let (loc, mut card) = player.play_card(&valid_cards_to_play);
                 loop {
                     match is_played_card_valid(
                         &played_cards.clone(),
@@ -418,7 +430,7 @@ impl GameServer {
                         }
                         Err(e) => {
                             println!("card is NOT valid: {:?}", e);
-                            (_, card) = player.play_card();
+                            (_, card) = player.play_card(&valid_cards_to_play);
                         }
                     }
                 }
