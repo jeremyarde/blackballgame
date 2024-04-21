@@ -1,7 +1,13 @@
 use std::collections::HashMap;
+use std::env;
 use std::fmt;
 use std::io;
-use std::ops::Rem;
+use std::net::SocketAddr;
+use std::sync::Arc;
+
+use tokio::net::TcpListener;
+use tokio::net::TcpStream;
+use tokio::sync::Mutex;
 
 #[derive(Debug, Clone, PartialOrd, PartialEq, Ord, Eq)]
 enum Suit {
@@ -532,7 +538,8 @@ fn create_deck() -> Vec<Card> {
     return cards;
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let num_players = 3;
     let max_rounds = Some(3);
 
@@ -567,4 +574,40 @@ fn main() {
     });
 
     server.play_game(max_rounds);
+
+    let addr = env::args()
+        .nth(1)
+        .unwrap_or_else(|| "127.0.0.1:6142".to_string());
+    let listener = TcpListener::bind(&addr).await.unwrap();
+
+    loop {
+        // Asynchronously wait for an inbound TcpStream.
+        let (stream, addr) = listener.accept().await.unwrap();
+
+        let serverstate = Arc::new(Mutex::new(server.clone()));
+
+        // Clone a handle to the `Shared` state for the new connection.
+        let state = Arc::clone(&serverstate);
+
+        // Spawn our handler to be run asynchronously.
+        tokio::spawn(async move {
+            tracing::debug!("accepted connection");
+            if let Err(e) = server_process(state, stream, addr).await {
+                tracing::info!("an error occurred; error = {:?}", e);
+            }
+        });
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ServerError {
+    UnknownError,
+}
+
+async fn server_process(
+    state: Arc<Mutex<GameServer>>,
+    stream: TcpStream,
+    addr: SocketAddr,
+) -> Result<(), ServerError> {
+    Ok(())
 }
