@@ -1,13 +1,61 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::env;
 use std::fmt;
 use std::io;
 use std::net::SocketAddr;
+use std::ops::ControlFlow;
+use std::path::PathBuf;
+use std::str::Bytes;
 use std::sync::Arc;
 
+use axum::extract::ws::CloseFrame;
+use axum::extract::ConnectInfo;
+use axum::response::IntoResponse;
+use axum::response::Response;
+use axum::routing::get;
+use axum::Router;
+use axum_extra::headers;
+use axum_extra::TypedHeader;
+use client::GameClient;
+use futures_util::SinkExt;
+use futures_util::StreamExt;
+use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
+use tokio::sync::mpsc;
 use tokio::sync::Mutex;
+
+use tower_http::services::ServeDir;
+use tracing::info;
+
+use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+use tracing_subscriber::fmt::format::FmtSpan;
+use tracing_subscriber::EnvFilter;
+
+mod client;
+
+#[derive(Debug, Clone, Copy)]
+enum ServerError {}
+
+async fn server_process(
+    state: Arc<Mutex<GameServer>>,
+    mut stream: TcpStream,
+    addr: SocketAddr,
+) -> Result<(), ServerError> {
+    tracing::info!("Starting up server...");
+
+    let mut server = state.lock().await;
+
+    stream.write_all(b"hello, world").await.unwrap();
+    info!("success writing some bytes");
+    // wait for people to connect
+    // start game, ask for input from people, progress game
+    let max_rounds = Some(3);
+
+    server.play_game(max_rounds);
+    Ok(())
+}
 
 #[derive(Debug, Clone, PartialOrd, PartialEq, Ord, Eq)]
 enum Suit {
@@ -68,7 +116,7 @@ impl fmt::Display for Card {
 //     }
 // }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct GameServer {
     players: HashMap<i32, GameClient>,
     deck: Vec<Card>,
@@ -82,104 +130,10 @@ struct GameServer {
     score: HashMap<i32, i32>,
 }
 
-#[derive(Debug, Clone)]
-struct GameClient {
-    id: i32,
-    hand: Vec<Card>,
-    order: i32,
-    trump: Suit,
-    round: i32,
-    state: PlayerState,
-}
-
 #[derive(Debug, Clone, Copy)]
 enum PlayerState {
     Idle,
     RequireInput,
-}
-
-impl GameClient {
-    fn new(id: i32) -> Self {
-        return GameClient {
-            id,
-            state: PlayerState::Idle,
-            hand: vec![],
-            order: 0,
-            round: 0,
-            trump: Suit::Heart,
-        };
-    }
-
-    fn clear_hand(&mut self) {
-        self.hand = vec![];
-    }
-
-    fn play_card(&mut self, valid_choices: &Vec<Card>) -> (usize, Card) {
-        let mut input = String::new();
-        println!("Player {}, Select the card you want to play", self.id);
-
-        for (i, card) in self.hand.iter().enumerate() {
-            println!("{}: {}", i, card);
-        }
-
-        println!("Valid cards:");
-        for (i, card) in valid_choices.iter().enumerate() {
-            println!("{}: {}", i, card);
-        }
-
-        io::stdin()
-            .read_line(&mut input)
-            .expect("error: unable to read user input");
-
-        let mut parse_result = input.trim().parse::<i32>();
-        while parse_result.is_err()
-            || !(0..self.hand.len()).contains(&(parse_result.clone().unwrap() as usize))
-        {
-            println!(
-                "{:?} is invalid, please enter a valid card position.",
-                parse_result
-            );
-            input = String::new();
-            io::stdin()
-                .read_line(&mut input)
-                .expect("error: unable to read user input");
-            parse_result = input.trim().parse::<i32>();
-        }
-        println!("range: {:?}, selected: {}", (0..self.hand.len() - 1), input);
-
-        return (
-            parse_result.clone().unwrap() as usize,
-            self.hand[(parse_result.unwrap()) as usize].clone(),
-        );
-    }
-
-    fn get_client_bids(&mut self, allowed_bids: &Vec<i32>) -> i32 {
-        println!("Your hand:");
-        self.hand.iter().for_each(|card| println!("{}", card));
-
-        let mut input = String::new();
-        // let mut valid = 0;
-        println!("How many tricks do you want?");
-        println!("{:#?}", allowed_bids);
-
-        io::stdin()
-            .read_line(&mut input)
-            .expect("error: unable to read user input");
-
-        loop {
-            let client_bid = input.trim().parse::<i32>();
-            if client_bid.is_err() {
-                continue;
-            } else {
-                let bid = client_bid.unwrap();
-                if allowed_bids.contains(&bid) {
-                    return bid;
-                } else {
-                    continue;
-                }
-            }
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -283,13 +237,13 @@ impl GameServer {
             52i32.div_euclid(num_players)
         };
 
-        println!("Players: {}\nRounds: {}", num_players, max_rounds);
+        tracing::info!("Players: {}\nRounds: {}", num_players, max_rounds);
 
         for round in 1..=max_rounds {
-            println!("\n-- Round {} --", round);
+            tracing::info!("\n-- Round {} --", round);
 
-            println!("\t/debug: deal order: {:#?}", self.dealing_order);
-            println!("\t/debug: play order: {:#?}", self.play_order);
+            tracing::info!("\t/debug: deal order: {:#?}", self.dealing_order);
+            tracing::info!("\t/debug: play order: {:#?}", self.play_order);
 
             self.deal();
             self.bids();
@@ -300,12 +254,11 @@ impl GameServer {
             // 2. empty player hands, shuffle deck
             // 3. redistribute cards based on the round
 
-            println!("Bids won: {:#?}\nBids wanted: {:#?}", self.wins, self.bids);
+            tracing::info!("Bids won: {:#?}\nBids wanted: {:#?}", self.wins, self.bids);
             for player_id in self.play_order.iter() {
                 let player = self.players.get_mut(player_id).unwrap();
 
                 if self.wins.get(&player.id) == self.bids.get(&player.id) {
-                    println!("debug/ player won what they wanted, adding to score");
                     let bidscore = self.bids.get(&player.id).unwrap() + 10;
                     let curr_score = self.score.get_mut(&player.id).unwrap();
                     *curr_score += bidscore;
@@ -325,7 +278,7 @@ impl GameServer {
             let first_player = self.play_order.remove(0);
             self.play_order.push(first_player);
 
-            println!("Player status: {:#?}", self.player_status());
+            tracing::info!("Player status: {:#?}", self.player_status());
         }
         // stages of the game
     }
@@ -346,8 +299,8 @@ impl GameServer {
     }
 
     fn bids(&mut self) {
-        println!("=== Bidding ===");
-        println!("Trump is {}", self.trump);
+        tracing::info!("=== Bidding ===");
+        tracing::info!("Trump is {}", self.trump);
 
         for player_id in self.play_order.iter() {
             // let curr_index = if self.dealer_idx == self.players.len() as i32 - 1 {
@@ -355,7 +308,7 @@ impl GameServer {
             // } else {
             //     self.dealer_idx + 1
             // };
-            println!("Player {} to bid", player_id);
+            tracing::info!("Player {} to bid", player_id);
             let mut client = self.players.get_mut(player_id).unwrap();
             let valid_bids = valid_bids(
                 self.curr_round,
@@ -365,9 +318,12 @@ impl GameServer {
             let mut bid = client.get_client_bids(&valid_bids);
 
             loop {
-                println!(
+                tracing::info!(
                     "\t/debug: bid={}, round={}, bids={:?}, dealer={}",
-                    bid, self.curr_round, self.bids, self.dealing_order[0]
+                    bid,
+                    self.curr_round,
+                    self.bids,
+                    self.dealing_order[0]
                 );
                 match validate_bid(
                     &bid,
@@ -376,25 +332,27 @@ impl GameServer {
                     self.dealing_order[0] == client.id,
                 ) {
                     Ok(x) => {
-                        println!("bid was: {}", x);
+                        tracing::info!("bid was: {}", x);
                         self.bids.insert(client.id, x);
                         break;
                     }
                     Err(e) => {
-                        println!("Error with bid: {:?}", e);
+                        tracing::info!("Error with bid: {:?}", e);
                         bid = client.get_client_bids(&valid_bids);
                     }
                 }
             }
         }
-        println!("Biding over, bids are: {:?}", self.bids);
+        tracing::info!("Biding over, bids are: {:?}", self.bids);
     }
 
     fn play_round(&mut self) {
         for handnum in 1..=self.curr_round {
-            println!(
+            tracing::info!(
                 "--- Hand #{}/{} - Trump: {}---",
-                handnum, self.curr_round, self.trump
+                handnum,
+                self.curr_round,
+                self.trump
             );
             // need to use a few things to see who goes first
             // 1. highest bid (at round start)
@@ -428,14 +386,14 @@ impl GameServer {
                         &self.trump,
                     ) {
                         Ok(x) => {
-                            println!("card is valid");
+                            tracing::info!("card is valid");
                             card = x;
                             // remove the card from the players hand
                             player.hand.remove(loc);
                             break;
                         }
                         Err(e) => {
-                            println!("card is NOT valid: {:?}", e);
+                            tracing::info!("card is NOT valid: {:?}", e);
                             (_, card) = player.play_card(&valid_cards_to_play);
                         }
                     }
@@ -458,18 +416,21 @@ impl GameServer {
                     }
                 }
 
-                println!(
+                tracing::info!(
                     "Curr winning card: {:?}",
                     curr_winning_card.clone().unwrap()
                 );
             }
 
-            println!("End turn, trump={:?}, played cards:", self.trump);
-            played_cards.clone().iter().for_each(|c| println!("{}", c));
+            tracing::info!("End turn, trump={:?}, played cards:", self.trump);
+            played_cards
+                .clone()
+                .iter()
+                .for_each(|c| tracing::info!("{}", c));
 
             let win_card = curr_winning_card.unwrap();
             let winner = win_card.played_by;
-            println!("Player {:?} won. Winning card: {}", winner, win_card);
+            tracing::info!("Player {:?} won. Winning card: {}", winner, win_card);
 
             if let Some(x) = self.wins.get_mut(&winner.unwrap()) {
                 *x = *x + 1;
@@ -478,8 +439,8 @@ impl GameServer {
     }
 
     fn deal(&mut self) {
-        println!("=== Dealing ===");
-        println!("Dealer: {}", self.dealing_order[0]);
+        tracing::info!("=== Dealing ===");
+        tracing::info!("Dealer: {}", self.dealing_order[0]);
         fastrand::shuffle(&mut self.deck);
 
         for i in 1..=self.curr_round {
@@ -496,8 +457,8 @@ impl GameServer {
     }
 
     fn player_status(&self) {
-        // println!("{:?}", self.players);
-        println!("Score:\n{:?}", self.score);
+        // tracing::info!("{:?}", self.players);
+        tracing::info!("Score:\n{:?}", self.score);
     }
 }
 
@@ -538,6 +499,165 @@ fn create_deck() -> Vec<Card> {
     return cards;
 }
 
+/// Shorthand for the transmit half of the message channel.
+type Tx = mpsc::UnboundedSender<String>;
+
+/// Shorthand for the receive half of the message channel.
+type Rx = mpsc::UnboundedReceiver<String>;
+
+type PeerMap = Arc<Mutex<HashMap<SocketAddr, Tx>>>;
+
+/// helper to print contents of messages to stdout. Has special treatment for Close.
+fn process_message(msg: Message, who: SocketAddr) -> ControlFlow<(), ()> {
+    match msg {
+        Message::Text(t) => {
+            println!(">>> {who} sent str: {t:?}");
+        }
+        Message::Binary(d) => {
+            println!(">>> {} sent {} bytes: {:?}", who, d.len(), d);
+        }
+        Message::Close(c) => {
+            if let Some(cf) = c {
+                println!(
+                    ">>> {} sent close with code {} and reason `{}`",
+                    who, cf.code, cf.reason
+                );
+            } else {
+                println!(">>> {who} somehow sent close message without CloseFrame");
+            }
+            return ControlFlow::Break(());
+        }
+
+        Message::Pong(v) => {
+            println!(">>> {who} sent pong with {v:?}");
+        }
+        // You should never need to manually handle Message::Ping, as axum's websocket library
+        // will do so for you automagically by replying with Pong and copying the v according to
+        // spec. But if you need the contents of the pings you can see them here.
+        Message::Ping(v) => {
+            println!(">>> {who} sent ping with {v:?}");
+        }
+    }
+    ControlFlow::Continue(())
+}
+
+/// Actual websocket statemachine (one will be spawned per connection)
+async fn handle_socket(mut socket: WebSocket, who: SocketAddr) {
+    // send a ping (unsupported by some browsers) just to kick things off and get a response
+    if socket.send(Message::Ping(vec![1, 2, 3])).await.is_ok() {
+        println!("Pinged {who}...");
+    } else {
+        println!("Could not send ping {who}!");
+        // no Error here since the only thing we can do is to close the connection.
+        // If we can not send messages, there is no way to salvage the statemachine anyway.
+        return;
+    }
+
+    // receive single message from a client (we can either receive or send with socket).
+    // this will likely be the Pong for our Ping or a hello message from client.
+    // waiting for message from a client will block this task, but will not block other client's
+    // connections.
+    if let Some(msg) = socket.recv().await {
+        if let Ok(msg) = msg {
+            if process_message(msg, who).is_break() {
+                return;
+            }
+        } else {
+            println!("client {who} abruptly disconnected");
+            return;
+        }
+    }
+
+    // Since each client gets individual statemachine, we can pause handling
+    // when necessary to wait for some external event (in this case illustrated by sleeping).
+    // Waiting for this client to finish getting its greetings does not prevent other clients from
+    // connecting to server and receiving their greetings.
+    // for i in 1..5 {
+    //     if socket
+    //         .send(Message::Text(format!("Hi {i} times!")))
+    //         .await
+    //         .is_err()
+    //     {
+    //         println!("client {who} abruptly disconnected");
+    //         return;
+    //     }
+    //     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    // }
+
+    // By splitting socket we can send and receive at the same time. In this example we will send
+    // unsolicited messages to client based on some sort of server's internal event (i.e .timer).
+    let (mut sender, mut receiver) = socket.split();
+
+    // Spawn a task that will push several messages to the client (does not matter what client does)
+    let mut send_task = tokio::spawn(async move {
+        // println!("Sending close to {who}...");
+        // if let Err(e) = sender
+        //     .send(Message::Close(Some(CloseFrame {
+        //         code: axum::extract::ws::close_code::NORMAL,
+        //         reason: Cow::from("Goodbye"),
+        //     })))
+        //     .await
+        // {
+        //     println!("Could not send Close due to {e}, probably it is ok?");
+        // }
+        // n_msg
+    });
+
+    // This second task will receive messages from client and print them on server console
+    let mut recv_task = tokio::spawn(async move {
+        let mut cnt = 0;
+        while let Some(Ok(msg)) = receiver.next().await {
+            cnt += 1;
+            // print message and break if instructed to do so
+            if process_message(msg, who).is_break() {
+                break;
+            }
+        }
+        cnt
+    });
+
+    // If any one of the tasks exit, abort the other.
+    tokio::select! {
+        rv_a = (&mut send_task) => {
+            match rv_a {
+                Ok(a) => println!("{a} messages sent to {who}"),
+                Err(a) => println!("Error sending messages {a:?}")
+            }
+            recv_task.abort();
+        },
+        rv_b = (&mut recv_task) => {
+            match rv_b {
+                Ok(b) => println!("Received {b} messages"),
+                Err(b) => println!("Error receiving messages {b:?}")
+            }
+            send_task.abort();
+        }
+    }
+
+    // returning from the handler closes the websocket connection
+    println!("Websocket context {who} destroyed");
+}
+
+async fn ws_handler(
+    ws: WebSocketUpgrade,
+    user_agent: Option<TypedHeader<headers::UserAgent>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+) -> impl IntoResponse {
+    let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
+        user_agent.to_string()
+    } else {
+        String::from("Unknown browser")
+    };
+    println!("`{user_agent}` at {addr} connected.");
+    // finalize the upgrade process by returning upgrade callback.
+    // we can customize the callback by sending additional info such as address.
+    ws.on_upgrade(move |socket| handle_socket(socket, addr))
+}
+
+async fn root() -> &'static str {
+    "Hello, World"
+}
+
 #[tokio::main]
 async fn main() {
     let num_players = 3;
@@ -545,7 +665,11 @@ async fn main() {
 
     let players: HashMap<i32, GameClient> = (0..num_players)
         .into_iter()
-        .map(|id| (id, GameClient::new(id)))
+        .map(|id| {
+            let (tx, rx) = mpsc::unbounded_channel();
+
+            return (id, GameClient::new(id, rx, tx));
+        })
         .collect();
     let mut deal_play_order: Vec<i32> = players.iter().map(|(id, player)| id.clone()).collect();
     fastrand::shuffle(&mut deal_play_order);
@@ -555,7 +679,7 @@ async fn main() {
     play_order.push(first);
 
     let mut server = GameServer {
-        players: players.clone(),
+        players: players,
         deck: create_deck(),
         curr_round: 1,
         trump: Suit::Heart,
@@ -567,47 +691,77 @@ async fn main() {
         score: HashMap::new(),
     };
 
-    players.iter().for_each(|(&id, player)| {
+    server.players.iter().for_each(|(&id, player)| {
         server.bids.insert(id, 0);
         server.wins.insert(id, 0);
         server.score.insert(id, 0);
     });
 
-    server.play_game(max_rounds);
+    // Configure a `tracing` subscriber that logs traces emitted by the chat
+    // server.
+    tracing_subscriber::fmt()
+        // Filter what traces are displayed based on the RUST_LOG environment
+        // variable.
+        //
+        // Traces emitted by the example code will always be displayed. You
+        // can set `RUST_LOG=tokio=trace` to enable additional traces emitted by
+        // Tokio itself.
+        .with_env_filter(
+            EnvFilter::from_default_env()
+                .add_directive("blackballgame-server=info".parse().unwrap()),
+        )
+        // Log events when `tracing` spans are created, entered, exited, or
+        // closed. When Tokio's internal tracing support is enabled (as
+        // described above), this can be used to track the lifecycle of spawned
+        // tasks on the Tokio runtime.
+        .with_span_events(FmtSpan::FULL)
+        // Set this subscriber as the default, to collect all traces emitted by
+        // the program.
+        .init();
 
     let addr = env::args()
         .nth(1)
         .unwrap_or_else(|| "127.0.0.1:6142".to_string());
+
     let listener = TcpListener::bind(&addr).await.unwrap();
 
-    loop {
-        // Asynchronously wait for an inbound TcpStream.
-        let (stream, addr) = listener.accept().await.unwrap();
+    let serverstate = Arc::new(Mutex::new(server));
 
-        let serverstate = Arc::new(Mutex::new(server.clone()));
+    let assets_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets");
 
-        // Clone a handle to the `Shared` state for the new connection.
-        let state = Arc::clone(&serverstate);
+    let app = Router::new()
+        // `GET /` goes to `root`
+        .fallback_service(ServeDir::new(assets_dir).append_index_html_on_directories(true))
+        .route("/", get(root))
+        .route("/ws", get(ws_handler))
+        // .route("/game", get(Game))
+        .with_state(serverstate);
 
-        // Spawn our handler to be run asynchronously.
-        tokio::spawn(async move {
-            tracing::debug!("accepted connection");
-            if let Err(e) = server_process(state, stream, addr).await {
-                tracing::info!("an error occurred; error = {:?}", e);
-            }
-        });
-    }
-}
+    // run our app with hyper, listening globally on port 3000
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .unwrap();
 
-#[derive(Debug, Clone, Copy)]
-enum ServerError {
-    UnknownError,
-}
+    // loop {
+    //     tracing::info!("Waiting for inbound TcpStream");
+    //     // Asynchronously wait for an inbound TcpStream.
+    //     let (stream, addr) = listener.accept().await.unwrap();
 
-async fn server_process(
-    state: Arc<Mutex<GameServer>>,
-    stream: TcpStream,
-    addr: SocketAddr,
-) -> Result<(), ServerError> {
-    Ok(())
+    //     tracing::info!("Got message, beginning game...");
+
+    //     // Clone a handle to the `Shared` state for the new connection.
+    //     let state = Arc::clone(&serverstate);
+
+    //     // Spawn our handler to be run asynchronously.
+    //     tokio::spawn(async move {
+    //         tracing::debug!("accepted connection");
+    //         if let Err(e) = server_process(state, stream, addr).await {
+    //             tracing::info!("an error occurred; error = {:?}", e);
+    //         }
+    //     });
+    // }
 }
