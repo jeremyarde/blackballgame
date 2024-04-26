@@ -11,7 +11,7 @@ function App() {
   const socket = new WebSocket('ws://127.0.0.1:3000/ws');
   socket.onmessage = (event) => {
     console.log(event)
-    setServerState(event)
+    setServerState(event.data)
   }
 
   return (

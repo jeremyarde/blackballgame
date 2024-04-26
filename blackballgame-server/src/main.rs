@@ -1,7 +1,9 @@
+use std::borrow::BorrowMut;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::env;
 use std::fmt;
+use std::future::IntoFuture;
 use std::io;
 use std::net::SocketAddr;
 use std::ops::ControlFlow;
@@ -12,6 +14,7 @@ use std::sync::Arc;
 use axum::extract::ws::CloseFrame;
 use axum::extract::ConnectInfo;
 use axum::extract::Path;
+use axum::extract::State;
 use axum::http::Method;
 use axum::response::IntoResponse;
 use axum::response::Response;
@@ -22,6 +25,9 @@ use axum_extra::TypedHeader;
 use client::GameClient;
 use futures_util::SinkExt;
 use futures_util::StreamExt;
+use serde::Deserialize;
+use serde::Serialize;
+use serde_json::json;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
@@ -62,7 +68,7 @@ async fn server_process(
     Ok(())
 }
 
-#[derive(Debug, Clone, PartialOrd, PartialEq, Ord, Eq)]
+#[derive(Debug, Clone, PartialOrd, PartialEq, Ord, Eq, Serialize, Deserialize)]
 enum Suit {
     Heart,
     Diamond,
@@ -84,7 +90,7 @@ impl fmt::Display for Suit {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize)]
 struct Card {
     id: usize,
     suit: Suit,
@@ -547,7 +553,7 @@ fn process_message(msg: Message, who: SocketAddr) -> ControlFlow<(), ()> {
 }
 
 /// Actual websocket statemachine (one will be spawned per connection)
-async fn handle_socket(mut socket: WebSocket, who: SocketAddr) {
+async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Mutex<GameServer>>) {
     // send a ping (unsupported by some browsers) just to kick things off and get a response
     if socket.send(Message::Ping(vec![1, 2, 3])).await.is_ok() {
         println!("Pinged {who}...");
@@ -617,8 +623,17 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr) {
             if process_message(msg, who).is_break() {
                 break;
             }
+
+            let mut game = state.borrow_mut().lock().await;
+            game.play_game(Some(2));
+
             sender
-                .send(Message::Text("Sending from server :)".to_string()))
+                .send(Message::Text(
+                    json!({
+                        "hand": game.players.get(&0).unwrap().hand
+                    })
+                    .to_string(),
+                ))
                 .await
                 .unwrap()
         }
@@ -651,6 +666,7 @@ async fn ws_handler(
     ws: WebSocketUpgrade,
     user_agent: Option<TypedHeader<headers::UserAgent>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    State(state): State<Arc<Mutex<GameServer>>>,
 ) -> impl IntoResponse {
     let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
         user_agent.to_string()
@@ -660,7 +676,7 @@ async fn ws_handler(
     println!("`{user_agent}` at {addr} connected.");
     // finalize the upgrade process by returning upgrade callback.
     // we can customize the callback by sending additional info such as address.
-    ws.on_upgrade(move |socket| handle_socket(socket, addr))
+    ws.on_upgrade(move |socket| handle_socket(socket, addr, state))
 }
 
 async fn root() -> &'static str {
