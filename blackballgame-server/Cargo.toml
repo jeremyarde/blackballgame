@@ -16,6 +16,6 @@ serde = {version = "1.0.198", features = ["derive"]}
 tokio = {version = "1.37.0", features = ["full"]}
 tokio-tungstenite = "0.21"
 tower = {version = "0.4", features = ["util"]}
-tower-http = {version = "0.5.0", features = ["fs", "trace"]}
+tower-http = {version = "0.5.0", features = ["full"]}
 tracing = "0.1.40"
 tracing-subscriber = {version = "0.3.18", default-features = false, features = ["fmt", "ansi", "env-filter", "tracing-log"]}

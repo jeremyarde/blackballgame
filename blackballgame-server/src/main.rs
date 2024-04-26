@@ -11,6 +11,8 @@ use std::sync::Arc;
 
 use axum::extract::ws::CloseFrame;
 use axum::extract::ConnectInfo;
+use axum::extract::Path;
+use axum::http::Method;
 use axum::response::IntoResponse;
 use axum::response::Response;
 use axum::routing::get;
@@ -26,7 +28,10 @@ use tokio::net::TcpStream;
 use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 
+use tower_http::cors::Any;
+use tower_http::cors::CorsLayer;
 use tower_http::services::ServeDir;
+use tower_http::services::ServeFile;
 use tracing::info;
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
@@ -612,6 +617,10 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr) {
             if process_message(msg, who).is_break() {
                 break;
             }
+            sender
+                .send(Message::Text("Sending from server :)".to_string()))
+                .await
+                .unwrap()
         }
         cnt
     });
@@ -727,13 +736,28 @@ async fn main() {
 
     let serverstate = Arc::new(Mutex::new(server));
 
-    let assets_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets");
+    let cors = CorsLayer::new()
+        // allow `GET` and `POST` when accessing the resource
+        .allow_methods([Method::GET, Method::POST])
+        // allow requests from any origin
+        .allow_origin(Any);
+
+    // let assets_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets");
+    let assets_dir =
+        PathBuf::from("/Users/jarde/Documents/code/blackballgame/blackballgame-client/dist");
 
     let app = Router::new()
         // `GET /` goes to `root`
-        .fallback_service(ServeDir::new(assets_dir).append_index_html_on_directories(true))
-        .route("/", get(root))
+        // .fallback_service(ServeDir::new(assets_dir).append_index_html_on_directories(true))
+        // .route("/", get(root))
         .route("/ws", get(ws_handler))
+        .nest_service(
+            "/",
+            ServeDir::new(assets_dir)
+                .fallback(ServeFile::new("blackballgame-server/assets/index.html")),
+        )
+        .layer(cors)
+        // .route("/ui".get(ServeDir::new(assets_dir).append_index_html_on_directories(true)))
         // .route("/game", get(Game))
         .with_state(serverstate);
 

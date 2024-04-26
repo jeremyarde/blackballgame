@@ -1,17 +1,8 @@
-# Development
+# React + Vite
 
-1. Install npm: https://docs.npmjs.com/downloading-and-installing-node-js-and-npm
-2. Install the tailwind css cli: https://tailwindcss.com/docs/installation
-3. Run the following command in the root of the project to start the tailwind CSS compiler:
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-```bash
-npx tailwindcss -i ./input.css -o ./public/tailwind.css --watch
-```
+Currently, two official plugins are available:
 
-Run the following command in the root of the project to start the Dioxus dev server:
-
-```bash
-dx serve --hot-reload
-```
-
-- Open the browser to http://localhost:8080
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
