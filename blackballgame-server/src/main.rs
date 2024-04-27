@@ -49,23 +49,20 @@ mod client;
 #[derive(Debug, Clone, Copy)]
 enum ServerError {}
 
-async fn server_process(
-    state: Arc<Mutex<GameServer>>,
-    mut stream: TcpStream,
-    addr: SocketAddr,
-) -> Result<(), ServerError> {
-    tracing::info!("Starting up server...");
+enum EventType {
+    PlayCard(Card),
+    DealCard(Card),
+    WinHand,
+    WinRound,
+    Bid(i32),
+}
 
-    let mut server = state.lock().await;
-
-    stream.write_all(b"hello, world").await.unwrap();
-    info!("success writing some bytes");
-    // wait for people to connect
-    // start game, ask for input from people, progress game
-    let max_rounds = Some(3);
-
-    server.play_game(max_rounds);
-    Ok(())
+#[derive(Debug)]
+enum GameState {
+    Deal,
+    Bid,
+    Play,
+    Pregame,
 }
 
 #[derive(Debug, Clone, PartialOrd, PartialEq, Ord, Eq, Serialize, Deserialize)]
@@ -88,6 +85,25 @@ impl fmt::Display for Suit {
         };
         write!(f, "{}", suit)
     }
+}
+
+async fn server_process(
+    state: Arc<Mutex<GameServer>>,
+    mut stream: TcpStream,
+    addr: SocketAddr,
+) -> Result<(), ServerError> {
+    tracing::info!("Starting up server...");
+
+    let mut server = state.lock().await;
+
+    stream.write_all(b"hello, world").await.unwrap();
+    info!("success writing some bytes");
+    // wait for people to connect
+    // start game, ask for input from people, progress game
+    let max_rounds = Some(3);
+
+    server.play_game(max_rounds);
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize)]
@@ -139,6 +155,7 @@ struct GameServer {
     bids: HashMap<i32, i32>,
     wins: HashMap<i32, i32>,
     score: HashMap<i32, i32>,
+    state: GameState,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -714,6 +731,7 @@ async fn main() {
         bids: HashMap::new(),
         wins: HashMap::new(),
         score: HashMap::new(),
+        state: GameState::Pregame,
     };
 
     server.players.iter().for_each(|(&id, player)| {
@@ -722,33 +740,13 @@ async fn main() {
         server.score.insert(id, 0);
     });
 
-    // Configure a `tracing` subscriber that logs traces emitted by the chat
-    // server.
     tracing_subscriber::fmt()
-        // Filter what traces are displayed based on the RUST_LOG environment
-        // variable.
-        //
-        // Traces emitted by the example code will always be displayed. You
-        // can set `RUST_LOG=tokio=trace` to enable additional traces emitted by
-        // Tokio itself.
         .with_env_filter(
             EnvFilter::from_default_env()
                 .add_directive("blackballgame-server=info".parse().unwrap()),
         )
-        // Log events when `tracing` spans are created, entered, exited, or
-        // closed. When Tokio's internal tracing support is enabled (as
-        // described above), this can be used to track the lifecycle of spawned
-        // tasks on the Tokio runtime.
         .with_span_events(FmtSpan::FULL)
-        // Set this subscriber as the default, to collect all traces emitted by
-        // the program.
         .init();
-
-    let addr = env::args()
-        .nth(1)
-        .unwrap_or_else(|| "127.0.0.1:6142".to_string());
-
-    let listener = TcpListener::bind(&addr).await.unwrap();
 
     let serverstate = Arc::new(Mutex::new(server));
 
