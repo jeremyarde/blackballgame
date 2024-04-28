@@ -1,12 +1,14 @@
 use std::{io, os::unix::net::SocketAddr};
 
+use axum::extract::ws::{Message, WebSocket};
+use futures_util::stream::SplitSink;
 use tokio::sync::mpsc;
 
 use crate::{Card, PlayerState, Rx, Suit, Tx};
 
 #[derive(Debug)]
 pub struct GameClient {
-    pub id: i32,
+    pub id: String,
     pub hand: Vec<Card>,
     pub order: i32,
     pub trump: Suit,
@@ -18,7 +20,7 @@ pub struct GameClient {
 }
 
 impl GameClient {
-    pub fn new(id: i32, rx: Rx, tx: Tx) -> Self {
+    pub fn new(id: String, rx: Rx, tx: Tx) -> Self {
         // let (tx, rx) = mpsc::unbounded_channel();
 
         return GameClient {

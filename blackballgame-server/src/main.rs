@@ -23,7 +23,9 @@ use axum::Router;
 use axum_extra::headers;
 use axum_extra::TypedHeader;
 use client::GameClient;
+use futures_util::stream::SplitSink;
 use futures_util::SinkExt;
+use futures_util::Stream;
 use futures_util::StreamExt;
 use serde::Deserialize;
 use serde::Serialize;
@@ -48,6 +50,10 @@ mod client;
 
 #[derive(Debug, Clone, Copy)]
 enum ServerError {}
+
+struct AllGames {
+    games: Mutex<HashMap<String, GameServer>>,
+}
 
 enum EventType {
     PlayCard(Card),
@@ -111,13 +117,13 @@ struct Card {
     id: usize,
     suit: Suit,
     value: i32,
-    played_by: Option<i32>,
+    played_by: Option<String>,
 }
 
 impl fmt::Display for Card {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let played_by = if self.played_by.is_some() {
-            format!(" (Player {})", self.played_by.unwrap())
+            format!(" (Player {:?})", self.played_by)
         } else {
             String::new()
         };
@@ -145,16 +151,16 @@ impl fmt::Display for Card {
 
 #[derive(Debug)]
 struct GameServer {
-    players: HashMap<i32, GameClient>,
+    players: HashMap<String, GameClient>,
     deck: Vec<Card>,
     curr_round: i32,
     trump: Suit,
-    dealing_order: Vec<i32>,
-    play_order: Vec<i32>,
+    dealing_order: Vec<String>,
+    play_order: Vec<String>,
     // dealer_id: i32,
-    bids: HashMap<i32, i32>,
-    wins: HashMap<i32, i32>,
-    score: HashMap<i32, i32>,
+    bids: HashMap<String, i32>,
+    wins: HashMap<String, i32>,
+    score: HashMap<String, i32>,
     state: GameState,
 }
 
@@ -172,7 +178,7 @@ enum BidError {
     EqualsRound,
 }
 
-fn valid_bids(curr_round: i32, curr_bids: &HashMap<i32, i32>, is_dealer: bool) -> Vec<i32> {
+fn valid_bids(curr_round: i32, curr_bids: &HashMap<String, i32>, is_dealer: bool) -> Vec<i32> {
     let mut valid_bids = vec![];
     for bid in 0..=curr_round {
         match validate_bid(&bid, curr_round, curr_bids, is_dealer) {
@@ -186,7 +192,7 @@ fn valid_bids(curr_round: i32, curr_bids: &HashMap<i32, i32>, is_dealer: bool) -
 fn validate_bid(
     bid: &i32,
     curr_round: i32,
-    curr_bids: &HashMap<i32, i32>,
+    curr_bids: &HashMap<String, i32>,
     is_dealer: bool,
 ) -> Result<i32, BidError> {
     // can bid between 0..=round number
@@ -254,7 +260,68 @@ fn get_random_card(mut deck: &mut Vec<Card>) -> Option<Card> {
 }
 
 impl GameServer {
+    // fn handle_event(&mut self, evt: String) {
+    //     println!("Game recieved event: {}", evt);
+
+    //     if evt.contains("show") {
+    //         sender
+    //             .send(Message::Text(
+    //                 json!({
+    //                     "hand": game.players.get(&0).unwrap().hand
+    //                 })
+    //                 .to_string(),
+    //             ))
+    //             .await
+    //             .unwrap()
+    //     }
+
+    //     if t.contains("join") {}
+    // }
+
+    fn new() -> Self {
+        let mut server = GameServer {
+            players: HashMap::new(),
+            deck: create_deck(),
+            curr_round: 1,
+            trump: Suit::Heart,
+            dealing_order: vec![],
+            play_order: vec![],
+            // dealer_id: deal_play_order[0],
+            bids: HashMap::new(),
+            wins: HashMap::new(),
+            score: HashMap::new(),
+            state: GameState::Pregame,
+        };
+        server
+    }
+
+    fn add_player(
+        &mut self,
+        player_id: String,
+        rx: SplitSink<WebSocket, Message>,
+        tx: SplitSink<WebSocket, Message>,
+    ) {
+        self.players
+            .insert(player_id.clone(), GameClient::new(player_id, rx, tx));
+    }
+
     fn play_game(&mut self, max_rounds: Option<i32>) {
+        // let num_players = 3;
+        // let max_rounds = Some(3);
+        let mut deal_play_order: Vec<String> =
+            self.players.iter().map(|(id, player)| id.clone()).collect();
+        fastrand::shuffle(&mut deal_play_order);
+
+        let mut play_order = deal_play_order.clone();
+        let first = play_order.remove(0);
+        play_order.push(first);
+
+        self.players.iter().for_each(|(id, player)| {
+            self.bids.insert(id.clone(), 0);
+            self.wins.insert(id.clone(), 0);
+            self.score.insert(id.clone(), 0);
+        });
+
         let num_players = self.players.len() as i32;
 
         let max_rounds = if max_rounds.is_some() {
@@ -293,8 +360,8 @@ impl GameServer {
                 }
 
                 // resetting the data structures for a round before round start
-                self.wins.insert(player.id, 0);
-                self.bids.insert(player.id, 0);
+                self.wins.insert(player.id.clone(), 0);
+                self.bids.insert(player.id.clone(), 0);
                 player.clear_hand();
             }
             // self.clear_previous_round();
@@ -361,7 +428,7 @@ impl GameServer {
                 ) {
                     Ok(x) => {
                         tracing::info!("bid was: {}", x);
-                        self.bids.insert(client.id, x);
+                        self.bids.insert(client.id.clone(), x);
                         break;
                     }
                     Err(e) => {
@@ -457,9 +524,12 @@ impl GameServer {
                 .for_each(|c| tracing::info!("{}", c));
 
             let win_card = curr_winning_card.unwrap();
+            tracing::info!(
+                "Player {:?} won. Winning card: {:?}",
+                win_card.played_by,
+                win_card
+            );
             let winner = win_card.played_by;
-            tracing::info!("Player {:?} won. Winning card: {}", winner, win_card);
-
             if let Some(x) = self.wins.get_mut(&winner.unwrap()) {
                 *x = *x + 1;
             }
@@ -528,15 +598,19 @@ fn create_deck() -> Vec<Card> {
 }
 
 /// Shorthand for the transmit half of the message channel.
-type Tx = mpsc::UnboundedSender<String>;
+type Tx = SplitSink<WebSocket, Message>;
 
 /// Shorthand for the receive half of the message channel.
-type Rx = mpsc::UnboundedReceiver<String>;
+type Rx = SplitSink<WebSocket, Message>;
 
 type PeerMap = Arc<Mutex<HashMap<SocketAddr, Tx>>>;
 
 /// helper to print contents of messages to stdout. Has special treatment for Close.
-fn process_message(msg: Message, who: SocketAddr) -> ControlFlow<(), ()> {
+fn process_message(
+    msg: Message,
+    who: SocketAddr,
+    mut game: Arc<Mutex<HashMap<String, GameServer>>>,
+) -> ControlFlow<(), ()> {
     match msg {
         Message::Text(t) => {
             println!(">>> {who} sent str: {t:?}");
@@ -570,7 +644,7 @@ fn process_message(msg: Message, who: SocketAddr) -> ControlFlow<(), ()> {
 }
 
 /// Actual websocket statemachine (one will be spawned per connection)
-async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Mutex<GameServer>>) {
+async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<AllGames>) {
     // send a ping (unsupported by some browsers) just to kick things off and get a response
     if socket.send(Message::Ping(vec![1, 2, 3])).await.is_ok() {
         println!("Pinged {who}...");
@@ -581,55 +655,115 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Mu
         return;
     }
 
+    let (mut sender, mut receiver) = socket.split();
+
     // receive single message from a client (we can either receive or send with socket).
     // this will likely be the Pong for our Ping or a hello message from client.
     // waiting for message from a client will block this task, but will not block other client's
     // connections.
-    if let Some(msg) = socket.recv().await {
-        if let Ok(msg) = msg {
-            if process_message(msg, who).is_break() {
-                return;
+    while let Some(Ok(message)) = receiver.next().await {
+        match message {
+            Message::Text(name) => {
+                println!(">>> {who} sent str: {name:?}");
+                #[derive(Deserialize)]
+                struct Connect {
+                    username: String,
+                    channel: String,
+                }
+
+                let connect: Connect = match serde_json::from_str(&name) {
+                    Ok(connect) => connect,
+                    Err(error) => {
+                        tracing::error!(%error);
+                        let _ = sender
+                            .send(Message::Text(String::from(
+                                "Failed to parse connect message",
+                            )))
+                            .await;
+                        break;
+                    }
+                };
+
+                // Scope to drop the mutex guard before the next await
+                {
+                    // If username that is sent by client is not taken, fill username string.
+                    let mut games = state.games.lock().await;
+
+                    let channel = connect.channel.clone();
+                    let room = games
+                        .entry(connect.channel)
+                        .or_insert_with(|| GameServer::new);
+
+                    tx = Some(room.tx.clone());
+
+                    if !room.user_set.contains(&connect.username) {
+                        room.user_set.insert(connect.username.to_owned());
+                        username = connect.username.clone();
+                    }
+                }
+
+                // If not empty we want to quit the loop else we want to quit function.
+                if tx.is_some() && !username.is_empty() {
+                    break;
+                } else {
+                    // Only send our client that username is taken.
+                    let _ = sender
+                        .send(Message::Text(String::from("Username already taken.")))
+                        .await;
+
+                    return;
+                }
             }
-        } else {
-            println!("client {who} abruptly disconnected");
-            return;
+            Message::Binary(d) => {
+                println!(">>> {} sent {} bytes: {:?}", who, d.len(), d);
+            }
+            Message::Close(c) => {
+                if let Some(cf) = c {
+                    println!(
+                        ">>> {} sent close with code {} and reason `{}`",
+                        who, cf.code, cf.reason
+                    );
+                } else {
+                    println!(">>> {who} somehow sent close message without CloseFrame");
+                }
+            }
+
+            Message::Pong(v) => {
+                println!(">>> {who} sent pong with {v:?}");
+            }
+            // You should never need to manually handle Message::Ping, as axum's websocket library
+            // will do so for you automagically by replying with Pong and copying the v according to
+            // spec. But if you need the contents of the pings you can see them here.
+            Message::Ping(v) => {
+                println!(">>> {who} sent ping with {v:?}");
+            }
         }
     }
 
-    // Since each client gets individual statemachine, we can pause handling
-    // when necessary to wait for some external event (in this case illustrated by sleeping).
-    // Waiting for this client to finish getting its greetings does not prevent other clients from
-    // connecting to server and receiving their greetings.
-    // for i in 1..5 {
-    //     if socket
-    //         .send(Message::Text(format!("Hi {i} times!")))
-    //         .await
-    //         .is_err()
-    //     {
-    //         println!("client {who} abruptly disconnected");
-    //         return;
-    //     }
-    //     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-    // }
+    // let sender: SplitSink<WebSocket, Message>;
+    // let receiver: SplitSink<WebSocket, Message>;
+
+    // state
+    //     .get_mut()
+    //     .add_player("testplayer".to_string(), receiver, sender);
 
     // By splitting socket we can send and receive at the same time. In this example we will send
     // unsolicited messages to client based on some sort of server's internal event (i.e .timer).
-    let (mut sender, mut receiver) = socket.split();
 
     // Spawn a task that will push several messages to the client (does not matter what client does)
-    // let mut send_task = tokio::spawn(async move {
-    //     // println!("Sending close to {who}...");
-    //     // if let Err(e) = sender
-    //     //     .send(Message::Close(Some(CloseFrame {
-    //     //         code: axum::extract::ws::close_code::NORMAL,
-    //     //         reason: Cow::from("Goodbye"),
-    //     //     })))
-    //     //     .await
-    //     // {
-    //     //     println!("Could not send Close due to {e}, probably it is ok?");
-    //     // }
-    //     // n_msg
-    // });
+    let mut send_task = tokio::spawn(async move {
+        println!("Sending close to {who}...");
+        if let Err(e) = sender
+            .send(Message::Close(Some(CloseFrame {
+                code: axum::extract::ws::close_code::NORMAL,
+                reason: Cow::from("Goodbye"),
+            })))
+            .await
+        {
+            println!("Could not send Close due to {e}, probably it is ok?");
+        }
+        // n_msg
+    });
 
     // This second task will receive messages from client and print them on server console
     let mut recv_task = tokio::spawn(async move {
@@ -637,22 +771,20 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Mu
         while let Some(Ok(msg)) = receiver.next().await {
             cnt += 1;
             // print message and break if instructed to do so
-            if process_message(msg, who).is_break() {
+            if process_message(msg.clone(), who, state.clone()).is_break() {
                 break;
             }
 
-            let mut game = state.borrow_mut().lock().await;
-            game.play_game(Some(2));
-
-            sender
-                .send(Message::Text(
-                    json!({
-                        "hand": game.players.get(&0).unwrap().hand
-                    })
-                    .to_string(),
-                ))
-                .await
-                .unwrap()
+            match msg {
+                Message::Text(t) => {
+                    if t.contains("new_game") {
+                        let mut game = state.borrow_mut().lock().await;
+                        // game.handle_event(t);
+                    }
+                }
+                Message::Binary(b) => todo!(),
+                _ => {}
+            }
         }
         cnt
     });
@@ -683,7 +815,7 @@ async fn ws_handler(
     ws: WebSocketUpgrade,
     user_agent: Option<TypedHeader<headers::UserAgent>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    State(state): State<Arc<Mutex<GameServer>>>,
+    State(state): State<Arc<AllGames>>,
 ) -> impl IntoResponse {
     let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
         user_agent.to_string()
@@ -702,44 +834,6 @@ async fn root() -> &'static str {
 
 #[tokio::main]
 async fn main() {
-    let num_players = 3;
-    let max_rounds = Some(3);
-
-    let players: HashMap<i32, GameClient> = (0..num_players)
-        .into_iter()
-        .map(|id| {
-            let (tx, rx) = mpsc::unbounded_channel();
-
-            return (id, GameClient::new(id, rx, tx));
-        })
-        .collect();
-    let mut deal_play_order: Vec<i32> = players.iter().map(|(id, player)| id.clone()).collect();
-    fastrand::shuffle(&mut deal_play_order);
-
-    let mut play_order = deal_play_order.clone();
-    let first = play_order.remove(0);
-    play_order.push(first);
-
-    let mut server = GameServer {
-        players: players,
-        deck: create_deck(),
-        curr_round: 1,
-        trump: Suit::Heart,
-        dealing_order: deal_play_order.clone(),
-        play_order: play_order,
-        // dealer_id: deal_play_order[0],
-        bids: HashMap::new(),
-        wins: HashMap::new(),
-        score: HashMap::new(),
-        state: GameState::Pregame,
-    };
-
-    server.players.iter().for_each(|(&id, player)| {
-        server.bids.insert(id, 0);
-        server.wins.insert(id, 0);
-        server.score.insert(id, 0);
-    });
-
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::from_default_env()
@@ -748,7 +842,11 @@ async fn main() {
         .with_span_events(FmtSpan::FULL)
         .init();
 
-    let serverstate = Arc::new(Mutex::new(server));
+    let allgames = AllGames {
+        games: Mutex::new(HashMap::new()),
+    };
+
+    let serverstate: Arc<AllGames> = Arc::new(allgames);
 
     let cors = CorsLayer::new()
         // allow `GET` and `POST` when accessing the resource
