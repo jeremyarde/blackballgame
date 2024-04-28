@@ -14,13 +14,13 @@ pub struct GameClient {
     pub trump: Suit,
     pub round: i32,
     pub state: PlayerState,
-
-    pub rx: Rx,
-    pub tx: Tx,
+    // don't need if we are using JS
+    // pub rx: Rx,
+    // pub tx: Tx,
 }
 
 impl GameClient {
-    pub fn new(id: String, rx: Rx, tx: Tx) -> Self {
+    pub fn new(id: String) -> Self {
         // let (tx, rx) = mpsc::unbounded_channel();
 
         return GameClient {
@@ -30,8 +30,8 @@ impl GameClient {
             order: 0,
             round: 0,
             trump: Suit::Heart,
-            rx: rx,
-            tx: tx,
+            // rx: rx,
+            // tx: tx,
         };
     }
 

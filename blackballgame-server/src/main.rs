@@ -24,6 +24,7 @@ use axum_extra::headers;
 use axum_extra::TypedHeader;
 use client::GameClient;
 use futures_util::stream::SplitSink;
+use futures_util::stream::SplitStream;
 use futures_util::SinkExt;
 use futures_util::Stream;
 use futures_util::StreamExt;
@@ -33,6 +34,7 @@ use serde_json::json;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
+use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 
@@ -162,6 +164,11 @@ struct GameServer {
     wins: HashMap<String, i32>,
     score: HashMap<String, i32>,
     state: GameState,
+
+    tx: broadcast::Sender<String>,
+    rx: broadcast::Receiver<String>,
+    //     tx: broadcast::Sender<String>,
+    //     rx: SplitStream<Message>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -260,25 +267,9 @@ fn get_random_card(mut deck: &mut Vec<Card>) -> Option<Card> {
 }
 
 impl GameServer {
-    // fn handle_event(&mut self, evt: String) {
-    //     println!("Game recieved event: {}", evt);
-
-    //     if evt.contains("show") {
-    //         sender
-    //             .send(Message::Text(
-    //                 json!({
-    //                     "hand": game.players.get(&0).unwrap().hand
-    //                 })
-    //                 .to_string(),
-    //             ))
-    //             .await
-    //             .unwrap()
-    //     }
-
-    //     if t.contains("join") {}
-    // }
-
     fn new() -> Self {
+        let (tx, rx) = broadcast::channel(10);
+
         let mut server = GameServer {
             players: HashMap::new(),
             deck: create_deck(),
@@ -291,6 +282,11 @@ impl GameServer {
             wins: HashMap::new(),
             score: HashMap::new(),
             state: GameState::Pregame,
+
+            // send and recieve here
+            // channel: broadcast::channel(10),
+            tx,
+            rx,
         };
         server
     }
@@ -298,11 +294,11 @@ impl GameServer {
     fn add_player(
         &mut self,
         player_id: String,
-        rx: SplitSink<WebSocket, Message>,
+        rx: SplitStream<WebSocket>,
         tx: SplitSink<WebSocket, Message>,
     ) {
         self.players
-            .insert(player_id.clone(), GameClient::new(player_id, rx, tx));
+            .insert(player_id.clone(), GameClient::new(player_id));
     }
 
     fn play_game(&mut self, max_rounds: Option<i32>) {
@@ -601,61 +597,62 @@ fn create_deck() -> Vec<Card> {
 type Tx = SplitSink<WebSocket, Message>;
 
 /// Shorthand for the receive half of the message channel.
-type Rx = SplitSink<WebSocket, Message>;
+// type Rx = SplitSink<WebSocket, Message>;
+type Rx = SplitStream<WebSocket>;
 
 type PeerMap = Arc<Mutex<HashMap<SocketAddr, Tx>>>;
 
 /// helper to print contents of messages to stdout. Has special treatment for Close.
-fn process_message(
-    msg: Message,
-    who: SocketAddr,
-    mut game: Arc<Mutex<HashMap<String, GameServer>>>,
-) -> ControlFlow<(), ()> {
-    match msg {
-        Message::Text(t) => {
-            println!(">>> {who} sent str: {t:?}");
-        }
-        Message::Binary(d) => {
-            println!(">>> {} sent {} bytes: {:?}", who, d.len(), d);
-        }
-        Message::Close(c) => {
-            if let Some(cf) = c {
-                println!(
-                    ">>> {} sent close with code {} and reason `{}`",
-                    who, cf.code, cf.reason
-                );
-            } else {
-                println!(">>> {who} somehow sent close message without CloseFrame");
-            }
-            return ControlFlow::Break(());
-        }
+// fn process_message(msg: Message, who: SocketAddr, mut game: Arc<AllGames>) -> ControlFlow<(), ()> {
+//     match msg {
+//         Message::Text(t) => {
+//             println!(">>> {who} sent str: {t:?}");
+//         }
+//         Message::Binary(d) => {
+//             println!(">>> {} sent {} bytes: {:?}", who, d.len(), d);
+//         }
+//         Message::Close(c) => {
+//             if let Some(cf) = c {
+//                 println!(
+//                     ">>> {} sent close with code {} and reason `{}`",
+//                     who, cf.code, cf.reason
+//                 );
+//             } else {
+//                 println!(">>> {who} somehow sent close message without CloseFrame");
+//             }
+//             return ControlFlow::Break(());
+//         }
 
-        Message::Pong(v) => {
-            println!(">>> {who} sent pong with {v:?}");
-        }
-        // You should never need to manually handle Message::Ping, as axum's websocket library
-        // will do so for you automagically by replying with Pong and copying the v according to
-        // spec. But if you need the contents of the pings you can see them here.
-        Message::Ping(v) => {
-            println!(">>> {who} sent ping with {v:?}");
-        }
-    }
-    ControlFlow::Continue(())
-}
+//         Message::Pong(v) => {
+//             println!(">>> {who} sent pong with {v:?}");
+//         }
+//         // You should never need to manually handle Message::Ping, as axum's websocket library
+//         // will do so for you automagically by replying with Pong and copying the v according to
+//         // spec. But if you need the contents of the pings you can see them here.
+//         Message::Ping(v) => {
+//             println!(">>> {who} sent ping with {v:?}");
+//         }
+//     }
+//     ControlFlow::Continue(())
+// }
 
 /// Actual websocket statemachine (one will be spawned per connection)
 async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<AllGames>) {
-    // send a ping (unsupported by some browsers) just to kick things off and get a response
-    if socket.send(Message::Ping(vec![1, 2, 3])).await.is_ok() {
-        println!("Pinged {who}...");
-    } else {
-        println!("Could not send ping {who}!");
-        // no Error here since the only thing we can do is to close the connection.
-        // If we can not send messages, there is no way to salvage the statemachine anyway.
-        return;
-    }
+    // // send a ping (unsupported by some browsers) just to kick things off and get a response
+    // if socket.send(Message::Ping(vec![1, 2, 3])).await.is_ok() {
+    //     println!("Pinged {who}...");
+    // } else {
+    //     println!("Could not send ping {who}!");
+    //     // no Error here since the only thing we can do is to close the connection.
+    //     // If we can not send messages, there is no way to salvage the statemachine anyway.
+    //     return;
+    // }
 
     let (mut sender, mut receiver) = socket.split();
+
+    let mut tx = None::<broadcast::Sender<String>>;
+    let mut username = String::new();
+    let mut channel = String::new();
 
     // receive single message from a client (we can either receive or send with socket).
     // this will likely be the Pong for our Ping or a hello message from client.
@@ -688,16 +685,20 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Al
                 {
                     // If username that is sent by client is not taken, fill username string.
                     let mut games = state.games.lock().await;
-
                     let channel = connect.channel.clone();
-                    let room = games
-                        .entry(connect.channel)
-                        .or_insert_with(|| GameServer::new);
+                    if !games.contains_key(&channel) {
+                        games.insert(channel.clone(), GameServer::new());
+                    }
 
-                    tx = Some(room.tx.clone());
+                    let mut game = games.get_mut(&channel).unwrap();
 
-                    if !room.user_set.contains(&connect.username) {
-                        room.user_set.insert(connect.username.to_owned());
+                    let tx = Some(game.tx.clone());
+
+                    if !game.players.contains_key(&connect.username) {
+                        game.players.insert(
+                            connect.username.to_owned(),
+                            GameClient::new(connect.username.clone()),
+                        );
                         username = connect.username.clone();
                     }
                 }
@@ -740,6 +741,57 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Al
         }
     }
 
+    // We know if the loop exited `tx` is not `None`.
+    // let tx = tx.unwrap();
+    // // Subscribe before sending joined message.
+    // let mut rx = tx.subscribe();
+
+    // Send joined message to all subscribers.
+    let msg = format!("{} joined.", username);
+    tracing::debug!("{}", msg);
+    let _ = tx.send(msg);
+
+    // This task will receive broadcast messages and send text message to our client.
+    let mut send_task = tokio::spawn(async move {
+        while let Ok(msg) = rx.recv().await {
+            // In any websocket error, break loop.
+            if sender.send(Message::Text(msg)).await.is_err() {
+                break;
+            }
+        }
+    });
+
+    // We need to access the `tx` variable directly again, so we can't shadow it here.
+    // I moved the task spawning into a new block so the original `tx` is still visible later.
+    let mut recv_task = {
+        // Clone things we want to pass to the receiving task.
+        let tx = tx.clone();
+        let name = username.clone();
+
+        // This task will receive messages from client and send them to broadcast subscribers.
+        tokio::spawn(async move {
+            while let Some(Ok(Message::Text(text))) = receiver.next().await {
+                // Add username before message.
+                let _ = tx.send(format!("{}: {}", name, text));
+            }
+        })
+    };
+
+    // If any one of the tasks exit, abort the other.
+    tokio::select! {
+        _ = (&mut send_task) => recv_task.abort(),
+        _ = (&mut recv_task) => send_task.abort(),
+    };
+
+    // Send user left message.
+    let msg = format!("{} left.", username);
+    tracing::debug!("{}", msg);
+    let _ = tx.send(msg);
+    let mut games = state.games.lock().await;
+
+    // Remove username from map so new clients can take it.
+    games.get_mut(&channel).unwrap().players.remove(&username);
+
     // let sender: SplitSink<WebSocket, Message>;
     // let receiver: SplitSink<WebSocket, Message>;
 
@@ -751,61 +803,61 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Al
     // unsolicited messages to client based on some sort of server's internal event (i.e .timer).
 
     // Spawn a task that will push several messages to the client (does not matter what client does)
-    let mut send_task = tokio::spawn(async move {
-        println!("Sending close to {who}...");
-        if let Err(e) = sender
-            .send(Message::Close(Some(CloseFrame {
-                code: axum::extract::ws::close_code::NORMAL,
-                reason: Cow::from("Goodbye"),
-            })))
-            .await
-        {
-            println!("Could not send Close due to {e}, probably it is ok?");
-        }
-        // n_msg
-    });
+    // let mut send_task = tokio::spawn(async move {
+    //     println!("Sending close to {who}...");
+    //     if let Err(e) = sender
+    //         .send(Message::Close(Some(CloseFrame {
+    //             code: axum::extract::ws::close_code::NORMAL,
+    //             reason: Cow::from("Goodbye"),
+    //         })))
+    //         .await
+    //     {
+    //         println!("Could not send Close due to {e}, probably it is ok?");
+    //     }
+    //     // n_msg
+    // });
 
     // This second task will receive messages from client and print them on server console
-    let mut recv_task = tokio::spawn(async move {
-        let mut cnt = 0;
-        while let Some(Ok(msg)) = receiver.next().await {
-            cnt += 1;
-            // print message and break if instructed to do so
-            if process_message(msg.clone(), who, state.clone()).is_break() {
-                break;
-            }
+    // let mut recv_task = tokio::spawn(async move {
+    //     let mut cnt = 0;
+    //     while let Some(Ok(msg)) = receiver.next().await {
+    //         cnt += 1;
+    //         // print message and break if instructed to do so
+    //         if process_message(msg.clone(), who, state.clone()).is_break() {
+    //             break;
+    //         }
 
-            match msg {
-                Message::Text(t) => {
-                    if t.contains("new_game") {
-                        let mut game = state.borrow_mut().lock().await;
-                        // game.handle_event(t);
-                    }
-                }
-                Message::Binary(b) => todo!(),
-                _ => {}
-            }
-        }
-        cnt
-    });
+    //         match msg {
+    //             Message::Text(t) => {
+    //                 if t.contains("new_game") {
+    //                     let mut game = state.borrow_mut().lock().await;
+    //                     // game.handle_event(t);
+    //                 }
+    //             }
+    //             Message::Binary(b) => todo!(),
+    //             _ => {}
+    //         }
+    //     }
+    //     cnt
+    // });
 
-    // If any one of the tasks exit, abort the other.
-    tokio::select! {
-        // rv_a = (&mut send_task) => {
-        //     match rv_a {
-        //         Ok(a) => println!("{a} messages sent to {who}"),
-        //         Err(a) => println!("Error sending messages {a:?}")
-        //     }
-        //     recv_task.abort();
-        // },
-        rv_b = (&mut recv_task) => {
-            match rv_b {
-                Ok(b) => println!("Received {b} messages"),
-                Err(b) => println!("Error receiving messages {b:?}")
-            }
-            // send_task.abort();
-        }
-    }
+    // // If any one of the tasks exit, abort the other.
+    // tokio::select! {
+    //     // rv_a = (&mut send_task) => {
+    //     //     match rv_a {
+    //     //         Ok(a) => println!("{a} messages sent to {who}"),
+    //     //         Err(a) => println!("Error sending messages {a:?}")
+    //     //     }
+    //     //     recv_task.abort();
+    //     // },
+    //     rv_b = (&mut recv_task) => {
+    //         match rv_b {
+    //             Ok(b) => println!("Received {b} messages"),
+    //             Err(b) => println!("Error receiving messages {b:?}")
+    //         }
+    //         // send_task.abort();
+    //     }
+    // }
 
     // returning from the handler closes the websocket connection
     println!("Websocket context {who} destroyed");
