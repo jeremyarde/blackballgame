@@ -4,7 +4,7 @@ use axum::extract::ws::{Message, WebSocket};
 use futures_util::stream::SplitSink;
 use tokio::sync::mpsc;
 
-use crate::{Card, PlayerState, Rx, Suit, Tx};
+use crate::game::{Card, PlayerState, Suit};
 
 #[derive(Debug)]
 pub struct GameClient {

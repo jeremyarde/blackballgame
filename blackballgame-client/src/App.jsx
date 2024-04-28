@@ -22,7 +22,7 @@ function App() {
         <label>Lobby code: </label>
         <input
           type="text"
-          onChange={(evt) => setName(evt.target.value)}
+          onChange={(evt) => setLobbyCode(evt.target.value)}
         ></input>
         <label>Name: </label>
         <input
