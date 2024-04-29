@@ -175,6 +175,8 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                 }
             };
 
+            println!("{} is trying to connect to {}", username, channel);
+
             {
                 let mut rooms = state.rooms.lock().await;
                 channel = connect.channel.clone();
@@ -215,6 +217,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                 let name = username.clone();
                 tokio::spawn(async move {
                     while let Some(Ok(Message::Text(text))) = receiver.next().await {
+                        println!("{} says {}", name, text);
                         let _ = tx.send(format!("{}: {}", name, text));
                     }
                 })

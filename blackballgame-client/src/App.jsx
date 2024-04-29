@@ -9,11 +9,14 @@ function App() {
   const [serverState, setServerState] = useState({});
   const [name, setName] = useState("");
   const [lobbyCode, setLobbyCode] = useState("");
+  const [chats, setChats] = useState([]);
+  const [message, setMessage] = useState("");
 
   const socket = new WebSocket("ws://127.0.0.1:3000/ws");
   socket.onmessage = (event) => {
     console.log(event);
     setServerState(event.data);
+    setChats((curr) => curr.push(event.data));
   };
 
   return (
@@ -33,13 +36,6 @@ function App() {
       <div className="card">
         <button
           onClick={() => {
-            // const obj = { hello: "world" };
-            // const blob = new Blob([JSON.stringify(obj, null, 2)], {
-            //   type: "application/json",
-            // });
-            // console.log("Sending blob over websocket");
-            // let res = socket.send(blob);
-
             let res = socket.send(
               JSON.stringify({ username: name, channel: lobbyCode })
             );
@@ -47,7 +43,7 @@ function App() {
             setResponse(res);
           }}
         >
-          Connect: {resp}
+          Connect
         </button>
         <p>{JSON.stringify(serverState)}</p>
       </div>
@@ -61,6 +57,15 @@ function App() {
         >
           Show hand
         </button>
+      </div>
+
+      <div>
+        <input
+          type="text"
+          onChange={(evt) => setMessage(evt.target.value)}
+        ></input>
+        <button onClick={() => socket.send(message)}>send message</button>
+        chats: {JSON.stringify(chats)}
       </div>
     </>
   );
