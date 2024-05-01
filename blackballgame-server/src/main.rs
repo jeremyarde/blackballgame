@@ -153,96 +153,116 @@ fn process_message(msg: Message, who: SocketAddr, mut game: Arc<AppState>) -> Co
 //     }
 
 async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<AppState>) {
-    let (mut sender, mut receiver) = socket.split();
     let mut username = String::new();
     let mut channel = String::new();
     let mut tx = None::<broadcast::Sender<String>>;
 
-    while let Some(Ok(msg)) = receiver.next().await {
-        if let Message::Text(name) = msg {
-            #[derive(Deserialize)]
-            struct Connect {
-                username: String,
-                channel: String,
+    if socket.send(Message::Ping(vec![1, 2, 3])).await.is_ok() {
+        println!("Pinged {who}...");
+    } else {
+        println!("Could not send ping {who}!");
+        // no Error here since the only thing we can do is to close the connection.
+        // If we can not send messages, there is no way to salvage the statemachine anyway.
+        return;
+    }
+
+    let (mut sender, mut receiver) = socket.split();
+
+    if let Message::Text(name) = msg {
+        println!("message from js: {}", name);
+
+        #[derive(Deserialize, Debug)]
+        struct Connect {
+            username: String,
+            channel: String,
+        }
+
+        let connect: Connect = match serde_json::from_str(&name) {
+            Ok(connect) => {
+                println!("connect value: {:?}", connect);
+                connect
             }
-
-            let connect: Connect = match serde_json::from_str(&name) {
-                Ok(connect) => connect,
-                Err(err) => {
-                    println!("{} had error: {}", &name, err);
-                    let _ = sender.send(Message::Text("Failed to connect".to_string()));
-                    break;
-                }
-            };
-
-            println!("{} is trying to connect to {}", username, channel);
-
-            {
-                let mut rooms = state.rooms.lock().await;
-                channel = connect.channel.clone();
-
-                let room = rooms.entry(connect.channel).or_insert_with(RoomState::new);
-                tx = Some(room.tx.clone());
-
-                if !room.users.lock().await.contains(&connect.username) {
-                    room.users.lock().await.insert(connect.username.to_owned());
-                    username = connect.username.clone();
-                }
-            }
-            if tx.is_some() && !username.is_empty() {
-                break;
-            } else {
-                let _ = sender
-                    .send(Message::Text(String::from("Username already taken.")))
+            Err(err) => {
+                println!("{} had error: {}", &name, err);
+                let _ = socket
+                    .send(Message::Text("Failed to connect".to_string()))
                     .await;
-
-                return;
+                break;
             }
-            let tx = tx.unwrap();
-            let mut rx = tx.subscribe();
+        };
 
-            let joined = format!("{} joined the chat!", username);
-            let _ = tx.send(joined);
+        println!(
+            "{:?} is trying to connect to {:?}",
+            connect.username, connect.channel
+        );
 
-            let mut recv_messages = tokio::spawn(async move {
-                while let Ok(msg) = rx.recv().await {
-                    if sender.send(Message::Text(msg)).await.is_err() {
-                        break;
-                    }
-                }
-            });
-
-            let mut send_messages = {
-                let tx = tx.clone();
-                let name = username.clone();
-                tokio::spawn(async move {
-                    while let Some(Ok(Message::Text(text))) = receiver.next().await {
-                        println!("{} says {}", name, text);
-                        let _ = tx.send(format!("{}: {}", name, text));
-                    }
-                })
-            };
-
-            tokio::select! {
-                _ = (&mut send_messages) => recv_messages.abort(),
-                _ = (&mut recv_messages) => send_messages.abort(),
-            };
-
-            let left = format!("{} left the chat!", username);
-            let _ = tx.send(left);
+        {
             let mut rooms = state.rooms.lock().await;
-            rooms
-                .get_mut(&channel)
-                .unwrap()
-                .users
-                .lock()
-                .await
-                .remove(&username);
+            // channel = connect.channel.clone();
+            // println!("channel value: {}", channel);
+            let room = rooms.entry(connect.channel).or_insert_with(RoomState::new);
+            println!("room users: {:?}", room.users);
+            println!("room tx: {:?}", room.tx);
 
-            if rooms.get_mut(&channel).unwrap().users.lock().await.len() == 0 {
-                rooms.remove(&channel);
+            tx = Some(room.tx.clone());
+            if !room.users.lock().await.contains(&connect.username) {
+                println!("room did not contain user, adding them...");
+                room.users.lock().await.insert(connect.username.to_owned());
+                username = connect.username.clone();
             }
         }
+        if username.is_empty() {
+            let _ = socket
+                .send(Message::Text(String::from("Username already taken.")))
+                .await;
+            return;
+        }
+
+        let tx = tx.unwrap();
+        let mut rx = tx.subscribe();
+
+        let joined = format!("{} joined the chat!", username);
+        let _ = tx.send(joined);
+    }
+
+    let mut recv_messages = tokio::spawn(async move {
+        while let Ok(msg) = rx.recv().await {
+            if sender.send(Message::Text(msg)).await.is_err() {
+                break;
+            }
+            println!("{}", msg);
+        }
+    });
+
+    let mut send_messages = {
+        let tx = tx.clone();
+        let name = username.clone();
+        tokio::spawn(async move {
+            while let Some(Ok(Message::Text(text))) = receiver.next().await {
+                println!("{} says {}", name, text);
+                let _ = tx.send(format!("{}: {}", name, text));
+            }
+        })
+    };
+
+    tokio::select! {
+        _ = (&mut send_messages) => recv_messages.abort(),
+        _ = (&mut recv_messages) => send_messages.abort(),
+    };
+
+    let left = format!("{} left the chat!", username);
+    let _ = tx.send(left);
+    let mut rooms = state.rooms.lock().await;
+    rooms
+        .get_mut(&channel)
+        .unwrap()
+        .users
+        .lock()
+        .await
+        .remove(&username);
+
+    if rooms.get_mut(&channel).unwrap().users.lock().await.len() == 0 {
+        rooms.remove(&channel);
     }
 }
 
@@ -339,7 +359,7 @@ async fn ws_handler(
     } else {
         String::from("Unknown browser")
     };
-    println!("`{user_agent}` at {addr} connected.");
+    // println!("`{user_agent}` at {addr} connected.");
     // finalize the upgrade process by returning upgrade callback.
     // we can customize the callback by sending additional info such as address.
     ws.on_upgrade(move |socket| handle_socket(socket, addr, state))
