@@ -23,6 +23,9 @@ use axum::routing::get;
 use axum::Router;
 use axum_extra::headers;
 use axum_extra::TypedHeader;
+use chrono::format;
+use chrono::DateTime;
+use chrono::Utc;
 use client::GameClient;
 use futures_util::stream::SplitSink;
 use futures_util::stream::SplitStream;
@@ -44,6 +47,7 @@ use tower_http::cors::Any;
 use tower_http::cors::CorsLayer;
 use tower_http::services::ServeDir;
 use tower_http::services::ServeFile;
+use tracing::debug;
 use tracing::info;
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
@@ -229,7 +233,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
     let tx = tx.unwrap();
     let mut rx = tx.subscribe();
 
-    tx.send("someone has joined".into());
+    tx.send(format!("{} has joined", username.clone()));
     let mut recv_messages = tokio::spawn(async move {
         while let Ok(msg) = rx.recv().await {
             if sender.send(Message::Text(msg.clone())).await.is_err() {
@@ -244,8 +248,32 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
         let name = username.clone();
         tokio::spawn(async move {
             while let Some(Ok(Message::Text(text))) = receiver.next().await {
+                debug!("Got message from frontend: {}", text);
+
+                #[derive(Deserialize, Debug)]
+                struct GameMessage {
+                    username: String,
+                    message: String,
+                    timestamp: DateTime<Utc>,
+                }
+                let message: GameMessage = match serde_json::from_str(&text) {
+                    Ok(msg) => {
+                        println!("{:?}", msg);
+                        msg
+                    }
+                    Err(err) => {
+                        println!("Error in message format. Try again: {}", err);
+                        // let _ = sender
+                        //     .send(Message::Text(
+                        //         format!("Error with message: {}", err).to_string(),
+                        //     ))
+                        //     .await;
+                        break;
+                    }
+                };
+
                 println!("{} says {}", name, text);
-                let _ = tx.send(format!("{}: {}", name, text));
+                let _ = tx.send(json!({"user": name, "message": text}).to_string());
             }
         })
     };
