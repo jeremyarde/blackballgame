@@ -167,6 +167,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
     let (mut sender, mut receiver) = socket.split();
 
     while let Some(Ok(msg)) = receiver.next().await {
+        println!("Recieved: {:?}", msg);
         // try to connect at first
         if let Message::Text(name) = msg {
             println!("message from js: {}", name);
@@ -186,11 +187,11 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                     println!("{} had error: {}", &name, err);
                     let _ = sender
                         .send(Message::Text(
-                            (json!(ServerMessage {
+                            json!(ServerMessage {
                                 message: "Failed to connect".into(),
                                 from: "Server".into()
                             })
-                            .to_string()),
+                            .to_string(),
                         ))
                         .await;
                     break;
@@ -216,9 +217,13 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                     room.users.lock().await.insert(connect.username.to_owned());
                     username = connect.username.clone();
                 } else {
-                    sender
+                    let _ = sender
                         .send(Message::Text(
-                            json!({"message": "Username already taken."}).to_string(),
+                            json!(ServerMessage {
+                                message: "Username already taken.".to_string(),
+                                from: username.clone(),
+                            })
+                            .to_string(),
                         ))
                         .await;
                 }
@@ -226,9 +231,13 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
 
             break;
         } else {
-            sender
+            let _ = sender
                 .send(Message::Text(
-                    json!({"message": "Wrong message format"}).to_string(),
+                    json!(ServerMessage {
+                        message: "Wrong message format".to_string(),
+                        from: username.clone()
+                    })
+                    .to_string(),
                 ))
                 .await;
         }
@@ -237,7 +246,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
     let tx = tx.unwrap();
     let mut rx = tx.subscribe();
 
-    tx.send(json!({"message": format!("{} has joined", username.clone())}).to_string());
+    let _ = tx.send(json!({"message": format!("{} has joined", username.clone())}).to_string());
     // tx.send(format!("{} has joined", username.clone()));
     let mut recv_messages = tokio::spawn(async move {
         while let Ok(msg) = rx.recv().await {
