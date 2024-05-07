@@ -56,7 +56,11 @@ function App() {
     ws.onmessage = (message) => {
       console.log(`Message from server :${message.data}`);
       // const newMessage = JSON.parse(message.data);
-      setMessages((prevMessages) => [...prevMessages, message.data]);
+      // const newMessage = JSON.parse(message.data);
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        JSON.parse(message.data),
+      ]);
       console.log("all messages");
       console.log(messages);
       // setMessages((prevMessages) => [...prevMessages, message.data]);
@@ -70,7 +74,7 @@ function App() {
     return () => {
       ws.close();
     };
-  }, [ws]);
+  }, [messages, ws]);
 
   const sendMessage = () => {
     if (inputMessage.trim() === "") return;
@@ -121,7 +125,7 @@ function App() {
                 <li>
                   {/* <span>{message.timestamp}: </span>
               <span>{message.text}</span> */}
-                  <span>{message}</span>
+                  <span>{JSON.stringify(message)}</span>
                 </li>
               </div>
             ))}

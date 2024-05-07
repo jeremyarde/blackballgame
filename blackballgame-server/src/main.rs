@@ -110,6 +110,12 @@ type Rx = SplitStream<WebSocket>;
 
 type PeerMap = Arc<Mutex<HashMap<SocketAddr, Tx>>>;
 
+#[derive(Serialize)]
+struct ServerMessage {
+    message: String,
+    from: String,
+}
+
 //  helper to print contents of messages to stdout. Has special treatment for Close.
 fn process_message(msg: Message, who: SocketAddr, mut game: Arc<AppState>) -> ControlFlow<(), ()> {
     match msg {
@@ -143,18 +149,6 @@ fn process_message(msg: Message, who: SocketAddr, mut game: Arc<AppState>) -> Co
     }
     ControlFlow::Continue(())
 }
-
-/// Actual websocket statemachine (one will be spawned per connection)
-// async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<AppState>) {
-//     // send a ping (unsupported by some browsers) just to kick things off and get a response
-//     if socket.send(Message::Ping(vec![1, 2, 3])).await.is_ok() {
-//         println!("Pinged {who}...");
-//     } else {
-//         println!("Could not send ping {who}!");
-//         // no Error here since the only thing we can do is to close the connection.
-//         // If we can not send messages, there is no way to salvage the statemachine anyway.
-//         return;
-//     }
 
 async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<AppState>) {
     let mut username = String::new();
@@ -191,7 +185,13 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                 Err(err) => {
                     println!("{} had error: {}", &name, err);
                     let _ = sender
-                        .send(Message::Text("Failed to connect".to_string()))
+                        .send(Message::Text(
+                            (json!(ServerMessage {
+                                message: "Failed to connect".into(),
+                                from: "Server".into()
+                            })
+                            .to_string()),
+                        ))
                         .await;
                     break;
                 }
@@ -217,7 +217,9 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                     username = connect.username.clone();
                 } else {
                     sender
-                        .send(Message::Text("Username already taken.".to_string()))
+                        .send(Message::Text(
+                            json!({"message": "Username already taken."}).to_string(),
+                        ))
                         .await;
                 }
             }
@@ -225,7 +227,9 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
             break;
         } else {
             sender
-                .send(Message::Text("Wrong message format.".into()))
+                .send(Message::Text(
+                    json!({"message": "Wrong message format"}).to_string(),
+                ))
                 .await;
         }
     }
@@ -233,10 +237,12 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
     let tx = tx.unwrap();
     let mut rx = tx.subscribe();
 
-    tx.send(format!("{} has joined", username.clone()));
+    tx.send(json!({"message": format!("{} has joined", username.clone())}).to_string());
+    // tx.send(format!("{} has joined", username.clone()));
     let mut recv_messages = tokio::spawn(async move {
         while let Ok(msg) = rx.recv().await {
             if sender.send(Message::Text(msg.clone())).await.is_err() {
+                info!("Recieved a bad message, breaking");
                 break;
             }
             println!("recieved: {}", msg);
@@ -273,7 +279,12 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                 };
 
                 println!("{} says {}", name, text);
-                let _ = tx.send(json!({"user": name, "message": text}).to_string());
+
+                let servermessage = ServerMessage {
+                    message: text,
+                    from: name.clone(),
+                };
+                let _ = tx.send(json!(servermessage).to_string());
             }
         })
     };
