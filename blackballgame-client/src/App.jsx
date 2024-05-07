@@ -68,13 +68,15 @@ function App() {
 
     ws.onclose = () => {
       console.log("WebSocket disconnected");
+      setMessages([]);
+
       // setWs(null);
     };
 
     return () => {
       ws.close();
     };
-  }, [messages, ws]);
+  }, [ws]); // adding messages causes the ws to close
 
   const sendMessage = () => {
     if (inputMessage.trim() === "") return;
