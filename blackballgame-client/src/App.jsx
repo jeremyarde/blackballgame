@@ -103,7 +103,7 @@ function App() {
 
     console.log("sending message: ", message);
     // ws.send(JSON.stringify(message));
-    ws.send(message);
+    ws.send(JSON.stringify(message));
   };
 
   return (

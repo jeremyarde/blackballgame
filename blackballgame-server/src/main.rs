@@ -117,43 +117,59 @@ struct ServerMessage {
 }
 
 //  helper to print contents of messages to stdout. Has special treatment for Close.
-fn process_message(msg: Message, who: SocketAddr, mut game: Arc<AppState>) -> ControlFlow<(), ()> {
-    match msg {
-        Message::Text(t) => {
-            println!(">>> {who} sent str: {t:?}");
-        }
-        Message::Binary(d) => {
-            println!(">>> {} sent {} bytes: {:?}", who, d.len(), d);
-        }
-        Message::Close(c) => {
-            if let Some(cf) = c {
-                println!(
-                    ">>> {} sent close with code {} and reason `{}`",
-                    who, cf.code, cf.reason
-                );
-            } else {
-                println!(">>> {who} somehow sent close message without CloseFrame");
-            }
-            return ControlFlow::Break(());
-        }
+// fn process_message(msg: Message, who: SocketAddr, mut game: Arc<AppState>) -> ControlFlow<(), ()> {
+//     match msg {
+//         Message::Text(t) => {
+//             println!(">>> {who} sent str: {t:?}");
+//         }
+//         Message::Binary(d) => {
+//             println!(">>> {} sent {} bytes: {:?}", who, d.len(), d);
+//         }
+//         Message::Close(c) => {
+//             if let Some(cf) = c {
+//                 println!(
+//                     ">>> {} sent close with code {} and reason `{}`",
+//                     who, cf.code, cf.reason
+//                 );
+//             } else {
+//                 println!(">>> {who} somehow sent close message without CloseFrame");
+//             }
+//             return ControlFlow::Break(());
+//         }
 
-        Message::Pong(v) => {
-            println!(">>> {who} sent pong with {v:?}");
-        }
-        // You should never need to manually handle Message::Ping, as axum's websocket library
-        // will do so for you automagically by replying with Pong and copying the v according to
-        // spec. But if you need the contents of the pings you can see them here.
-        Message::Ping(v) => {
-            println!(">>> {who} sent ping with {v:?}");
-        }
-    }
-    ControlFlow::Continue(())
-}
+//         Message::Pong(v) => {
+//             println!(">>> {who} sent pong with {v:?}");
+//         }
+//         // You should never need to manually handle Message::Ping, as axum's websocket library
+//         // will do so for you automagically by replying with Pong and copying the v according to
+//         // spec. But if you need the contents of the pings you can see them here.
+//         Message::Ping(v) => {
+//             println!(">>> {who} sent ping with {v:?}");
+//         }
+//     }
+//     ControlFlow::Continue(())
+// }
 
 async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<AppState>) {
     let mut username = String::new();
     let mut channel = String::new();
     let mut tx = None::<broadcast::Sender<String>>;
+
+    // let (tx, mut rx1) = broadcast::channel(16);
+    // let mut rx2 = tx.subscribe();
+
+    // tokio::spawn(async move {
+    //     assert_eq!(rx1.recv().await.unwrap(), 10);
+    //     assert_eq!(rx1.recv().await.unwrap(), 20);
+    // });
+
+    // tokio::spawn(async move {
+    //     assert_eq!(rx2.recv().await.unwrap(), 10);
+    //     assert_eq!(rx2.recv().await.unwrap(), 20);
+    // });
+
+    // tx.send(10).unwrap();
+    // tx.send(20).unwrap();
 
     if socket.send(Message::Ping(vec![1, 2, 3])).await.is_ok() {
         println!("Pinged {who}...");
@@ -245,12 +261,29 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
     let tx = tx.unwrap();
     let (send_chnl, mut rec_chnl) = tokio::sync::mpsc::channel::<GameMessage>(10);
 
-    // should not need this, its a subscription to our own messages
-    // let mut rx: broadcast::Receiver<String> = tx.subscribe();
-
+    let mut rx: broadcast::Receiver<String> = tx.subscribe();
     let _ = tx.send(json!({"message": format!("{} has joined", username.clone())}).to_string());
 
     let mut recv_messages_from_clients = tokio::spawn(async move {
+        // while let Ok(msg) = rx.recv().await {
+        //     println!(
+        //         "recieved something from the client, now progress the game: {:?}",
+        //         msg
+        //     );
+
+        //     let game_message = match serde_json::from_str(&msg) {
+        //         Ok(x) => x,
+        //         Err(err) => {
+        //             println!("error deserializing message: {}", err);
+        //             return;
+        //         }
+        //     };
+
+        //     if send_chnl.send(game_message).await.is_err() {
+        //         info!("Could not send a message, breaking");
+        //         break;
+        //     }
+
         while let Some(Ok(msg)) = receiver.next().await {
             println!(
                 "recieved something from the client, now progress the game: {:?}",
@@ -271,6 +304,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                     break;
                 }
             };
+            // tx.send("testing sending from recv_messages".to_string());
         }
     });
 
@@ -281,9 +315,13 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
             println!("send_messages_to_client | {} --", name);
             while let Some(text) = rec_chnl.recv().await {
                 println!("-> {:?}", text);
-                if let ControlFlow::Break(_) = fun_name(text, &name, &tx) {
+                if let ControlFlow::Break(_) = fun_name(&text, &name) {
                     break;
                 }
+                match tx.send(json!(text).to_string()) {
+                    Ok(x) => println!("worked: {}", x),
+                    Err(err) => println!("did not work: {}", err),
+                };
             }
         })
     };
@@ -362,7 +400,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
     // }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct GameMessage {
     username: String,
     message: String,
@@ -370,32 +408,16 @@ pub struct GameMessage {
 }
 
 fn fun_name(
-    message: GameMessage,
+    message: &GameMessage,
     name: &String,
-    tx: &broadcast::Sender<String>,
+    // tx: &broadcast::Sender<String>,
 ) -> ControlFlow<()> {
-    // let message: GameMessage = match serde_json::from_str(&text) {
-    //     Ok(msg) => {
-    //         println!("{:?}", msg);
-    //         msg
-    //     }
-    //     Err(err) => {
-    //         println!("Error in message format. Try again: {}", err);
-    //         // let _ = sender
-    //         //     .send(Message::Text(
-    //         //         format!("Error with message: {}", err).to_string(),
-    //         //     ))
-    //         //     .await;
-    //         // return ControlFlow::Break(());
-    //         return ControlFlow::Continue(());
-    //     }
-    // };
     println!("{} says {:?}", name, message);
     let servermessage = ServerMessage {
         message: "hey, this is nice".to_string(),
         from: name.clone(),
     };
-    let _ = tx.send(json!(servermessage).to_string());
+    // let _ = tx.send(json!(servermessage).to_string());
 
     ControlFlow::Continue(())
 }
