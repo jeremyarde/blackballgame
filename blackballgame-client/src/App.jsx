@@ -26,6 +26,7 @@ import "./App.css";
 // };
 
 function App() {
+  const [handCards, setHandCards] = useState([]);
   const [count, setCount] = useState(0);
   const [resp, setResponse] = useState("");
   const [serverState, setServerState] = useState({});
@@ -93,6 +94,18 @@ function App() {
     setInputMessage("");
   };
 
+  const getHand = () => {
+    const message = {
+      username: name,
+      message: "get:hand",
+      timestamp: new Date().toISOString(),
+    };
+
+    console.log("sending message: ", message);
+    // ws.send(JSON.stringify(message));
+    ws.send(message);
+  };
+
   return (
     <>
       <div>
@@ -140,6 +153,10 @@ function App() {
             onChange={(e) => setInputMessage(e.target.value)}
           />
           <button onClick={sendMessage}>Send</button>
+        </div>
+        <div>
+          {JSON.stringify(handCards)}
+          <button onClick={getHand}>Get hand</button>
         </div>
       </div>
     </>
