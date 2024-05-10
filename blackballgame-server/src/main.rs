@@ -258,12 +258,13 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
         }
     }
 
-    let tx = tx.unwrap();
-    let (send_chnl, mut rec_chnl) = tokio::sync::mpsc::channel::<GameMessage>(10);
+    // let (send_chnl, mut rec_chnl) = tokio::sync::mpsc::channel::<GameMessage>(10);
 
-    let mut rx: broadcast::Receiver<String> = tx.subscribe();
+    let tx = tx.unwrap();
+    let mut rx = tx.subscribe();
     let _ = tx.send(json!({"message": format!("{} has joined", username.clone())}).to_string());
 
+    // Recieve from client
     let mut recv_messages_from_clients = tokio::spawn(async move {
         // while let Ok(msg) = rx.recv().await {
         //     println!(
@@ -284,26 +285,26 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
         //         break;
         //     }
 
-        while let Some(Ok(msg)) = receiver.next().await {
+        while let Ok(msg) = rx.recv().await {
             println!(
                 "recieved something from the client, now progress the game: {:?}",
                 msg
             );
 
-            if let Message::Text(message_text) = msg {
-                let game_message = match serde_json::from_str(&message_text) {
-                    Ok(x) => x,
-                    Err(err) => {
-                        println!("error deserializing message: {}", err);
-                        return;
-                    }
-                };
+            // if let Message::Text(message_text) = msg {
+            // let game_message = match serde_json::from_str(&message_text) {
+            //     Ok(x) => x,
+            //     Err(err) => {
+            //         println!("error deserializing message: {}", err);
+            //         return;
+            //     }
+            // };
 
-                if send_chnl.send(game_message).await.is_err() {
-                    info!("Could not send a message, breaking");
-                    break;
-                }
-            };
+            if sender.send(Message::Text(msg)).await.is_err() {
+                info!("Could not send a message, breaking");
+                break;
+            }
+            // };
             // tx.send("testing sending from recv_messages".to_string());
         }
     });
@@ -313,14 +314,26 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
         let name = username.clone();
         tokio::spawn(async move {
             println!("send_messages_to_client | {} --", name);
-            while let Some(text) = rec_chnl.recv().await {
+            while let Some(Ok(text)) = receiver.next().await {
+                // while let Some(text) = rx.recv().await {
                 println!("-> {:?}", text);
-                if let ControlFlow::Break(_) = fun_name(&text, &name) {
-                    break;
-                }
-                match tx.send(json!(text).to_string()) {
-                    Ok(x) => println!("worked: {}", x),
-                    Err(err) => println!("did not work: {}", err),
+
+                if let Message::Text(text) = text {
+                    let game_message = match serde_json::from_str(&text) {
+                        Ok(x) => x,
+                        Err(err) => {
+                            println!("Error deserializing game message: {}", err);
+                            continue;
+                        }
+                    };
+
+                    if let ControlFlow::Break(_) = fun_name(&game_message, &name) {
+                        break;
+                    }
+                    match tx.send(json!(text).to_string()) {
+                        Ok(x) => println!("worked: {}", x),
+                        Err(err) => println!("did not work: {}", err),
+                    }
                 };
             }
         })
