@@ -5,10 +5,10 @@ use futures_util::stream::{SplitSink, SplitStream};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 
-use crate::client::GameClient;
+use crate::client::{GameClient, PlayerRole};
 
 impl GameServer {
-    fn new() -> Self {
+    pub fn new() -> Self {
         // let (tx, rx) = broadcast::channel(10);
 
         let mut server = GameServer {
@@ -36,10 +36,11 @@ impl GameServer {
         &mut self,
         player_id: String,
         rx: SplitStream<WebSocket>,
-        tx: SplitSink<WebSocket, Message>,
+        sender: SplitSink<WebSocket, Message>,
+        role: PlayerRole,
     ) {
         self.players
-            .insert(player_id.clone(), GameClient::new(player_id));
+            .insert(player_id.clone(), GameClient::new(player_id, sender, role));
     }
 
     pub fn play_game(&mut self, max_rounds: Option<i32>) {
@@ -341,7 +342,7 @@ fn create_deck() -> Vec<Card> {
 
 #[derive(Debug)]
 pub struct GameServer {
-    players: HashMap<String, GameClient>,
+    pub players: HashMap<String, GameClient>,
     deck: Vec<Card>,
     curr_round: i32,
     trump: Suit,
@@ -353,7 +354,7 @@ pub struct GameServer {
     score: HashMap<String, i32>,
     state: GameState,
 
-    tx: broadcast::Sender<String>,
+    pub tx: broadcast::Sender<String>,
     // rx: broadcast::Receiver<String>,
     //     tx: broadcast::Sender<String>,
     //     rx: SplitStream<Message>,

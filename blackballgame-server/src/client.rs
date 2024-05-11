@@ -2,9 +2,18 @@ use std::{io, os::unix::net::SocketAddr};
 
 use axum::extract::ws::{Message, WebSocket};
 use futures_util::stream::SplitSink;
-use tokio::sync::mpsc;
+use tokio::sync::mpsc::{self, Sender};
 
-use crate::game::{Card, PlayerState, Suit};
+use crate::{
+    game::{Card, PlayerState, Suit},
+    GameMessage,
+};
+
+#[derive(Debug)]
+pub enum PlayerRole {
+    Leader,
+    Player,
+}
 
 #[derive(Debug)]
 pub struct GameClient {
@@ -14,13 +23,15 @@ pub struct GameClient {
     pub trump: Suit,
     pub round: i32,
     pub state: PlayerState,
-    // don't need if we are using JS
-    // pub rx: Rx,
-    // pub tx: Tx,
+    pub role: PlayerRole,
+
+    pub sender: SplitSink<WebSocket, Message>, // don't need if we are using JS
+                                               // pub rx: Rx,
+                                               // pub tx: Tx,
 }
 
 impl GameClient {
-    pub fn new(id: String) -> Self {
+    pub fn new(id: String, sender: SplitSink<WebSocket, Message>, role: PlayerRole) -> Self {
         // let (tx, rx) = mpsc::unbounded_channel();
 
         return GameClient {
@@ -30,8 +41,10 @@ impl GameClient {
             order: 0,
             round: 0,
             trump: Suit::Heart,
+            role: PlayerRole::Player,
             // rx: rx,
             // tx: tx,
+            sender,
         };
     }
 

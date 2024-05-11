@@ -37,10 +37,8 @@ use serde::Deserialize;
 use serde::Serialize;
 use serde_json::json;
 use tokio::io::AsyncWriteExt;
-use tokio::net::TcpListener;
 use tokio::net::TcpStream;
-use tokio::sync::broadcast;
-use tokio::sync::mpsc;
+use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 
 use tower_http::cors::Any;
@@ -53,6 +51,8 @@ use tracing::info;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::EnvFilter;
+
+use crate::client::PlayerRole;
 
 mod client;
 mod game;
@@ -83,24 +83,6 @@ async fn server_process(
     Ok(())
 }
 
-// impl PartialOrd for Card {
-//     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-//         // match self.id.partial_cmp(&other.id) {
-//         //Some(core::cmp::Ordering::Equal) => {}
-//         //ord => return ord,
-//         // }
-//         match self.suit.partial_cmp(&other.suit) {
-//             Some(core::cmp::Ordering::Equal) => {}
-//             ord => return ord,
-//         }
-//         match self.value.partial_cmp(&other.value) {
-//             Some(core::cmp::Ordering::Equal) => {}
-//             ord => return ord,
-//         }
-//         // self.played_by.partial_cmp(&other.played_by)
-//     }
-// }
-
 /// Shorthand for the transmit half of the message channel.
 type Tx = SplitSink<WebSocket, Message>;
 
@@ -116,60 +98,12 @@ struct ServerMessage {
     from: String,
 }
 
-//  helper to print contents of messages to stdout. Has special treatment for Close.
-// fn process_message(msg: Message, who: SocketAddr, mut game: Arc<AppState>) -> ControlFlow<(), ()> {
-//     match msg {
-//         Message::Text(t) => {
-//             println!(">>> {who} sent str: {t:?}");
-//         }
-//         Message::Binary(d) => {
-//             println!(">>> {} sent {} bytes: {:?}", who, d.len(), d);
-//         }
-//         Message::Close(c) => {
-//             if let Some(cf) = c {
-//                 println!(
-//                     ">>> {} sent close with code {} and reason `{}`",
-//                     who, cf.code, cf.reason
-//                 );
-//             } else {
-//                 println!(">>> {who} somehow sent close message without CloseFrame");
-//             }
-//             return ControlFlow::Break(());
-//         }
-
-//         Message::Pong(v) => {
-//             println!(">>> {who} sent pong with {v:?}");
-//         }
-//         // You should never need to manually handle Message::Ping, as axum's websocket library
-//         // will do so for you automagically by replying with Pong and copying the v according to
-//         // spec. But if you need the contents of the pings you can see them here.
-//         Message::Ping(v) => {
-//             println!(">>> {who} sent ping with {v:?}");
-//         }
-//     }
-//     ControlFlow::Continue(())
-// }
-
 async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<AppState>) {
     let mut username = String::new();
     let mut channel = String::new();
-    let mut tx = None::<broadcast::Sender<String>>;
-
-    // let (tx, mut rx1) = broadcast::channel(16);
-    // let mut rx2 = tx.subscribe();
-
-    // tokio::spawn(async move {
-    //     assert_eq!(rx1.recv().await.unwrap(), 10);
-    //     assert_eq!(rx1.recv().await.unwrap(), 20);
-    // });
-
-    // tokio::spawn(async move {
-    //     assert_eq!(rx2.recv().await.unwrap(), 10);
-    //     assert_eq!(rx2.recv().await.unwrap(), 20);
-    // });
-
-    // tx.send(10).unwrap();
-    // tx.send(20).unwrap();
+    // let mut tx = None::<Sender<String>>;
+    // let mut tx = None::<tokio::sync::mpsc::Se
+    let (internal_send, mut internal_recv) = tokio::sync::mpsc::channel(42);
 
     if socket.send(Message::Ping(vec![1, 2, 3])).await.is_ok() {
         println!("Pinged {who}...");
@@ -181,6 +115,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
     }
 
     let (mut sender, mut receiver) = socket.split();
+
     while let Some(Ok(msg)) = receiver.next().await {
         println!("Recieved: {:?}", msg);
         // try to connect at first
@@ -220,16 +155,47 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
 
             {
                 let mut rooms = state.rooms.lock().await;
+                println!("All rooms: {:?}", rooms);
                 // channel = connect.channel.clone();
                 // println!("channel value: {}", channel);
-                let room = rooms.entry(connect.channel).or_insert_with(RoomState::new);
-                println!("room users: {:?}", room.users);
-                println!("room tx: {:?}", room.tx);
 
-                tx = Some(room.tx.clone());
-                if !room.users.lock().await.contains(&connect.username) {
+                let mut player_role: PlayerRole;
+
+                let game = match rooms.get_mut(&connect.channel) {
+                    Some(x) => {
+                        println!("Game already ongoing, joining");
+                        player_role = PlayerRole::Player;
+                        x
+                    }
+                    None => {
+                        // this is not pretty
+                        println!("Created a new game");
+                        player_role = PlayerRole::Leader;
+                        let server = GameServer::new();
+                        rooms.insert(connect.channel.clone(), server);
+                        rooms.get_mut(&connect.channel).unwrap()
+                    }
+                };
+                // println!("All rooms: {:?}", &rooms);
+                println!("room users: {:?}", game.players);
+                // println!("room tx: {:?}", game.tx);
+
+                // tx = Some(game.tx.clone());
+                if !game.players.contains_key(&connect.username) {
                     println!("room did not contain user, adding them...");
-                    room.users.lock().await.insert(connect.username.to_owned());
+                    let _ = sender
+                        .send(Message::Text(
+                            json!(ServerMessage {
+                                message: format!("Joined the game: {}", username),
+                                from: "Server".to_string(),
+                            })
+                            .to_string(),
+                        ))
+                        .await;
+                    game.players.insert(
+                        connect.username.to_owned(),
+                        GameClient::new(connect.username.clone(), sender, player_role),
+                    );
                     username = connect.username.clone();
                 } else {
                     let _ = sender
@@ -260,81 +226,60 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
 
     // let (send_chnl, mut rec_chnl) = tokio::sync::mpsc::channel::<GameMessage>(10);
 
-    let tx = tx.unwrap();
-    let mut rx = tx.subscribe();
-    let _ = tx.send(json!({"message": format!("{} has joined", username.clone())}).to_string());
-
     // Recieve from client
     let mut recv_messages_from_clients = tokio::spawn(async move {
-        // while let Ok(msg) = rx.recv().await {
-        //     println!(
-        //         "recieved something from the client, now progress the game: {:?}",
-        //         msg
-        //     );
-
-        //     let game_message = match serde_json::from_str(&msg) {
-        //         Ok(x) => x,
-        //         Err(err) => {
-        //             println!("error deserializing message: {}", err);
-        //             return;
-        //         }
-        //     };
-
-        //     if send_chnl.send(game_message).await.is_err() {
-        //         info!("Could not send a message, breaking");
-        //         break;
-        //     }
-
-        while let Ok(msg) = rx.recv().await {
-            println!(
-                "recieved something from the client, now progress the game: {:?}",
-                msg
-            );
-
-            // if let Message::Text(message_text) = msg {
-            // let game_message = match serde_json::from_str(&message_text) {
-            //     Ok(x) => x,
-            //     Err(err) => {
-            //         println!("error deserializing message: {}", err);
-            //         return;
-            //     }
-            // };
-
-            if sender.send(Message::Text(msg)).await.is_err() {
+        while let Some(Ok(Message::Text(msg))) = receiver.next().await {
+            if internal_send.send(msg).await.is_err() {
                 info!("Could not send a message, breaking");
                 break;
             }
-            // };
-            // tx.send("testing sending from recv_messages".to_string());
         }
     });
 
     let mut send_messages_to_client = {
-        let tx = tx.clone();
+        // let tx = tx.clone();
         let name = username.clone();
         tokio::spawn(async move {
             println!("send_messages_to_client | {} --", name);
-            while let Some(Ok(text)) = receiver.next().await {
+            while let Some(text) = internal_recv.recv().await {
                 // while let Some(text) = rx.recv().await {
                 println!("-> {:?}", text);
 
-                if let Message::Text(text) = text {
-                    let game_message = match serde_json::from_str(&text) {
-                        Ok(x) => x,
-                        Err(err) => {
-                            println!("Error deserializing game message: {}", err);
-                            continue;
-                        }
-                    };
-
-                    if let ControlFlow::Break(_) = fun_name(&game_message, &name) {
-                        break;
-                    }
-                    match tx.send(json!(text).to_string()) {
-                        Ok(x) => println!("worked: {}", x),
-                        Err(err) => println!("did not work: {}", err),
+                // if let Message::Text(text) = text {
+                let game_message: GameMessage = match serde_json::from_str(&text) {
+                    Ok(x) => x,
+                    Err(err) => {
+                        println!("Error deserializing game message: {}", err);
+                        continue;
                     }
                 };
+
+                println!("Server state: {:?}", state);
+                let game = state.rooms.lock().await.get_mut(&channel);
+
+                // for (key, mut player) in state
+                //     .rooms
+                //     .lock()
+                //     .await
+                //     .get_mut(&channel)
+                //     .unwrap()
+                //     .players
+                //     .iter_mut()
+                // {
+                //     if player
+                //         .sender
+                //         .send(Message::Text("hey this better work :)".to_string()))
+                //         .await
+                //         .is_err()
+                //     {
+                //         break;
+                //     }
+                // }
+
+                // match sender.send(Message::Text(json!(text).to_string())).await {
+                //     Ok(x) => println!("success"),
+                //     Err(err) => println!("Error sending message: {:?}", err),
+                // }
             }
         })
     };
@@ -343,74 +288,6 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
         _ = (&mut send_messages_to_client) => recv_messages_from_clients.abort(),
         _ = (&mut recv_messages_from_clients) => send_messages_to_client.abort(),
     };
-
-    // {
-    //     let mut rooms = state.rooms.lock().await;
-    //     // channel = connect.channel.clone();
-    //     // println!("channel value: {}", channel);
-    //     let room = rooms.entry(connect.channel).or_insert_with(RoomState::new);
-    //     println!("room users: {:?}", room.users);
-    //     println!("room tx: {:?}", room.tx);
-
-    //     tx = Some(room.tx.clone());
-    //     if !room.users.lock().await.contains(&connect.username) {
-    //         println!("room did not contain user, adding them...");
-    //         room.users.lock().await.insert(connect.username.to_owned());
-    //         username = connect.username.clone();
-    //     }
-    // }
-    // if username.is_empty() {
-    //     let _ = socket
-    //         .send(Message::Text(String::from("Username already taken.")))
-    //         .await;
-    //     return;
-    // }
-
-    // let tx = tx.unwrap();
-    // let mut rx = tx.subscribe();
-
-    // let joined = format!("{} joined the chat!", username);
-    // let _ = tx.send(joined);
-
-    // let mut recv_messages = tokio::spawn(async move {
-    //     while let Ok(msg) = rx.recv().await {
-    //         if sender.send(Message::Text(msg)).await.is_err() {
-    //             break;
-    //         }
-    //         println!("{}", msg);
-    //     }
-    // });
-
-    // let mut send_messages = {
-    //     let tx = tx.clone();
-    //     let name = username.clone();
-    //     tokio::spawn(async move {
-    //         while let Some(Ok(Message::Text(text))) = receiver.next().await {
-    //             println!("{} says {}", name, text);
-    //             let _ = tx.send(format!("{}: {}", name, text));
-    //         }
-    //     })
-    // };
-
-    // tokio::select! {
-    //     _ = (&mut send_messages) => recv_messages.abort(),
-    //     _ = (&mut recv_messages) => send_messages.abort(),
-    // };
-
-    // let left = format!("{} left the chat!", username);
-    // let _ = tx.send(left);
-    // let mut rooms = state.rooms.lock().await;
-    // rooms
-    //     .get_mut(&channel)
-    //     .unwrap()
-    //     .users
-    //     .lock()
-    //     .await
-    //     .remove(&username);
-
-    // if rooms.get_mut(&channel).unwrap().users.lock().await.len() == 0 {
-    //     rooms.remove(&channel);
-    // }
 }
 
 #[derive(Deserialize, Debug, Serialize)]
@@ -420,102 +297,16 @@ pub struct GameMessage {
     timestamp: DateTime<Utc>,
 }
 
-fn fun_name(
-    message: &GameMessage,
-    name: &String,
-    // tx: &broadcast::Sender<String>,
-) -> ControlFlow<()> {
+fn fun_name(message: &GameMessage, name: &String) -> ControlFlow<()> {
     println!("{} says {:?}", name, message);
-    let servermessage = ServerMessage {
-        message: "hey, this is nice".to_string(),
-        from: name.clone(),
-    };
+    // let servermessage = ServerMessage {
+    //     message: "hey, this is nice".to_string(),
+    //     from: name.clone(),
+    // };
     // let _ = tx.send(json!(servermessage).to_string());
 
     ControlFlow::Continue(())
 }
-
-//     // receive single message from a client (we can either receive or send with socket).
-//     // this will likely be the Pong for our Ping or a hello message from client.
-//     // waiting for message from a client will block this task, but will not block other client's
-//     // connections.
-//     if let Some(msg) = socket.recv().await {
-//         if let Ok(msg) = msg {
-//             if process_message(msg, who, state.clone()).is_break() {
-//                 return;
-//             }
-//         } else {
-//             println!("client {who} abruptly disconnected");
-//             return;
-//         }
-//     }
-
-//     // By splitting socket we can send and receive at the same time. In this example we will send
-//     // unsolicited messages to client based on some sort of server's internal event (i.e .timer).
-//     let (mut sender, mut receiver) = socket.split();
-
-//     // Spawn a task that will push several messages to the client (does not matter what client does)
-//     let mut send_task = tokio::spawn(async move {
-//         let mut input = String::new();
-
-//         while input != "q" {
-//             io::stdin()
-//                 .read_line(&mut input)
-//                 .expect("error: unable to read user input");
-
-//             let cleaned = input.trim();
-//             println!("Sending {} -> {}", cleaned, who);
-//             sender.send(Message::Text(cleaned.to_string())).await;
-//             // input = String::new();
-//         }
-
-//         println!("Sending close to {who}...");
-//         if let Err(e) = sender
-//             .send(Message::Close(Some(CloseFrame {
-//                 code: axum::extract::ws::close_code::NORMAL,
-//                 reason: Cow::from("Goodbye"),
-//             })))
-//             .await
-//         {
-//             println!("Could not send Close due to {e}, probably it is ok?");
-//         }
-//         1
-//     });
-
-//     // This second task will receive messages from client and print them on server console
-//     let mut recv_task = tokio::spawn(async move {
-//         let mut cnt = 0;
-//         while let Some(Ok(msg)) = receiver.next().await {
-//             cnt += 1;
-//             // print message and break if instructed to do so
-//             if process_message(msg, who, state.clone()).is_break() {
-//                 break;
-//             }
-//         }
-//         cnt
-//     });
-
-//     // If any one of the tasks exit, abort the other.
-//     tokio::select! {
-//         rv_a = (&mut send_task) => {
-//             match rv_a {
-//                 Ok(a) => println!("{a} messages sent to {who}"),
-//                 Err(a) => println!("Error sending messages {a:?}")
-//             }
-//             recv_task.abort();
-//         },
-//         rv_b = (&mut recv_task) => {
-//             match rv_b {
-//                 Ok(b) => println!("Received {b} messages"),
-//                 Err(b) => println!("Error receiving messages {b:?}")
-//             }
-//             send_task.abort();
-//         }
-//     }
-
-//     // returning from the handler closes the websocket connection
-//     println!("Websocket context {who} destroyed");
-// }
 
 async fn ws_handler(
     ws: WebSocketUpgrade,
@@ -538,22 +329,10 @@ async fn root() -> &'static str {
     "Hello, World"
 }
 
+#[derive(Debug)]
 struct AppState {
-    rooms: Mutex<HashMap<String, RoomState>>,
-}
-
-struct RoomState {
-    users: Mutex<HashSet<String>>,
-    tx: broadcast::Sender<String>,
-}
-
-impl RoomState {
-    fn new() -> Self {
-        Self {
-            users: Mutex::new(HashSet::new()),
-            tx: broadcast::channel(69).0,
-        }
-    }
+    // rooms: Mutex<HashMap<String, RoomState>>,
+    rooms: Mutex<HashMap<String, GameServer>>,
 }
 
 #[tokio::main]
