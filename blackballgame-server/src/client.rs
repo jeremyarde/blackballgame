@@ -1,4 +1,4 @@
-use std::{io, os::unix::net::SocketAddr};
+use std::{fmt, io, os::unix::net::SocketAddr};
 
 use axum::extract::ws::{Message, WebSocket};
 use futures_util::stream::SplitSink;
@@ -26,8 +26,12 @@ pub struct GameClient {
     pub role: PlayerRole,
 
     pub sender: SplitSink<WebSocket, Message>, // don't need if we are using JS
-                                               // pub rx: Rx,
-                                               // pub tx: Tx,
+}
+
+impl fmt::Display for GameClient {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "GameClient: id={}", self.id)
+    }
 }
 
 impl GameClient {

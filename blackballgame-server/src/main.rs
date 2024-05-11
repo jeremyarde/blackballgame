@@ -98,6 +98,14 @@ struct ServerMessage {
     from: String,
 }
 
+impl ServerMessage {
+    fn from(message: String, from: &str) -> Self {
+        return ServerMessage {
+            message,
+            from: from.to_string(),
+        };
+    }
+}
 async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<AppState>) {
     let mut username = String::new();
     let mut channel = String::new();
@@ -254,8 +262,20 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                     }
                 };
 
-                println!("Server state: {:?}", state);
-                let game = state.rooms.lock().await.get_mut(&channel);
+                for display_name in state.rooms.lock().await.keys() {
+                    println!("Games: {}", &display_name);
+                }
+                let game = state.rooms.lock().await.get_mut(&channel).unwrap();
+
+                let _ = sender
+                    .send(Message::Text(
+                        json!(ServerMessage::from(
+                            format!("something happened in game: {}", channel),
+                            &username
+                        ))
+                        .to_string(),
+                    ))
+                    .await;
 
                 // for (key, mut player) in state
                 //     .rooms
