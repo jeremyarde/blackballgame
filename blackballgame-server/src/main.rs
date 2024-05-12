@@ -53,6 +53,8 @@ use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::EnvFilter;
 
 use crate::client::PlayerRole;
+use crate::game::FullGameState;
+use crate::game::GameState;
 
 mod client;
 mod game;
@@ -191,8 +193,8 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                     let _ = sender
                         .send(Message::Text(
                             json!(ServerMessage {
-                                message: format!("Joined the game: {}", username),
-                                from: "Server".to_string(),
+                                message: format!("{} joined the game.", username),
+                                from: "System".to_string(),
                             })
                             .to_string(),
                         ))
@@ -233,6 +235,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
     // let (send_chnl, mut rec_chnl) = tokio::sync::mpsc::channel::<GameMessage>(10);
     // let (internal_send, mut _internal_recv) = tokio::sync::broadcast::channel(42);
     // internal_send.sub
+
     let tx = internal_send.unwrap();
     let mut rx = tx.subscribe();
 
@@ -241,10 +244,19 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
     let username_for_recv = username.clone();
 
     let mut recv_messages_from_clients = tokio::spawn(async move {
+        println!(
+            "Reciever for user={} is now ready to accept messages.",
+            username_for_recv
+        );
         while let Some(Ok(Message::Text(msg))) = receiver.next().await {
-            let mut gameguard = state.rooms.lock().await;
-            let game = gameguard.get_mut(&channel_for_recv).unwrap();
-            let gamestate = game.get_state();
+            let gamestate;
+            let sender;
+            {
+                let mut gameguard = state.rooms.lock().await;
+                let game = gameguard.get_mut(&channel_for_recv).unwrap();
+                gamestate = game.get_state();
+                sender = game.tx.clone();
+            }
             // process the game and send a different message
             let messagetosend = json!(ServerMessage::from(
                 json!(gamestate).to_string(),
@@ -252,11 +264,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
             ))
             .to_string();
 
-            for display_name in state.rooms.lock().await.keys() {
-                println!("Games: {}", &display_name);
-            }
-
-            if game.tx.send(messagetosend).is_err() {
+            if sender.send(messagetosend).is_err() {
                 info!("Could not send a message, breaking");
                 break;
             }
@@ -268,24 +276,24 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
 
     let mut send_messages_to_client = {
         tokio::spawn(async move {
+            println!(
+                "Sender for user={} is now ready to accept messages.",
+                username_for_send
+            );
             while let Ok(text) = rx.recv().await {
-                println!("-> {:?}", text);
+                println!("messaging client -> {:?}", text);
 
-                let game_message: GameMessage = match serde_json::from_str(&text) {
-                    Ok(x) => x,
-                    Err(err) => {
-                        println!("Error deserializing game message: {}", err);
-                        continue;
-                    }
-                };
+                // let game_message: GameMessage = match serde_json::from_str(&text) {
+                //     Ok(x) => x,
+                //     Err(err) => {
+                //         println!("Error deserializing game message: {}", err);
+                //         continue;
+                //     }
+                // };
 
                 let _ = sender
                     .send(Message::Text(
-                        json!(ServerMessage::from(
-                            format!("something happened in game: {}", lobby_code),
-                            &username_for_send
-                        ))
-                        .to_string(),
+                        json!(ServerMessage::from(text, "System")).to_string(),
                     ))
                     .await;
 
@@ -322,17 +330,6 @@ pub struct GameMessage {
     username: String,
     message: String,
     timestamp: DateTime<Utc>,
-}
-
-fn fun_name(message: &GameMessage, name: &String) -> ControlFlow<()> {
-    println!("{} says {:?}", name, message);
-    // let servermessage = ServerMessage {
-    //     message: "hey, this is nice".to_string(),
-    //     from: name.clone(),
-    // };
-    // let _ = tx.send(json!(servermessage).to_string());
-
-    ControlFlow::Continue(())
 }
 
 async fn ws_handler(
