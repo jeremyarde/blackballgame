@@ -110,8 +110,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
     let mut username = String::new();
     let mut channel = String::new();
     // let mut tx = None::<Sender<String>>;
-    // let mut tx = None::<tokio::sync::mpsc::Se
-    let (internal_send, mut internal_recv) = tokio::sync::mpsc::channel(42);
+    let mut internal_send = None::<tokio::sync::broadcast::Sender<String>>;
 
     if socket.send(Message::Ping(vec![1, 2, 3])).await.is_ok() {
         println!("Pinged {who}...");
@@ -184,6 +183,8 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                         rooms.get_mut(&connect.channel).unwrap()
                     }
                 };
+
+                let tx = Some(game.tx.clone());
                 // println!("All rooms: {:?}", &rooms);
                 println!("room users: {:?}", game.players);
                 // println!("room tx: {:?}", game.tx);
@@ -202,7 +203,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                         .await;
                     game.players.insert(
                         connect.username.to_owned(),
-                        GameClient::new(connect.username.clone(), sender, player_role),
+                        GameClient::new(connect.username.clone(), player_role),
                     );
                     username = connect.username.clone();
                 } else {
@@ -233,23 +234,47 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
     }
 
     // let (send_chnl, mut rec_chnl) = tokio::sync::mpsc::channel::<GameMessage>(10);
+    // let (internal_send, mut _internal_recv) = tokio::sync::broadcast::channel(42);
+    // internal_send.sub
+    let tx = internal_send.unwrap();
+    let mut rx = tx.subscribe();
 
     // Recieve from client
+    let channel_for_recv = channel.clone();
+    let username_for_recv = username.clone();
+
     let mut recv_messages_from_clients = tokio::spawn(async move {
         while let Some(Ok(Message::Text(msg))) = receiver.next().await {
-            if internal_send.send(msg).await.is_err() {
+            let mut gameguard = state.rooms.lock().await;
+            let game = gameguard.get_mut(&channel_for_recv).unwrap();
+            let gamestate = game.get_state();
+            // process the game and send a different message
+            let messagetosend = json!(ServerMessage::from(
+                json!(gamestate).to_string(),
+                username_for_recv.clone().as_str()
+            ))
+            .to_string();
+
+            for display_name in state.rooms.lock().await.keys() {
+                println!("Games: {}", &display_name);
+            }
+
+            if game.tx.send(messagetosend).is_err() {
                 info!("Could not send a message, breaking");
                 break;
             }
         }
     });
 
+    let channel_for_send = channel.clone();
+    let username_for_send = username.clone();
+
     let mut send_messages_to_client = {
         // let tx = tx.clone();
-        let name = username.clone();
+        // let name = username.clone();
         tokio::spawn(async move {
-            println!("send_messages_to_client | {} --", name);
-            while let Some(text) = internal_recv.recv().await {
+            // println!("send_messages_to_client | {} --", name);
+            while let Ok(text) = rx.recv().await {
                 // while let Some(text) = rx.recv().await {
                 println!("-> {:?}", text);
 
@@ -262,16 +287,13 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                     }
                 };
 
-                for display_name in state.rooms.lock().await.keys() {
-                    println!("Games: {}", &display_name);
-                }
-                let game = state.rooms.lock().await.get_mut(&channel).unwrap();
+                // let game = state.rooms.lock().await.get_mut(&channel).unwrap();
 
                 let _ = sender
                     .send(Message::Text(
                         json!(ServerMessage::from(
                             format!("something happened in game: {}", channel),
-                            &username
+                            &username_for_send
                         ))
                         .to_string(),
                     ))
@@ -294,11 +316,6 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                 //     {
                 //         break;
                 //     }
-                // }
-
-                // match sender.send(Message::Text(json!(text).to_string())).await {
-                //     Ok(x) => println!("success"),
-                //     Err(err) => println!("Error sending message: {:?}", err),
                 // }
             }
         })

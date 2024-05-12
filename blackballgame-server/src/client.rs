@@ -24,8 +24,7 @@ pub struct GameClient {
     pub round: i32,
     pub state: PlayerState,
     pub role: PlayerRole,
-
-    pub sender: SplitSink<WebSocket, Message>, // don't need if we are using JS
+    // pub sender: SplitSink<WebSocket, Message>, // don't need if we are using JS
 }
 
 impl fmt::Display for GameClient {
@@ -35,7 +34,11 @@ impl fmt::Display for GameClient {
 }
 
 impl GameClient {
-    pub fn new(id: String, sender: SplitSink<WebSocket, Message>, role: PlayerRole) -> Self {
+    pub fn new(
+        id: String,
+        // sender: SplitSink<WebSocket, Message>,
+        role: PlayerRole,
+    ) -> Self {
         // let (tx, rx) = mpsc::unbounded_channel();
 
         return GameClient {
@@ -48,7 +51,7 @@ impl GameClient {
             role: PlayerRole::Player,
             // rx: rx,
             // tx: tx,
-            sender,
+            // sender,
         };
     }
 

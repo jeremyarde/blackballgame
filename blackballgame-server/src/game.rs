@@ -7,6 +7,13 @@ use tokio::sync::broadcast;
 
 use crate::client::{GameClient, PlayerRole};
 
+#[derive(Serialize, Clone)]
+pub struct FullGameState {
+    trump: Suit,
+    state: GameState,
+    cards: Vec<Card>,
+}
+
 impl GameServer {
     pub fn new() -> Self {
         // let (tx, rx) = broadcast::channel(10);
@@ -32,6 +39,14 @@ impl GameServer {
         server
     }
 
+    pub fn get_state(&self) -> FullGameState {
+        return FullGameState {
+            trump: self.trump.clone(),
+            state: self.state.clone(),
+            cards: vec![],
+        };
+    }
+
     fn add_player(
         &mut self,
         player_id: String,
@@ -40,7 +55,7 @@ impl GameServer {
         role: PlayerRole,
     ) {
         self.players
-            .insert(player_id.clone(), GameClient::new(player_id, sender, role));
+            .insert(player_id.clone(), GameClient::new(player_id, role));
     }
 
     pub fn play_game(&mut self, max_rounds: Option<i32>) {
@@ -458,7 +473,7 @@ pub enum EventType {
     Bid(i32),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub enum GameState {
     Deal,
     Bid,
