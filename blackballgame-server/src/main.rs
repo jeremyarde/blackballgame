@@ -108,7 +108,7 @@ impl ServerMessage {
 }
 async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<AppState>) {
     let mut username = String::new();
-    let mut channel = String::new();
+    let mut lobby_code = String::new();
     // let mut tx = None::<Sender<String>>;
     let mut internal_send = None::<tokio::sync::broadcast::Sender<String>>;
 
@@ -162,9 +162,8 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
 
             {
                 let mut rooms = state.rooms.lock().await;
-                println!("All rooms: {:?}", rooms);
-                // channel = connect.channel.clone();
-                // println!("channel value: {}", channel);
+                println!("All rooms: {:?}", rooms.keys());
+                lobby_code = connect.channel.clone(); // set lobby code as what we connected with
 
                 let mut player_role: PlayerRole;
 
@@ -183,13 +182,10 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                         rooms.get_mut(&connect.channel).unwrap()
                     }
                 };
+                internal_send = Some(game.tx.clone());
 
-                let tx = Some(game.tx.clone());
-                // println!("All rooms: {:?}", &rooms);
                 println!("room users: {:?}", game.players);
-                // println!("room tx: {:?}", game.tx);
 
-                // tx = Some(game.tx.clone());
                 if !game.players.contains_key(&connect.username) {
                     println!("room did not contain user, adding them...");
                     let _ = sender
@@ -201,6 +197,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                             .to_string(),
                         ))
                         .await;
+
                     game.players.insert(
                         connect.username.to_owned(),
                         GameClient::new(connect.username.clone(), player_role),
@@ -240,7 +237,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
     let mut rx = tx.subscribe();
 
     // Recieve from client
-    let channel_for_recv = channel.clone();
+    let channel_for_recv = lobby_code.clone();
     let username_for_recv = username.clone();
 
     let mut recv_messages_from_clients = tokio::spawn(async move {
@@ -266,19 +263,14 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
         }
     });
 
-    let channel_for_send = channel.clone();
+    let channel_for_send = lobby_code.clone();
     let username_for_send = username.clone();
 
     let mut send_messages_to_client = {
-        // let tx = tx.clone();
-        // let name = username.clone();
         tokio::spawn(async move {
-            // println!("send_messages_to_client | {} --", name);
             while let Ok(text) = rx.recv().await {
-                // while let Some(text) = rx.recv().await {
                 println!("-> {:?}", text);
 
-                // if let Message::Text(text) = text {
                 let game_message: GameMessage = match serde_json::from_str(&text) {
                     Ok(x) => x,
                     Err(err) => {
@@ -287,12 +279,10 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                     }
                 };
 
-                // let game = state.rooms.lock().await.get_mut(&channel).unwrap();
-
                 let _ = sender
                     .send(Message::Text(
                         json!(ServerMessage::from(
-                            format!("something happened in game: {}", channel),
+                            format!("something happened in game: {}", lobby_code),
                             &username_for_send
                         ))
                         .to_string(),
