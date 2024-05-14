@@ -243,8 +243,6 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
     let channel_for_recv = lobby_code.clone();
     let username_for_recv = username.clone();
 
-    // let (gamesend,  gamerecv) = tokio::
-    // let queue: Arc<Vec<GameMessage>> = Arc::new(vec![]);
     let (tx_game_messages, mut rx_game_messages) = tokio::sync::mpsc::channel::<GameMessage>(100);
     // let queue_for_recv = queue.clone();
     // let shared_game_message_queue = Arc::new(vec![]);
@@ -315,18 +313,16 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
             let mut newgame = GameServer::new();
             let event_cap = 5;
 
-            info!("Starting up game loop");
+            info!("Starting up game");
             loop {
                 let mut game_messages = Vec::with_capacity(event_cap);
-                // while let Ok(msg) = rx_game_messages.poll_recv(cx) {
-                //     info!("sending the input to the game");
-                // }
 
                 info!("Waiting for messages");
                 rx_game_messages
                     .recv_many(&mut game_messages, event_cap)
                     .await;
                 info!("Got messages");
+                
                 let state = newgame.process_event(game_messages);
                 let _ = tx.send(state);
             }
@@ -381,7 +377,7 @@ async fn main() {
             EnvFilter::from_default_env().add_directive("blackballgame=debug".parse().unwrap()),
         )
         .with_span_events(FmtSpan::FULL)
-        .with_thread_names(true)
+        // .with_thread_names(true) // only says "tokio-runtime-worker"
         .with_thread_ids(true)
         .finish()
         .init();

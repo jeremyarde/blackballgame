@@ -27,7 +27,7 @@ impl GameServer {
             //     Actioner::Player(_) => info!("{:?}", event),
             // }
 
-            info!("-> {:?}", event);
+            info!("processing: {:?}", event);
         }
         return self.get_state();
     }

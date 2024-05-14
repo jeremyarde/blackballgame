@@ -74,9 +74,11 @@ impl GameClient {
         }
 
         // this should probably just grab an event from the queue and check if its the right player
-        io::stdin()
-            .read_line(&mut input)
-            .expect("error: unable to read user input");
+        // io::stdin()
+        //     .read_line(&mut input)
+        //     .expect("error: unable to read user input");
+
+
 
         let mut parse_result = input.trim().parse::<i32>();
         while parse_result.is_err()
