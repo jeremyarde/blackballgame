@@ -4,10 +4,14 @@ use axum::extract::ws::{Message, WebSocket};
 use futures_util::stream::{SplitSink, SplitStream};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
+use tracing::info;
 
-use crate::client::{GameClient, PlayerRole};
+use crate::{
+    client::{GameClient, PlayerRole},
+    GameMessage,
+};
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug)]
 pub struct FullGameState {
     trump: Suit,
     state: GameState,
@@ -15,6 +19,19 @@ pub struct FullGameState {
 }
 
 impl GameServer {
+    pub fn process_event(&mut self, events: Vec<GameMessage>) -> FullGameState {
+        info!("[TODO] Processing an event");
+        for event in events.iter() {
+            // match event.origin {
+            //     Actioner::System => info!("{:?}", event),
+            //     Actioner::Player(_) => info!("{:?}", event),
+            // }
+
+            info!("-> {:?}", event);
+        }
+        return self.get_state();
+    }
+
     pub fn new() -> Self {
         // let (tx, rx) = broadcast::channel(10);
 
@@ -33,6 +50,8 @@ impl GameServer {
 
             // send and recieve here
             tx: broadcast::channel(10).0,
+            event_log: vec![],
+            event_queue: vec![],
             // tx,
             // rx,
         };
@@ -369,10 +388,30 @@ pub struct GameServer {
     score: HashMap<String, i32>,
     state: GameState,
 
-    pub tx: broadcast::Sender<String>,
+    pub tx: broadcast::Sender<FullGameState>,
+    pub event_log: Vec<GameEvent>,
+    pub event_queue: Vec<GameEvent>,
     // rx: broadcast::Receiver<String>,
     //     tx: broadcast::Sender<String>,
     //     rx: SplitStream<Message>,
+}
+
+#[derive(Debug)]
+pub struct GameEvent {
+    action: GameAction,
+    origin: Actioner,
+}
+
+#[derive(Debug, Serialize)]
+pub enum GameAction {
+    PlayCard(Card),
+    Bid(i32),
+}
+
+#[derive(Debug, Serialize)]
+pub enum Actioner {
+    System,
+    Player(String),
 }
 
 #[derive(Debug, Clone, Copy)]

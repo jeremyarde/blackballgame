@@ -3,6 +3,7 @@ use std::{fmt, io, os::unix::net::SocketAddr};
 use axum::extract::ws::{Message, WebSocket};
 use futures_util::stream::SplitSink;
 use tokio::sync::mpsc::{self, Sender};
+use tracing::info;
 
 use crate::{
     game::{Card, PlayerState, Suit},
@@ -61,17 +62,18 @@ impl GameClient {
 
     pub fn play_card(&mut self, valid_choices: &Vec<Card>) -> (usize, Card) {
         let mut input = String::new();
-        println!("Player {}, Select the card you want to play", self.id);
+        info!("Player {}, Select the card you want to play", self.id);
 
         for (i, card) in self.hand.iter().enumerate() {
-            println!("{}: {}", i, card);
+            info!("{}: {}", i, card);
         }
 
-        println!("Valid cards:");
+        info!("Valid cards:");
         for (i, card) in valid_choices.iter().enumerate() {
-            println!("{}: {}", i, card);
+            info!("{}: {}", i, card);
         }
 
+        // this should probably just grab an event from the queue and check if its the right player
         io::stdin()
             .read_line(&mut input)
             .expect("error: unable to read user input");
@@ -80,7 +82,7 @@ impl GameClient {
         while parse_result.is_err()
             || !(0..self.hand.len()).contains(&(parse_result.clone().unwrap() as usize))
         {
-            println!(
+            info!(
                 "{:?} is invalid, please enter a valid card position.",
                 parse_result
             );
@@ -90,7 +92,7 @@ impl GameClient {
                 .expect("error: unable to read user input");
             parse_result = input.trim().parse::<i32>();
         }
-        println!("range: {:?}, selected: {}", (0..self.hand.len() - 1), input);
+        info!("range: {:?}, selected: {}", (0..self.hand.len() - 1), input);
 
         return (
             parse_result.clone().unwrap() as usize,
@@ -99,13 +101,13 @@ impl GameClient {
     }
 
     pub fn get_client_bids(&mut self, allowed_bids: &Vec<i32>) -> i32 {
-        println!("Your hand:");
-        self.hand.iter().for_each(|card| println!("{}", card));
+        info!("Your hand:");
+        self.hand.iter().for_each(|card| info!("{}", card));
 
         let mut input = String::new();
         // let mut valid = 0;
-        println!("How many tricks do you want?");
-        println!("{:#?}", allowed_bids);
+        info!("How many tricks do you want?");
+        info!("{:#?}", allowed_bids);
 
         io::stdin()
             .read_line(&mut input)
