@@ -30,21 +30,16 @@ impl GameServer {
                         return None;
                     }
 
-                    self.update_bid(event);
+                    self.update_bid(event.username.clone(), &bid);
                 }
-                GameAction::Deal => todo!(),
+                GameAction::Deal => self.deal(),
                 GameAction::StartGame => {
                     self.state = GameState::Deal;
                 }
             }
-            // match event.origin {
-            //     Actioner::System => info!("{:?}", event),
-            //     Actioner::Player(_) => info!("{:?}", event),
-            // }
-
             info!("processing: {:?}", event);
         }
-        return self.get_state();
+        return Some(self.get_state());
     }
 
     pub fn new() -> Self {
@@ -128,7 +123,7 @@ impl GameServer {
             tracing::info!("\t/debug: play order: {:#?}", self.play_order);
 
             self.deal();
-            self.bids();
+            // self.bids();
             // self.play_round();
             for handnum in 1..=self.curr_round {
                 tracing::info!(
@@ -277,24 +272,10 @@ impl GameServer {
         }
     }
 
-    fn update_bids(&mut self, player_id: String, bid: &i32) -> Result<(), String> {
-        // let player_id = event.username;
+    fn update_bid(&mut self, player_id: String, bid: &i32) -> Result<(), String> {
         tracing::info!("Player {} to bid", player_id);
         let mut client = self.players.get_mut(&player_id).unwrap();
-        let valid_bids = valid_bids(
-            self.curr_round,
-            &self.bids,
-            self.dealing_order[0] == *player_id,
-        );
 
-        // loop {
-        //     tracing::info!(
-        //         "\t/debug: bid={}, round={}, bids={:?}, dealer={}",
-        //         bid,
-        //         self.curr_round,
-        //         self.bids,
-        //         self.dealing_order[0]
-        //     );
         match validate_bid(
             &bid,
             self.curr_round,
@@ -311,55 +292,6 @@ impl GameServer {
                 return Err("Bid not valid".to_string());
             }
         }
-        // }
-    }
-
-    fn bids(&mut self) {
-        tracing::info!("=== Bidding ===");
-        tracing::info!("Trump is {}", self.trump);
-
-        for player_id in self.play_order.iter() {
-            // let curr_index = if self.dealer_idx == self.players.len() as i32 - 1 {
-            //     0
-            // } else {
-            //     self.dealer_idx + 1
-            // };
-            tracing::info!("Player {} to bid", player_id);
-            let mut client = self.players.get_mut(player_id).unwrap();
-            let valid_bids = valid_bids(
-                self.curr_round,
-                &self.bids,
-                self.dealing_order[0] == *player_id,
-            );
-            let mut bid = client.get_client_bids(&valid_bids);
-
-            loop {
-                tracing::info!(
-                    "\t/debug: bid={}, round={}, bids={:?}, dealer={}",
-                    bid,
-                    self.curr_round,
-                    self.bids,
-                    self.dealing_order[0]
-                );
-                match validate_bid(
-                    &bid,
-                    self.curr_round,
-                    &self.bids,
-                    self.dealing_order[0] == client.id,
-                ) {
-                    Ok(x) => {
-                        tracing::info!("bid was: {}", x);
-                        self.bids.insert(client.id.clone(), x);
-                        break;
-                    }
-                    Err(e) => {
-                        tracing::info!("Error with bid: {:?}", e);
-                        bid = client.get_client_bids(&valid_bids);
-                    }
-                }
-            }
-        }
-        tracing::info!("Biding over, bids are: {:?}", self.bids);
     }
 
     fn play_round(&mut self) {
