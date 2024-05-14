@@ -85,7 +85,7 @@ async fn server_process(
     // start game, ask for input from people, progress game
     let max_rounds = Some(3);
 
-    server.play_game(max_rounds);
+    server.setup_game(max_rounds);
     Ok(())
 }
 
@@ -322,7 +322,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                     .recv_many(&mut game_messages, event_cap)
                     .await;
                 info!("Got messages");
-                
+
                 let state = newgame.process_event(game_messages);
                 let _ = tx.send(state);
             }
@@ -339,7 +339,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct GameMessage {
     username: String,
-    message: String,
+    message: GameEvent,
     timestamp: DateTime<Utc>,
 }
 
@@ -420,23 +420,4 @@ async fn main() {
     )
     .await
     .unwrap();
-
-    // loop {
-    //     tracing::info!("Waiting for inbound TcpStream");
-    //     // Asynchronously wait for an inbound TcpStream.
-    //     let (stream, addr) = listener.accept().await.unwrap();
-
-    //     tracing::info!("Got message, beginning game...");
-
-    //     // Clone a handle to the `Shared` state for the new connection.
-    //     let state = Arc::clone(&serverstate);
-
-    //     // Spawn our handler to be run asynchronously.
-    //     tokio::spawn(async move {
-    //         tracing::debug!("accepted connection");
-    //         if let Err(e) = server_process(state, stream, addr).await {
-    //             tracing::info!("an error occurred; error = {:?}", e);
-    //         }
-    //     });
-    // }
 }

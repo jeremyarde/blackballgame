@@ -1,6 +1,7 @@
 use std::{collections::HashMap, fmt};
 
 use axum::extract::ws::{Message, WebSocket};
+use chrono::Utc;
 use futures_util::stream::{SplitSink, SplitStream};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
@@ -19,9 +20,23 @@ pub struct FullGameState {
 }
 
 impl GameServer {
-    pub fn process_event(&mut self, events: Vec<GameMessage>) -> FullGameState {
+    pub fn process_event(&mut self, events: Vec<GameMessage>) -> Option<FullGameState> {
         info!("[TODO] Processing an event");
         for event in events.iter() {
+            match event.message.action {
+                GameAction::PlayCard(_) => todo!(),
+                GameAction::Bid(bid) => {
+                    if self.state != GameState::Deal {
+                        return None;
+                    }
+
+                    self.update_bid(event);
+                }
+                GameAction::Deal => todo!(),
+                GameAction::StartGame => {
+                    self.state = GameState::Deal;
+                }
+            }
             // match event.origin {
             //     Actioner::System => info!("{:?}", event),
             //     Actioner::Player(_) => info!("{:?}", event),
@@ -77,7 +92,7 @@ impl GameServer {
             .insert(player_id.clone(), GameClient::new(player_id, role));
     }
 
-    pub fn play_game(&mut self, max_rounds: Option<i32>) {
+    pub fn setup_game(&mut self, max_rounds: Option<i32>) {
         // let num_players = 3;
         // let max_rounds = Some(3);
         let mut deal_play_order: Vec<String> =
@@ -114,7 +129,104 @@ impl GameServer {
 
             self.deal();
             self.bids();
-            self.play_round();
+            // self.play_round();
+            for handnum in 1..=self.curr_round {
+                tracing::info!(
+                    "--- Hand #{}/{} - Trump: {}---",
+                    handnum,
+                    self.curr_round,
+                    self.trump
+                );
+                // need to use a few things to see who goes first
+                // 1. highest bid (at round start)
+                // 2. person who won the trick in last round goes first, then obey existing order
+
+                // ask for input from each client in specific order (first person after dealer)
+                let mut played_cards: Vec<Card> = vec![];
+
+                let mut curr_winning_card: Option<Card> = None;
+
+                for player_id in self.play_order.iter() {
+                    let player = self.players.get_mut(player_id).unwrap();
+
+                    let valid_cards_to_play = player
+                        .hand
+                        .iter()
+                        .filter_map(|card| {
+                            match is_played_card_valid(
+                                &played_cards,
+                                &player.hand,
+                                card,
+                                &self.trump,
+                            ) {
+                                Ok(x) => Some(x),
+                                Err(err) => None,
+                            }
+                        })
+                        .collect::<Vec<Card>>();
+
+                    let (loc, mut card) = player.play_card(&valid_cards_to_play);
+                    loop {
+                        match is_played_card_valid(
+                            &played_cards.clone(),
+                            &mut player.hand,
+                            &card.clone(),
+                            &self.trump,
+                        ) {
+                            Ok(x) => {
+                                tracing::info!("card is valid");
+                                card = x;
+                                // remove the card from the players hand
+                                player.hand.remove(loc);
+                                break;
+                            }
+                            Err(e) => {
+                                tracing::info!("card is NOT valid: {:?}", e);
+                                (_, card) = player.play_card(&valid_cards_to_play);
+                            }
+                        }
+                    }
+                    played_cards.push(card.clone());
+
+                    // logic for finding the winning card
+                    if curr_winning_card.is_none() {
+                        curr_winning_card = Some(card);
+                    } else {
+                        let curr = curr_winning_card.clone().unwrap();
+                        if card.suit == curr.suit && card.value > curr.value {
+                            curr_winning_card = Some(card.clone());
+                        }
+                        if card.suit == self.trump
+                            && curr.suit == self.trump
+                            && card.clone().value > curr.value
+                        {
+                            curr_winning_card = Some(card);
+                        }
+                    }
+
+                    tracing::info!(
+                        "Curr winning card: {:?}",
+                        curr_winning_card.clone().unwrap()
+                    );
+                }
+
+                tracing::info!("End turn, trump={:?}, played cards:", self.trump);
+                played_cards
+                    .clone()
+                    .iter()
+                    .for_each(|c| tracing::info!("{}", c));
+
+                let win_card = curr_winning_card.unwrap();
+                tracing::info!(
+                    "Player {:?} won. Winning card: {:?}",
+                    win_card.played_by,
+                    win_card
+                );
+                let winner = win_card.played_by;
+                if let Some(x) = self.wins.get_mut(&winner.unwrap()) {
+                    *x = *x + 1;
+                }
+            }
 
             // end of round
             // 1. figure out who lost, who won
@@ -163,6 +275,43 @@ impl GameServer {
             Suit::Spade => self.trump = Suit::NoTrump,
             Suit::NoTrump => self.trump = Suit::Heart,
         }
+    }
+
+    fn update_bids(&mut self, player_id: String, bid: &i32) -> Result<(), String> {
+        // let player_id = event.username;
+        tracing::info!("Player {} to bid", player_id);
+        let mut client = self.players.get_mut(&player_id).unwrap();
+        let valid_bids = valid_bids(
+            self.curr_round,
+            &self.bids,
+            self.dealing_order[0] == *player_id,
+        );
+
+        // loop {
+        //     tracing::info!(
+        //         "\t/debug: bid={}, round={}, bids={:?}, dealer={}",
+        //         bid,
+        //         self.curr_round,
+        //         self.bids,
+        //         self.dealing_order[0]
+        //     );
+        match validate_bid(
+            &bid,
+            self.curr_round,
+            &self.bids,
+            self.dealing_order[0] == client.id,
+        ) {
+            Ok(x) => {
+                tracing::info!("bid was: {}", x);
+                self.bids.insert(client.id.clone(), x);
+                return Ok(());
+            }
+            Err(e) => {
+                tracing::info!("Error with bid: {:?}", e);
+                return Err("Bid not valid".to_string());
+            }
+        }
+        // }
     }
 
     fn bids(&mut self) {
@@ -396,19 +545,21 @@ pub struct GameServer {
     //     rx: SplitStream<Message>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GameEvent {
     action: GameAction,
     origin: Actioner,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum GameAction {
     PlayCard(Card),
     Bid(i32),
+    Deal,
+    StartGame,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Actioner {
     System,
     Player(String),
@@ -428,16 +579,16 @@ pub enum BidError {
     EqualsRound,
 }
 
-fn valid_bids(curr_round: i32, curr_bids: &HashMap<String, i32>, is_dealer: bool) -> Vec<i32> {
-    let mut valid_bids = vec![];
-    for bid in 0..=curr_round {
-        match validate_bid(&bid, curr_round, curr_bids, is_dealer) {
-            Ok(x) => valid_bids.push(x),
-            Err(err) => {}
-        }
-    }
-    return valid_bids;
-}
+// fn valid_bids(curr_round: i32, curr_bids: &HashMap<String, i32>, is_dealer: bool) -> Vec<i32> {
+//     let mut valid_bids = vec![];
+//     for bid in 0..=curr_round {
+//         match validate_bid(&bid, curr_round, curr_bids, is_dealer) {
+//             Ok(x) => valid_bids.push(x),
+//             Err(err) => {}
+//         }
+//     }
+//     return valid_bids;
+// }
 
 fn validate_bid(
     bid: &i32,
@@ -512,7 +663,7 @@ pub enum EventType {
     Bid(i32),
 }
 
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
 pub enum GameState {
     Deal,
     Bid,
