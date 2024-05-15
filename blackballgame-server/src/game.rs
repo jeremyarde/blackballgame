@@ -22,9 +22,10 @@ pub struct FullGameState {
 impl GameServer {
     pub fn process_event(&mut self, events: Vec<GameMessage>) -> Option<FullGameState> {
         info!("[TODO] Processing an event");
+        // return None;
         for event in events.iter() {
-            match event.message.action {
-                GameAction::PlayCard(_) => todo!(),
+            match &event.message.action {
+                GameAction::PlayCard(card) => todo!(),
                 GameAction::Bid(bid) => {
                     if self.state != GameState::Deal {
                         return None;
@@ -36,6 +37,7 @@ impl GameServer {
                 GameAction::StartGame => {
                     self.state = GameState::Deal;
                 }
+                GameAction::GetHand => todo!(),
             }
             info!("processing: {:?}", event);
         }
@@ -478,20 +480,24 @@ pub struct GameServer {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "lowercase")]
 pub struct GameEvent {
     action: GameAction,
     origin: Actioner,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "lowercase")]
 pub enum GameAction {
     PlayCard(Card),
     Bid(i32),
     Deal,
     StartGame,
+    GetHand,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "lowercase")]
 pub enum Actioner {
     System,
     Player(String),
@@ -511,16 +517,6 @@ pub enum BidError {
     EqualsRound,
 }
 
-// fn valid_bids(curr_round: i32, curr_bids: &HashMap<String, i32>, is_dealer: bool) -> Vec<i32> {
-//     let mut valid_bids = vec![];
-//     for bid in 0..=curr_round {
-//         match validate_bid(&bid, curr_round, curr_bids, is_dealer) {
-//             Ok(x) => valid_bids.push(x),
-//             Err(err) => {}
-//         }
-//     }
-//     return valid_bids;
-// }
 
 fn validate_bid(
     bid: &i32,
@@ -604,6 +600,7 @@ pub enum GameState {
 }
 
 #[derive(Debug, Clone, PartialOrd, PartialEq, Ord, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Suit {
     Heart,
     Diamond,
@@ -626,6 +623,7 @@ impl fmt::Display for Suit {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub struct Card {
     id: usize,
     suit: Suit,

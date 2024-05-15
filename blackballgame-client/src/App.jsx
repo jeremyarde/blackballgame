@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import "./App.css";
+import React from "react";
 
 // export const useWs = ({ url }) => {
 //   const [isReady, setIsReady] = useState(false);
@@ -25,19 +26,36 @@ import "./App.css";
 //   return [isReady, val, ws.current?.send.bind(ws.current)];
 // };
 
+// export class GameEvent {
+//     action: GameAction;
+//     origin: Actioner;
+// }
+
+// export enum GameAction {
+//     PlayCard = 'PlayCard',
+//     Bid = 'Bid',
+//     Deal = 'Deal',
+//     StartGame = 'StartGame'
+// }
+
+// export enum Actioner {
+//     System = 'System',
+//     Player = 'Player'
+// }
+
 function App() {
   const [handCards, setHandCards] = useState([]);
   const [count, setCount] = useState(0);
   const [resp, setResponse] = useState("");
   const [serverState, setServerState] = useState({});
-  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [lobbyCode, setLobbyCode] = useState("");
   const [chats, setChats] = useState([]);
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
 
   const [url, setUrl] = useState("ws://127.0.0.1:3000/ws");
-  const [ws, setWs] = useState(null);
+  const [ws, setWs] = useState();
 
   useEffect(() => {
     const ws = new WebSocket(url);
@@ -83,27 +101,68 @@ function App() {
     if (inputMessage.trim() === "") return;
 
     const message = {
-      username: name,
+      username: username,
       message: inputMessage,
       timestamp: new Date().toISOString(),
     };
 
     console.log("sending message: ", message);
 
-    ws.send(JSON.stringify(message));
+    if (ws) {
+      ws.send(JSON.stringify(message));
+    }
     setInputMessage("");
   };
 
   const getHand = () => {
-    const message = {
-      username: name,
-      message: "get:hand",
+    let message = {
+      username: username,
+      message: {
+        action: "gethand",
+        origin: { player: username },
+      },
+      timestamp: new Date().toISOString(),
+    };
+    if (ws) {
+      ws.send(JSON.stringify(message));
+    }
+  };
+
+  const dealCard = () => {
+    let message = {
+      username: username,
+      message: {
+        action: "deal",
+        origin: { player: username },
+      },
       timestamp: new Date().toISOString(),
     };
 
     console.log("sending message: ", message);
-    // ws.send(JSON.stringify(message));
-    ws.send(JSON.stringify(message));
+    if (ws) {
+      ws.send(JSON.stringify(message));
+    }
+  };
+
+  const playCard = () => {
+    let message = {
+      username: username,
+      message: {
+        action: {
+          playcard: {
+            id: 1,
+            suit: "heart",
+            value: 1,
+            played_by: username,
+          },
+        },
+        origin: { player: username },
+      },
+      timestamp: new Date().toISOString(),
+    };
+    if (ws) {
+      ws.send(JSON.stringify(message));
+    }
   };
 
   return (
@@ -117,12 +176,12 @@ function App() {
         <label>Name: </label>
         <input
           type="text"
-          onChange={(evt) => setName(evt.target.value)}
+          onChange={(evt) => setUsername(evt.target.value)}
         ></input>
         <button
           onClick={() => {
             var connectMessage = JSON.stringify({
-              username: name,
+              username: username,
               channel: lobbyCode,
             });
             console.log(connectMessage);
@@ -157,6 +216,10 @@ function App() {
         <div>
           {JSON.stringify(handCards)}
           <button onClick={getHand}>Get hand</button>
+          {JSON.stringify(handCards)}
+          <button onClick={dealCard}>Deal</button>
+          {JSON.stringify(playCard)}
+          <button onClick={playCard}>Play Card</button>
         </div>
       </div>
     </>

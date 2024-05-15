@@ -13,6 +13,7 @@ use std::str::Bytes;
 use std::sync::Arc;
 use std::task::Context;
 use std::task::Waker;
+use std::time::Duration;
 
 use axum::extract::ws::CloseFrame;
 use axum::extract::ConnectInfo;
@@ -25,7 +26,6 @@ use axum::routing::get;
 use axum::Router;
 use axum_extra::headers;
 use axum_extra::TypedHeader;
-use chrono::format;
 use chrono::DateTime;
 use chrono::Utc;
 use client::GameClient;
@@ -43,6 +43,7 @@ use tokio::net::TcpStream;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 
+use tokio::time::sleep;
 use tower_http::cors::Any;
 use tower_http::cors::CorsLayer;
 use tower_http::services::ServeDir;
@@ -321,10 +322,21 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                 rx_game_messages
                     .recv_many(&mut game_messages, event_cap)
                     .await;
-                info!("Got messages");
 
-                let state = newgame.process_event(game_messages);
-                let _ = tx.send(state);
+                if game_messages.len() == 0 {
+                    sleep(Duration::from_millis(2000)).await;
+                    continue;
+                }
+
+                info!("Got messages");
+                println!("Messages: {:?}", game_messages);
+                let state: Option<FullGameState> = newgame.process_event(game_messages);
+
+                if let Some(state) = state {
+                    let _ = tx.send(state);
+                } else {
+                    sleep(Duration::from_millis(500)).await;
+                }
             }
         })
     };
