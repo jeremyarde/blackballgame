@@ -250,7 +250,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
         }
     }
     // let room = state.room_broadcast_channel.lock().await;
-    let rx = tx_from_game_to_client.unwrap().subscribe();
+    let mut rx = tx_from_game_to_client.as_ref().unwrap().subscribe();
     // let tx = room.get(&lobby_code).unwrap();
 
     // let tx = room.get.unwrap();
