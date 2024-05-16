@@ -38,6 +38,7 @@ use game::GameServer;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::json;
+use serde_json::Value;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::Sender;
@@ -117,7 +118,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
     let mut username = String::new();
     let mut lobby_code = String::new();
     // let mut tx = None::<Sender<String>>;
-    let mut internal_send = None::<tokio::sync::broadcast::Sender<FullGameState>>;
+    let mut tx_from_game_to_client = None::<tokio::sync::broadcast::Sender<FullGameState>>;
 
     if socket.send(Message::Ping(vec![1, 2, 3])).await.is_ok() {
         info!("Pinged {who}...");
@@ -174,10 +175,12 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
 
                 let mut player_role: PlayerRole;
 
+                // Check if there is a game already ongoing, and connect to the channel if yes
                 let game = match rooms.get_mut(&connect.channel) {
                     Some(x) => {
                         info!("Game already ongoing, joining");
                         player_role = PlayerRole::Player;
+                        tx_from_game_to_client = Some(tokio::sync::broadcast::channel(10).0);
                         x
                     }
                     None => {
@@ -186,10 +189,20 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                         player_role = PlayerRole::Leader;
                         let server = GameServer::new();
                         rooms.insert(connect.channel.clone(), server);
+                        tx_from_game_to_client = Some(
+                            state
+                                .room_broadcast_channel
+                                .lock()
+                                .await
+                                .get(&connect.channel)
+                                .unwrap()
+                                .clone(),
+                        );
                         rooms.get_mut(&connect.channel).unwrap()
                     }
                 };
-                internal_send = Some(game.tx.clone());
+
+                // internal_send = Some(game.tx.clone());
 
                 info!("room users: {:?}", game.players);
 
@@ -236,12 +249,16 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                 .await;
         }
     }
+    // let room = state.room_broadcast_channel.lock().await;
+    let rx = tx_from_game_to_client.unwrap().subscribe();
+    // let tx = room.get(&lobby_code).unwrap();
 
-    let tx = internal_send.unwrap();
-    let mut rx = tx.subscribe();
+    // let tx = room.get.unwrap();
+
+    // let mut rx = tx.subscribe();
 
     // Recieve from client
-    let channel_for_recv = lobby_code.clone();
+    // let channel_for_recv = lobby_code.clone();
     let username_for_recv = username.clone();
 
     let (tx_game_messages, mut rx_game_messages) = tokio::sync::mpsc::channel::<GameMessage>(100);
@@ -292,6 +309,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                 "Sender for user={} is now ready to accept messages.",
                 username_for_send
             );
+            // recieve message from a channel subscribed to events from any client
             while let Ok(text) = rx.recv().await {
                 info!("messaging client -> {:?}", text);
 
@@ -303,11 +321,13 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                 //     }
                 // };
 
+                // send message back to original client
                 let _ = sender.send(Message::Text(json!(text).to_string())).await;
             }
         })
     };
 
+    let internal_broadcast_clone = tx_from_game_to_client.unwrap().clone();
     let mut game_loop = {
         tokio::spawn(async move {
             // state.rooms.lock().await.get_mut(lobby_code)
@@ -333,7 +353,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                 let state: Option<FullGameState> = newgame.process_event(game_messages);
 
                 if let Some(state) = state {
-                    let _ = tx.send(state);
+                    let _ = internal_broadcast_clone.send(state);
                 } else {
                     sleep(Duration::from_millis(500)).await;
                 }
@@ -378,8 +398,9 @@ async fn root() -> &'static str {
 
 #[derive(Debug)]
 struct AppState {
-    // rooms: Mutex<HashMap<String, RoomState>>,
     rooms: Mutex<HashMap<String, GameServer>>,
+    players: Mutex<HashMap<(String, String), SplitSink<WebSocket, axum::extract::ws::Message>>>, // gameid, playerid
+    room_broadcast_channel: Mutex<HashMap<String, tokio::sync::broadcast::Sender<FullGameState>>>,
 }
 
 #[tokio::main]
@@ -407,6 +428,8 @@ async fn main() {
     // let serverstate: Arc<AppState> = Arc::new(allgames);
     let serverstate = Arc::new(AppState {
         rooms: Mutex::new(HashMap::new()),
+        players: Mutex::new(HashMap::new()),
+        room_broadcast_channel: Mutex::new(HashMap::new()),
     });
 
     let app = Router::new()

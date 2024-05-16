@@ -20,12 +20,70 @@ pub struct FullGameState {
 }
 
 impl GameServer {
-    pub fn process_event(&mut self, events: Vec<GameMessage>) -> Option<FullGameState> {
+    pub fn process_event(
+        &mut self,
+        events: Vec<GameMessage>,
+        // player_id: String,
+    ) -> Option<FullGameState> {
         info!("[TODO] Processing an event");
         // return None;
         for event in events.iter() {
+            let player_id = event.username.clone();
             match &event.message.action {
-                GameAction::PlayCard(card) => todo!(),
+                GameAction::PlayCard(card) => {
+                    if event.username != self.curr_player_turn {
+                        info!("Not {}'s turn.", player_id);
+                        break;
+                    }
+
+                    let player = self.players.get_mut(&player_id).unwrap();
+
+                    match is_played_card_valid(
+                        &self.curr_played_cards.clone(),
+                        &mut player.hand,
+                        &card.clone(),
+                        &self.trump,
+                    ) {
+                        Ok(x) => {
+                            tracing::info!("card is valid");
+                            // card = x;
+                            // remove the card from the players hand
+                            let mut cardloc: Option<usize> = None;
+                            player.hand.iter().enumerate().for_each(|(i, c)| {
+                                if c.id == card.id {
+                                    return cardloc = Some(i);
+                                }
+                            });
+                            if let Some(loc) = cardloc {
+                                player.hand.remove(loc);
+                                self.curr_played_cards.push(card.clone());
+
+                                if let Some(currcard) = self.curr_winning_card.clone() {
+                                    // let curr = curr_winning_card.clone().unwrap();
+                                    if card.suit == currcard.suit && card.value > currcard.value {
+                                        self.curr_winning_card = Some(card.clone());
+                                    }
+                                    if card.suit == self.trump
+                                        && currcard.suit == self.trump
+                                        && card.clone().value > currcard.value
+                                    {
+                                        self.curr_winning_card = Some(card.clone());
+                                    }
+                                } else {
+                                    self.curr_winning_card = Some(card.clone());
+                                }
+
+                                tracing::info!("Curr winning card: {:?}", self.curr_winning_card);
+
+                                self.advance_player_turn();
+                                break;
+                            }
+                        }
+                        Err(e) => {
+                            info!("card is NOT valid: {:?}", e);
+                        }
+                    }
+                }
                 GameAction::Bid(bid) => {
                     if self.state != GameState::Deal {
                         return None;
@@ -40,6 +98,7 @@ impl GameServer {
                 GameAction::GetHand => todo!(),
             }
             info!("processing: {:?}", event);
+            self.event_log.push(event.clone());
         }
         return Some(self.get_state());
     }
@@ -54,6 +113,7 @@ impl GameServer {
             trump: Suit::Heart,
             dealing_order: vec![],
             play_order: vec![],
+            curr_played_cards: vec![],
             // dealer_id: deal_play_order[0],
             bids: HashMap::new(),
             wins: HashMap::new(),
@@ -61,9 +121,11 @@ impl GameServer {
             state: GameState::Pregame,
 
             // send and recieve here
-            tx: broadcast::channel(10).0,
+            // tx: broadcast::channel(10).0,
             event_log: vec![],
-            event_queue: vec![],
+            // event_queue: vec![],
+            curr_player_turn: String::new(),
+            curr_winning_card: None,
             // tx,
             // rx,
         };
@@ -89,6 +151,58 @@ impl GameServer {
             .insert(player_id.clone(), GameClient::new(player_id, role));
     }
 
+    pub fn end_turn(&mut self) {
+        tracing::info!("End turn, trump={:?}, played cards:", self.trump);
+        self.curr_played_cards
+            .clone()
+            .iter()
+            .for_each(|c| tracing::info!("{}", c));
+
+        // let win_card = self.curr_winning_card.as_mut().unwrap();
+        // tracing::info!(
+        //     "Player {:?} won. Winning card: {:?}",
+        //     win_card.played_by,
+        //     win_card
+        // );
+        let winner = self
+            .curr_winning_card
+            .as_ref()
+            .unwrap()
+            .played_by
+            .as_ref()
+            .unwrap();
+
+        if let Some(x) = self.wins.get_mut(winner) {
+            *x = *x + 1;
+        }
+
+        tracing::info!("Bids won: {:#?}\nBids wanted: {:#?}", self.wins, self.bids);
+        for player_id in self.play_order.iter() {
+            let player = self.players.get_mut(player_id).unwrap();
+
+            if self.wins.get(&player.id) == self.bids.get(&player.id) {
+                let bidscore = self.bids.get(&player.id).unwrap() + 10;
+                let curr_score = self.score.get_mut(&player.id).unwrap();
+                *curr_score += bidscore;
+            }
+
+            // resetting the data structures for a round before round start
+            self.wins.insert(player.id.clone(), 0);
+            self.bids.insert(player.id.clone(), 0);
+            player.clear_hand();
+        }
+        // self.clear_previous_round();
+        self.advance_trump();
+        self.curr_round += 1;
+        let curr_dealer = self.dealing_order.remove(0);
+        self.dealing_order.push(curr_dealer);
+
+        let first_player = self.play_order.remove(0);
+        self.play_order.push(first_player);
+
+        tracing::info!("Player status: {:#?}", self.player_status());
+    }
+
     pub fn setup_game(&mut self, max_rounds: Option<i32>) {
         // let num_players = 3;
         // let max_rounds = Some(3);
@@ -99,6 +213,10 @@ impl GameServer {
         let mut play_order = deal_play_order.clone();
         let first = play_order.remove(0);
         play_order.push(first);
+
+        self.play_order = play_order;
+        self.dealing_order = deal_play_order;
+        self.curr_player_turn = self.play_order.get(0).unwrap().clone();
 
         self.players.iter().for_each(|(id, player)| {
             self.bids.insert(id.clone(), 0);
@@ -117,146 +235,6 @@ impl GameServer {
         };
 
         tracing::info!("Players: {}\nRounds: {}", num_players, max_rounds);
-
-        for round in 1..=max_rounds {
-            tracing::info!("\n-- Round {} --", round);
-
-            tracing::info!("\t/debug: deal order: {:#?}", self.dealing_order);
-            tracing::info!("\t/debug: play order: {:#?}", self.play_order);
-
-            self.deal();
-            // self.bids();
-            // self.play_round();
-            for handnum in 1..=self.curr_round {
-                tracing::info!(
-                    "--- Hand #{}/{} - Trump: {}---",
-                    handnum,
-                    self.curr_round,
-                    self.trump
-                );
-                // need to use a few things to see who goes first
-                // 1. highest bid (at round start)
-                // 2. person who won the trick in last round goes first, then obey existing order
-
-                // ask for input from each client in specific order (first person after dealer)
-                let mut played_cards: Vec<Card> = vec![];
-
-                let mut curr_winning_card: Option<Card> = None;
-
-                for player_id in self.play_order.iter() {
-                    let player = self.players.get_mut(player_id).unwrap();
-
-                    let valid_cards_to_play = player
-                        .hand
-                        .iter()
-                        .filter_map(|card| {
-                            match is_played_card_valid(
-                                &played_cards,
-                                &player.hand,
-                                card,
-                                &self.trump,
-                            ) {
-                                Ok(x) => Some(x),
-                                Err(err) => None,
-                            }
-                        })
-                        .collect::<Vec<Card>>();
-
-                    let (loc, mut card) = player.play_card(&valid_cards_to_play);
-                    loop {
-                        match is_played_card_valid(
-                            &played_cards.clone(),
-                            &mut player.hand,
-                            &card.clone(),
-                            &self.trump,
-                        ) {
-                            Ok(x) => {
-                                tracing::info!("card is valid");
-                                card = x;
-                                // remove the card from the players hand
-                                player.hand.remove(loc);
-                                break;
-                            }
-                            Err(e) => {
-                                tracing::info!("card is NOT valid: {:?}", e);
-                                (_, card) = player.play_card(&valid_cards_to_play);
-                            }
-                        }
-                    }
-                    played_cards.push(card.clone());
-
-                    // logic for finding the winning card
-                    if curr_winning_card.is_none() {
-                        curr_winning_card = Some(card);
-                    } else {
-                        let curr = curr_winning_card.clone().unwrap();
-                        if card.suit == curr.suit && card.value > curr.value {
-                            curr_winning_card = Some(card.clone());
-                        }
-                        if card.suit == self.trump
-                            && curr.suit == self.trump
-                            && card.clone().value > curr.value
-                        {
-                            curr_winning_card = Some(card);
-                        }
-                    }
-
-                    tracing::info!(
-                        "Curr winning card: {:?}",
-                        curr_winning_card.clone().unwrap()
-                    );
-                }
-
-                tracing::info!("End turn, trump={:?}, played cards:", self.trump);
-                played_cards
-                    .clone()
-                    .iter()
-                    .for_each(|c| tracing::info!("{}", c));
-
-                let win_card = curr_winning_card.unwrap();
-                tracing::info!(
-                    "Player {:?} won. Winning card: {:?}",
-                    win_card.played_by,
-                    win_card
-                );
-                let winner = win_card.played_by;
-                if let Some(x) = self.wins.get_mut(&winner.unwrap()) {
-                    *x = *x + 1;
-                }
-            }
-
-            // end of round
-            // 1. figure out who lost, who won
-            // 2. empty player hands, shuffle deck
-            // 3. redistribute cards based on the round
-
-            tracing::info!("Bids won: {:#?}\nBids wanted: {:#?}", self.wins, self.bids);
-            for player_id in self.play_order.iter() {
-                let player = self.players.get_mut(player_id).unwrap();
-
-                if self.wins.get(&player.id) == self.bids.get(&player.id) {
-                    let bidscore = self.bids.get(&player.id).unwrap() + 10;
-                    let curr_score = self.score.get_mut(&player.id).unwrap();
-                    *curr_score += bidscore;
-                }
-
-                // resetting the data structures for a round before round start
-                self.wins.insert(player.id.clone(), 0);
-                self.bids.insert(player.id.clone(), 0);
-                player.clear_hand();
-            }
-            // self.clear_previous_round();
-            self.advance_trump();
-            self.curr_round += 1;
-            let curr_dealer = self.dealing_order.remove(0);
-            self.dealing_order.push(curr_dealer);
-
-            let first_player = self.play_order.remove(0);
-            self.play_order.push(first_player);
-
-            tracing::info!("Player status: {:#?}", self.player_status());
-        }
-        // stages of the game
     }
 
     fn get_random_card(&mut self) -> Option<Card> {
@@ -271,6 +249,21 @@ impl GameServer {
             Suit::Club => self.trump = Suit::Spade,
             Suit::Spade => self.trump = Suit::NoTrump,
             Suit::NoTrump => self.trump = Suit::Heart,
+        }
+    }
+
+    fn advance_player_turn(&mut self) {
+        let mut next_player_idx = 0;
+        for (i, player) in self.play_order.iter().enumerate() {
+            if player == &self.curr_player_turn {
+                next_player_idx = i + 1;
+            }
+        }
+
+        if next_player_idx == self.play_order.len() {
+            self.curr_player_turn = self.play_order.get(0).unwrap().clone();
+        } else {
+            self.curr_player_turn = self.play_order.get(next_player_idx).unwrap().clone();
         }
     }
 
@@ -464,16 +457,18 @@ pub struct GameServer {
     curr_round: i32,
     trump: Suit,
     dealing_order: Vec<String>,
+    curr_played_cards: Vec<Card>,
+    curr_player_turn: String,
+    curr_winning_card: Option<Card>,
     play_order: Vec<String>,
     // dealer_id: i32,
     bids: HashMap<String, i32>,
     wins: HashMap<String, i32>,
     score: HashMap<String, i32>,
     state: GameState,
-
-    pub tx: broadcast::Sender<FullGameState>,
-    pub event_log: Vec<GameEvent>,
-    pub event_queue: Vec<GameEvent>,
+    // pub tx: broadcast::Sender<FullGameState>,
+    pub event_log: Vec<GameMessage>,
+    // pub event_queue: Vec<GameEvent>,
     // rx: broadcast::Receiver<String>,
     //     tx: broadcast::Sender<String>,
     //     rx: SplitStream<Message>,
@@ -516,7 +511,6 @@ pub enum BidError {
     Invalid,
     EqualsRound,
 }
-
 
 fn validate_bid(
     bid: &i32,
