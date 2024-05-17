@@ -2,6 +2,7 @@ use std::{fmt, io, os::unix::net::SocketAddr};
 
 use axum::extract::ws::{Message, WebSocket};
 use futures_util::stream::SplitSink;
+use serde::Serialize;
 use tokio::sync::mpsc::{self, Sender};
 use tracing::info;
 
@@ -10,13 +11,13 @@ use crate::{
     GameMessage,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize)]
 pub enum PlayerRole {
     Leader,
     Player,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize)]
 pub struct GameClient {
     pub id: String,
     pub hand: Vec<Card>,
@@ -77,8 +78,6 @@ impl GameClient {
         // io::stdin()
         //     .read_line(&mut input)
         //     .expect("error: unable to read user input");
-
-
 
         let mut parse_result = input.trim().parse::<i32>();
         while parse_result.is_err()

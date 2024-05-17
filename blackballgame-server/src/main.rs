@@ -65,32 +65,6 @@ use crate::game::GameState;
 mod client;
 mod game;
 
-#[derive(Debug, Clone, Copy)]
-enum ServerError {}
-
-// struct AppState {
-//     games: Mutex<HashMap<String, GameServer>>,
-// }
-
-async fn server_process(
-    state: Arc<Mutex<GameServer>>,
-    mut stream: TcpStream,
-    addr: SocketAddr,
-) -> Result<(), ServerError> {
-    tracing::info!("Starting up server...");
-
-    let mut server = state.lock().await;
-
-    stream.write_all(b"hello, world").await.unwrap();
-    info!("success writing some bytes");
-    // wait for people to connect
-    // start game, ask for input from people, progress game
-    let max_rounds = Some(3);
-
-    server.setup_game(max_rounds);
-    Ok(())
-}
-
 /// Shorthand for the transmit half of the message channel.
 type Tx = SplitSink<WebSocket, Message>;
 
@@ -180,15 +154,6 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                     Some(x) => {
                         info!("Game already ongoing, joining");
                         player_role = PlayerRole::Player;
-                        tx_from_game_to_client = Some(tokio::sync::broadcast::channel(10).0);
-                        x
-                    }
-                    None => {
-                        // this is not pretty
-                        info!("Created a new game");
-                        player_role = PlayerRole::Leader;
-                        let server = GameServer::new();
-                        rooms.insert(connect.channel.clone(), server);
                         tx_from_game_to_client = Some(
                             state
                                 .room_broadcast_channel
@@ -198,6 +163,31 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                                 .unwrap()
                                 .clone(),
                         );
+                        x
+                    }
+                    None => {
+                        // this is not pretty
+                        info!("Created a new game");
+                        player_role = PlayerRole::Leader;
+                        let server = GameServer::new();
+                        rooms.insert(connect.channel.clone(), server);
+                        // tx_from_game_to_client = Some(
+                        //     state
+                        //         .room_broadcast_channel
+                        //         .lock()
+                        //         .await
+                        //         .get(&connect.channel)
+                        //         .unwrap()
+                        //         .clone(),
+                        // );
+                        let broadcast_channel = tokio::sync::broadcast::channel(10).0;
+                        {
+                            let mut channels = state.room_broadcast_channel.lock().await;
+                            channels.insert(connect.channel.clone(), broadcast_channel.clone());
+                        }
+
+                        tx_from_game_to_client = Some(broadcast_channel);
+
                         rooms.get_mut(&connect.channel).unwrap()
                     }
                 };
@@ -330,8 +320,9 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
     let internal_broadcast_clone = tx_from_game_to_client.unwrap().clone();
     let mut game_loop = {
         tokio::spawn(async move {
-            // state.rooms.lock().await.get_mut(lobby_code)
-            let mut newgame = GameServer::new();
+            let mut rooms = state.rooms.lock().await;
+            let game = rooms.get_mut(&lobby_code).unwrap();
+
             let event_cap = 5;
 
             info!("Starting up game");
@@ -350,7 +341,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
 
                 info!("Got messages");
                 println!("Messages: {:?}", game_messages);
-                let state: Option<FullGameState> = newgame.process_event(game_messages);
+                let state: Option<FullGameState> = game.process_event(game_messages);
 
                 if let Some(state) = state {
                     let _ = internal_broadcast_clone.send(state);

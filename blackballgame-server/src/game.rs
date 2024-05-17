@@ -12,21 +12,34 @@ use crate::{
     GameMessage,
 };
 
-#[derive(Serialize, Clone, Debug)]
-pub struct FullGameState {
-    trump: Suit,
-    state: GameState,
-    cards: Vec<Card>,
-}
+// #[derive(Serialize, Clone, Debug)]
+// pub struct FullGameState {
+//     pub players: HashMap<String, GameClient>,
+//     deck: Vec<Card>,
+//     curr_round: i32,
+//     trump: Suit,
+//     dealing_order: Vec<String>,
+//     curr_played_cards: Vec<Card>,
+//     curr_player_turn: String,
+//     curr_winning_card: Option<Card>,
+//     play_order: Vec<String>,
+//     bids: HashMap<String, i32>,
+//     wins: HashMap<String, i32>,
+//     score: HashMap<String, i32>,
+//     state: GameState,
+// }
 
 impl GameServer {
     pub fn process_event(
         &mut self,
         events: Vec<GameMessage>,
         // player_id: String,
-    ) -> Option<FullGameState> {
+    ) -> Option<GameServer> {
         info!("[TODO] Processing an event");
-        // return None;
+        if self.state == GameState::Pregame {
+            self.setup_game(None);
+        }
+
         for event in events.iter() {
             let player_id = event.username.clone();
             match &event.message.action {
@@ -132,12 +145,8 @@ impl GameServer {
         server
     }
 
-    pub fn get_state(&self) -> FullGameState {
-        return FullGameState {
-            trump: self.trump.clone(),
-            state: self.state.clone(),
-            cards: vec![],
-        };
+    pub fn get_state(&self) -> Self {
+        return self.clone();
     }
 
     fn add_player(
@@ -450,7 +459,7 @@ fn create_deck() -> Vec<Card> {
     return cards;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize)]
 pub struct GameServer {
     pub players: HashMap<String, GameClient>,
     deck: Vec<Card>,
@@ -498,7 +507,7 @@ pub enum Actioner {
     Player(String),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Serialize)]
 pub enum PlayerState {
     Idle,
     RequireInput,
