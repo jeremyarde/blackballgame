@@ -58,7 +58,6 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::EnvFilter;
 
 use crate::client::PlayerRole;
-use crate::game::FullGameState;
 use crate::game::GameEvent;
 use crate::game::GameState;
 
@@ -92,7 +91,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
     let mut username = String::new();
     let mut lobby_code = String::new();
     // let mut tx = None::<Sender<String>>;
-    let mut tx_from_game_to_client = None::<tokio::sync::broadcast::Sender<FullGameState>>;
+    let mut tx_from_game_to_client = None::<tokio::sync::broadcast::Sender<GameServer>>;
 
     if socket.send(Message::Ping(vec![1, 2, 3])).await.is_ok() {
         info!("Pinged {who}...");
@@ -301,7 +300,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
             );
             // recieve message from a channel subscribed to events from any client
             while let Ok(text) = rx.recv().await {
-                info!("messaging client -> {:?}", text);
+                // info!("messaging client -> {:?}", text);
 
                 // let game_message: GameMessage = match serde_json::from_str(&text) {
                 //     Ok(x) => x,
@@ -317,12 +316,10 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
         })
     };
 
+    // this is actually BAD, because each new game spins up a new thread... Might be fine?
     let internal_broadcast_clone = tx_from_game_to_client.unwrap().clone();
     let mut game_loop = {
         tokio::spawn(async move {
-            let mut rooms = state.rooms.lock().await;
-            let game = rooms.get_mut(&lobby_code).unwrap();
-
             let event_cap = 5;
 
             info!("Starting up game");
@@ -341,13 +338,16 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
 
                 info!("Got messages");
                 println!("Messages: {:?}", game_messages);
-                let state: Option<FullGameState> = game.process_event(game_messages);
-
-                if let Some(state) = state {
-                    let _ = internal_broadcast_clone.send(state);
-                } else {
-                    sleep(Duration::from_millis(500)).await;
+                {
+                    let mut rooms = state.rooms.lock().await;
+                    let game = rooms.get_mut(&lobby_code).unwrap();
+                    let state: Option<GameServer> = game.process_event(game_messages);
+                    if let Some(state) = state {
+                        let _ = internal_broadcast_clone.send(state);
+                    }
                 }
+
+                sleep(Duration::from_millis(500)).await;
             }
         })
     };
@@ -391,7 +391,7 @@ async fn root() -> &'static str {
 struct AppState {
     rooms: Mutex<HashMap<String, GameServer>>,
     players: Mutex<HashMap<(String, String), SplitSink<WebSocket, axum::extract::ws::Message>>>, // gameid, playerid
-    room_broadcast_channel: Mutex<HashMap<String, tokio::sync::broadcast::Sender<FullGameState>>>,
+    room_broadcast_channel: Mutex<HashMap<String, tokio::sync::broadcast::Sender<GameServer>>>,
 }
 
 #[tokio::main]

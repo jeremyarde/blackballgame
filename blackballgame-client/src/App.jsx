@@ -56,6 +56,7 @@ function App() {
 
   const [url, setUrl] = useState("ws://127.0.0.1:3000/ws");
   const [ws, setWs] = useState();
+  const [gamestate, setGamestate] = useState();
 
   useEffect(() => {
     const ws = new WebSocket(url);
@@ -73,13 +74,19 @@ function App() {
     };
 
     ws.onmessage = (message) => {
-      console.log(`Message from server :${message.data}`);
-      // const newMessage = JSON.parse(message.data);
-      // const newMessage = JSON.parse(message.data);
+      console.log(`Message from server: ${message.data}`);
       setMessages((prevMessages) => [
         ...prevMessages,
         JSON.parse(message.data),
       ]);
+
+      // const filteredGamedata = {
+      //   ...JSON.parse(message.data),
+      //   deck: undefined,
+      // };
+      setGamestate(JSON.parse(message.data));
+
+      // setGamestate(message.data);
       console.log("all messages");
       console.log(messages);
       // setMessages((prevMessages) => [...prevMessages, message.data]);
@@ -97,35 +104,26 @@ function App() {
     };
   }, [ws]); // adding messages causes the ws to close
 
-  const sendMessage = () => {
-    if (inputMessage.trim() === "") return;
-
-    const message = {
-      username: username,
-      message: inputMessage,
-      timestamp: new Date().toISOString(),
-    };
-
-    console.log("sending message: ", message);
-
+  function sendMessage(message) {
     if (ws) {
       ws.send(JSON.stringify(message));
     }
-    setInputMessage("");
-  };
+  }
 
-  const getHand = () => {
+  function displayObject(obj) {
+    return <div>{JSON.stringify(obj)}</div>;
+  }
+
+  const startGame = () => {
     let message = {
       username: username,
       message: {
-        action: "gethand",
+        action: "startgame",
         origin: { player: username },
       },
       timestamp: new Date().toISOString(),
     };
-    if (ws) {
-      ws.send(JSON.stringify(message));
-    }
+    sendMessage(message);
   };
 
   const dealCard = () => {
@@ -137,11 +135,7 @@ function App() {
       },
       timestamp: new Date().toISOString(),
     };
-
-    console.log("sending message: ", message);
-    if (ws) {
-      ws.send(JSON.stringify(message));
-    }
+    sendMessage(message);
   };
 
   const playCard = () => {
@@ -160,13 +154,83 @@ function App() {
       },
       timestamp: new Date().toISOString(),
     };
-    if (ws) {
-      ws.send(JSON.stringify(message));
-    }
+    sendMessage(message);
   };
 
   return (
     <>
+      <div style={{ justifyContent: "left", textAlign: "left" }}>
+        {gamestate && (
+          <ul>
+            <li>
+              <b>Bids: </b>
+              {displayObject(gamestate.bids)}
+            </li>
+            <li>
+              <div>
+                <b>Played cards: </b>
+                {gamestate.curr_played_cards}
+              </div>
+            </li>
+            <li>
+              <div>
+                <b>Turn: </b>
+                {gamestate.curr_player_turn}
+              </div>
+            </li>
+            <li>
+              <div>
+                <b>Round: </b>
+                {gamestate.curr_round}
+              </div>
+            </li>
+            <li>
+              <div>
+                <b>Winning card: </b>
+                {gamestate.curr_winning_card}
+              </div>
+            </li>
+            <li>
+              <div>
+                <b>Deal order: </b>
+                {gamestate.dealing_order}
+              </div>
+            </li>
+            <li>
+              <div>
+                <b>Play order: </b>
+                {gamestate.play_order}
+              </div>
+            </li>
+            <li>
+              <b>Players: </b>
+              {displayObject(gamestate.players)}
+            </li>
+            <li>
+              <b>Score: </b>
+              {displayObject(gamestate.score)}
+            </li>
+
+            <li>
+              <div>
+                <b>State: </b>
+                {gamestate.state}
+              </div>
+            </li>
+            <li>
+              <div>
+                <b>Trump: </b>
+                {gamestate.trump}
+              </div>
+            </li>
+            <li>
+              <b>Wins: </b>
+              {displayObject(gamestate.wins)}
+            </li>
+          </ul>
+        )}
+      </div>
+
       <div>
         <label>Lobby code: </label>
         <input
@@ -206,19 +270,10 @@ function App() {
           </ul>
         </div>
         <div>
-          <input
-            type="text"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-          />
-          <button onClick={sendMessage}>Send</button>
-        </div>
-        <div>
-          {JSON.stringify(handCards)}
-          <button onClick={getHand}>Get hand</button>
-          {JSON.stringify(handCards)}
+          {/* {JSON.stringify(handCards)} */}
+          <button onClick={startGame}>Start game</button>
           <button onClick={dealCard}>Deal</button>
-          {JSON.stringify(playCard)}
+          {/* {JSON.stringify(playCard)} */}
           <button onClick={playCard}>Play Card</button>
         </div>
       </div>

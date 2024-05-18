@@ -30,20 +30,51 @@ use crate::{
 // }
 
 impl GameServer {
-    pub fn process_event(
-        &mut self,
-        events: Vec<GameMessage>,
-        // player_id: String,
-    ) -> Option<GameServer> {
-        info!("[TODO] Processing an event");
-        if self.state == GameState::Pregame {
-            self.setup_game(None);
+    fn process_event_deal(&self, events: Vec<GameMessage>) -> Option<GameServer> {
+        for event in events.iter() {}
+
+        return Some(self.get_state());
+    }
+
+    pub fn process_event_pregame(&mut self, events: Vec<GameMessage>) -> Option<GameServer> {
+        for event in events.iter() {
+            match event.message.action {
+                // GameAction::PlayCard(_) => todo!(),
+                // GameAction::Bid(_) => todo!(),
+                GameAction::StartGame => self.setup_game(None),
+                // GameAction::Deal => todo!(),
+                _ => {}
+            }
         }
 
+        return Some(self.get_state());
+    }
+
+    pub fn process_event_bid(&mut self, events: Vec<GameMessage>) -> Option<GameServer> {
+        for event in events.iter() {
+            match event.message.action {
+                GameAction::Bid(bid) => {
+                    self.update_bid(event.username.clone(), &bid);
+                }
+                _ => {
+                    // None;
+                }
+            }
+        }
+
+        return Some(self.get_state());
+    }
+
+    pub fn process_event_play(&mut self, events: Vec<GameMessage>) -> Option<GameServer> {
         for event in events.iter() {
             let player_id = event.username.clone();
             match &event.message.action {
                 GameAction::PlayCard(card) => {
+                    if self.state != GameState::Play {
+                        info!("Not ready to play cards yet.");
+                        break;
+                    }
+
                     if event.username != self.curr_player_turn {
                         info!("Not {}'s turn.", player_id);
                         break;
@@ -97,23 +128,29 @@ impl GameServer {
                         }
                     }
                 }
-                GameAction::Bid(bid) => {
-                    if self.state != GameState::Deal {
-                        return None;
-                    }
-
-                    self.update_bid(event.username.clone(), &bid);
-                }
                 GameAction::Deal => self.deal(),
                 GameAction::StartGame => {
                     self.state = GameState::Deal;
-                }
-                GameAction::GetHand => todo!(),
+                } // GameAction::GetHand => todo!(),
+                _ => {}
             }
-            info!("processing: {:?}", event);
-            self.event_log.push(event.clone());
         }
         return Some(self.get_state());
+    }
+
+    pub fn process_event(
+        &mut self,
+        events: Vec<GameMessage>,
+        // player_id: String,
+    ) -> Option<GameServer> {
+        info!("[TODO] Processing an event");
+
+        match self.state {
+            GameState::Deal => return self.process_event_deal(events),
+            GameState::Bid => return self.process_event_bid(events),
+            GameState::Play => return self.process_event_play(events),
+            GameState::Pregame => return self.process_event_pregame(events),
+        }
     }
 
     pub fn new() -> Self {
@@ -167,12 +204,6 @@ impl GameServer {
             .iter()
             .for_each(|c| tracing::info!("{}", c));
 
-        // let win_card = self.curr_winning_card.as_mut().unwrap();
-        // tracing::info!(
-        //     "Player {:?} won. Winning card: {:?}",
-        //     win_card.played_by,
-        //     win_card
-        // );
         let winner = self
             .curr_winning_card
             .as_ref()
@@ -493,11 +524,13 @@ pub struct GameEvent {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum GameAction {
+    // Player actions
     PlayCard(Card),
     Bid(i32),
-    Deal,
+
+    // System actions
     StartGame,
-    GetHand,
+    Deal,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
