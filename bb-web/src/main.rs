@@ -2,33 +2,104 @@
 #![feature(unboxed_closures)]
 
 use std::fmt::{self, Display};
+use std::sync::Arc;
 
 use dioxus::prelude::*;
+use futures_util::lock::Mutex;
+use futures_util::StreamExt;
+use reqwest_websocket::RequestBuilderExt;
+use reqwest_websocket::WebSocket;
+use reqwest_websocket::{websocket, Message};
 use serde::{Deserialize, Serialize};
 use tracing::{info, Level};
+
+use futures_util::stream::SplitSink;
+use futures_util::stream::SplitStream;
+use futures_util::SinkExt;
+use futures_util::Stream;
 
 fn main() {
     // Init logger
     dioxus_logger::init(Level::INFO).expect("failed to init logger");
+
     launch(App);
 }
+static GAMESTATE: GlobalSignal<String> = Signal::global(|| "default".to_string());
+static ERRORS: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
 
 #[component]
 fn App() -> Element {
-    // let ws = use_signal(|| )
-    let ws = use_coroutine(|rx| async move {
-        let websocket = Client::default()
-            .get("wss://echo.websocket.org/")
-            .upgrade()
-            .send()
-            .await
-            .unwrap()
-            .into_websocket()
-            .await
-            .unwrap();
+    let ws: Signal<Option<WebSocket>> = use_signal(|| None);
+    // let ws = use_signal(|| {
+    //     reqwest::Client::default()
+    //         .get("wss://echo.websocket.org/")
+    //         .upgrade()
+    //         .send()
+    //         .await
+    //         .unwrap()
+    //         .into_websocket()
+    //         .await
+    //         .unwrap()
+    // });
 
-        let (mut tx, mut rx) = websocket.split();
+    // let create_websocket = async move {
+    //     let ws = reqwest::Client::default()
+    //         .get("wss://echo.websocket.org/")
+    //         .upgrade()
+    //         .send()
+    //         .await
+    //         .unwrap()
+    //         .into_websocket()
+    //         .await
+    //         .unwrap();
+
+    //     let (mut tx, mut rx) = ws.split();
+
+    //     return (tx, rx);
+    // };
+
+    // let websocket = use_future(move || async move {
+    //     let ws = reqwest::Client::default()
+    //         .get("wss://echo.websocket.org/")
+    //         .upgrade()
+    //         .send()
+    //         .await
+    //         .unwrap()
+    //         .into_websocket()
+    //         .await
+    //         .unwrap();
+
+    //     // let (mut tx, mut rx) = ws.split();
+
+    //     // return (tx, rx);
+    //     return ws;
+    // });
+
+    use_coroutine(|rx: UnboundedReceiver<String>| async move {
+        if ws.read().is_none() {
+            let client = reqwest::Client::default()
+                .get("wss://echo.websocket.org/")
+                .upgrade()
+                .send()
+                .await
+                .unwrap()
+                .into_websocket()
+                .await
+                .unwrap();
+
+            *ws.write() = Some(client);
+        }
+
+        while let Some(action) = rx.next().await {
+            match action {
+                Ok(x) => {
+                    let res = ws.read().unwrap().send().await;
+                }
+                Err(err) => todo!(),
+            }
+        }
     });
+    let (mut tx, mut rx) = create_websocket();
 
     let mut bid = use_signal(|| 0);
     let mut bid_error = use_signal(|| "".to_string());
