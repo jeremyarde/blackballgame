@@ -1,47 +1,7 @@
 import { useState, useEffect } from "react";
 import "./App.css";
 import React from "react";
-
-// export const useWs = ({ url }) => {
-//   const [isReady, setIsReady] = useState(false);
-//   const [val, setVal] = useState(null);
-
-//   const ws = useRef(null);
-
-//   useEffect(() => {
-//     const socket = new WebSocket(url);
-
-//     socket.onopen = () => setIsReady(true);
-//     socket.onclose = () => setIsReady(false);
-//     socket.onmessage = (event) => setVal(event.data);
-
-//     ws.current = socket;
-
-//     return () => {
-//       socket.close();
-//     };
-//   }, []);
-
-//   // bind is needed to make sure `send` references correct `this`
-//   return [isReady, val, ws.current?.send.bind(ws.current)];
-// };
-
-// export class GameEvent {
-//     action: GameAction;
-//     origin: Actioner;
-// }
-
-// export enum GameAction {
-//     PlayCard = 'PlayCard',
-//     Bid = 'Bid',
-//     Deal = 'Deal',
-//     StartGame = 'StartGame'
-// }
-
-// export enum Actioner {
-//     System = 'System',
-//     Player = 'Player'
-// }
+import Cards from "./components/Cards";
 
 function App() {
   const [handCards, setHandCards] = useState([]);
@@ -57,6 +17,7 @@ function App() {
   const [url, setUrl] = useState("ws://127.0.0.1:3000/ws");
   const [ws, setWs] = useState();
   const [gamestate, setGamestate] = useState();
+  const [bid, setBid] = useState();
 
   useEffect(() => {
     const ws = new WebSocket(url);
@@ -80,13 +41,8 @@ function App() {
         JSON.parse(message.data),
       ]);
 
-      // const filteredGamedata = {
-      //   ...JSON.parse(message.data),
-      //   deck: undefined,
-      // };
       setGamestate(JSON.parse(message.data));
 
-      // setGamestate(message.data);
       console.log("all messages");
       console.log(messages);
       // setMessages((prevMessages) => [...prevMessages, message.data]);
@@ -107,11 +63,22 @@ function App() {
   function sendMessage(message) {
     if (ws) {
       ws.send(JSON.stringify(message));
+      // ws.send(message);
     }
   }
 
   function displayObject(obj) {
     return <div>{JSON.stringify(obj)}</div>;
+  }
+
+  function connectToLobby() {
+    var connectMessage = JSON.stringify({
+      username: username,
+      channel: lobbyCode,
+    });
+    console.log(connectMessage);
+    ws.send(connectMessage);
+    // sendMessage(connectMessage);
   }
 
   const startGame = () => {
@@ -138,17 +105,32 @@ function App() {
     sendMessage(message);
   };
 
-  const playCard = () => {
+  const playCard = (card) => {
     let message = {
       username: username,
       message: {
         action: {
           playcard: {
-            id: 1,
-            suit: "heart",
-            value: 1,
+            id: card.id,
+            suit: card.suit,
+            value: card.value,
             played_by: username,
           },
+        },
+        origin: { player: username },
+      },
+      timestamp: new Date().toISOString(),
+    };
+    sendMessage(message);
+  };
+
+  const sendBid = (evt) => {
+    console.log("sendBid: ", bid);
+    let message = {
+      username: username,
+      message: {
+        action: {
+          bid: bid,
         },
         origin: { player: username },
       },
@@ -242,40 +224,46 @@ function App() {
           type="text"
           onChange={(evt) => setUsername(evt.target.value)}
         ></input>
-        <button
-          onClick={() => {
-            var connectMessage = JSON.stringify({
-              username: username,
-              channel: lobbyCode,
-            });
-            console.log(connectMessage);
-            ws.send(connectMessage);
-          }}
-        >
-          Connect
-        </button>
+        <button onClick={connectToLobby}>Connect</button>
       </div>
-      <div>
+      <div className="bg-green-300">
+        {gamestate && gamestate.state == "Bid" && (
+          <div>
+            <label>Enter your bid: </label>
+            <input
+              type="number"
+              onChange={(evt) => setBid(parseInt(evt.target.value))}
+            ></input>
+            <button onClick={sendBid}>Bid</button>
+          </div>
+        )}
         <div>
-          <ul>
-            {messages.map((message, index) => (
-              <div key={index}>
-                <li>
-                  {/* <span>{message.timestamp}: </span>
-              <span>{message.text}</span> */}
-                  <span>{JSON.stringify(message)}</span>
-                </li>
-              </div>
-            ))}
-          </ul>
-        </div>
-        <div>
-          {/* {JSON.stringify(handCards)} */}
+          <div>
+            <h3>Cards</h3>
+            <Cards
+              cards={
+                (gamestate?.players && gamestate?.players[username].hand) || []
+              }
+            ></Cards>
+          </div>
           <button onClick={startGame}>Start game</button>
           <button onClick={dealCard}>Deal</button>
           {/* {JSON.stringify(playCard)} */}
           <button onClick={playCard}>Play Card</button>
         </div>
+      </div>
+      <div>
+        <ul>
+          {messages.map((message, index) => (
+            <div key={index}>
+              <li>
+                {/* <span>{message.timestamp}: </span>
+              <span>{message.text}</span> */}
+                <span>{JSON.stringify(message)}</span>
+              </li>
+            </div>
+          ))}
+        </ul>
       </div>
     </>
   );

@@ -90,6 +90,7 @@ impl ServerMessage {
 async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<AppState>) {
     let mut username = String::new();
     let mut lobby_code = String::new();
+    let mut created_new_game = false;
     // let mut tx = None::<Sender<String>>;
     let mut tx_from_game_to_client = None::<tokio::sync::broadcast::Sender<GameServer>>;
 
@@ -152,6 +153,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                 let game = match rooms.get_mut(&connect.channel) {
                     Some(x) => {
                         info!("Game already ongoing, joining");
+                        created_new_game = false;
                         player_role = PlayerRole::Player;
                         tx_from_game_to_client = Some(
                             state
@@ -167,6 +169,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                     None => {
                         // this is not pretty
                         info!("Created a new game");
+                        created_new_game = true;
                         player_role = PlayerRole::Leader;
                         let server = GameServer::new();
                         rooms.insert(connect.channel.clone(), server);
@@ -240,11 +243,6 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
     }
     // let room = state.room_broadcast_channel.lock().await;
     let mut rx = tx_from_game_to_client.as_ref().unwrap().subscribe();
-    // let tx = room.get(&lobby_code).unwrap();
-
-    // let tx = room.get.unwrap();
-
-    // let mut rx = tx.subscribe();
 
     // Recieve from client
     // let channel_for_recv = lobby_code.clone();
@@ -316,47 +314,54 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
         })
     };
 
-    // this is actually BAD, because each new game spins up a new thread... Might be fine?
-    let internal_broadcast_clone = tx_from_game_to_client.unwrap().clone();
-    let mut game_loop = {
-        tokio::spawn(async move {
-            let event_cap = 5;
+    // only create a new thread when the first person has created a game
+    if created_new_game {
+        let internal_broadcast_clone = tx_from_game_to_client.unwrap().clone();
+        let mut game_loop = {
+            tokio::spawn(async move {
+                let event_cap = 5;
 
-            info!("Starting up game");
-            loop {
-                let mut game_messages = Vec::with_capacity(event_cap);
+                info!("Starting up game");
+                loop {
+                    let mut game_messages = Vec::with_capacity(event_cap);
 
-                info!("Waiting for messages");
-                rx_game_messages
-                    .recv_many(&mut game_messages, event_cap)
-                    .await;
+                    info!("Waiting for messages");
+                    rx_game_messages
+                        .recv_many(&mut game_messages, event_cap)
+                        .await;
 
-                if game_messages.len() == 0 {
-                    sleep(Duration::from_millis(2000)).await;
-                    continue;
-                }
-
-                info!("Got messages");
-                println!("Messages: {:?}", game_messages);
-                {
-                    let mut rooms = state.rooms.lock().await;
-                    let game = rooms.get_mut(&lobby_code).unwrap();
-                    let state: Option<GameServer> = game.process_event(game_messages);
-                    if let Some(state) = state {
-                        let _ = internal_broadcast_clone.send(state);
+                    if game_messages.len() == 0 {
+                        sleep(Duration::from_millis(2000)).await;
+                        continue;
                     }
+
+                    info!("Got messages");
+                    println!("Messages: {:?}", game_messages);
+                    {
+                        let mut rooms = state.rooms.lock().await;
+                        let game = rooms.get_mut(&lobby_code).unwrap();
+                        let state: Option<GameServer> = game.process_event(game_messages);
+                        if let Some(state) = state {
+                            let _ = internal_broadcast_clone.send(state);
+                        }
+                    }
+
+                    sleep(Duration::from_millis(500)).await;
                 }
+            })
+        };
 
-                sleep(Duration::from_millis(500)).await;
-            }
-        })
-    };
-
-    tokio::select! {
-        _ = (&mut send_messages_to_client) => recv_messages_from_clients.abort(),
-        _ = (&mut recv_messages_from_clients) => send_messages_to_client.abort(),
-        _ = (&mut game_loop) => game_loop.abort(),
-    };
+        tokio::select! {
+            _ = (&mut send_messages_to_client) => recv_messages_from_clients.abort(),
+            _ = (&mut recv_messages_from_clients) => send_messages_to_client.abort(),
+            _ = (&mut game_loop) => game_loop.abort(),
+        };
+    } else {
+        tokio::select! {
+            _ = (&mut send_messages_to_client) => recv_messages_from_clients.abort(),
+            _ = (&mut recv_messages_from_clients) => send_messages_to_client.abort(),
+        };
+    }
 }
 
 #[derive(Deserialize, Debug, Serialize, Clone)]

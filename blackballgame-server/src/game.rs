@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt};
+use std::{borrow::Borrow, collections::HashMap, fmt};
 
 use axum::extract::ws::{Message, WebSocket};
 use chrono::Utc;
@@ -12,28 +12,17 @@ use crate::{
     GameMessage,
 };
 
-// #[derive(Serialize, Clone, Debug)]
-// pub struct FullGameState {
-//     pub players: HashMap<String, GameClient>,
-//     deck: Vec<Card>,
-//     curr_round: i32,
-//     trump: Suit,
-//     dealing_order: Vec<String>,
-//     curr_played_cards: Vec<Card>,
-//     curr_player_turn: String,
-//     curr_winning_card: Option<Card>,
-//     play_order: Vec<String>,
-//     bids: HashMap<String, i32>,
-//     wins: HashMap<String, i32>,
-//     score: HashMap<String, i32>,
-//     state: GameState,
-// }
-
 impl GameServer {
-    fn process_event_deal(&self, events: Vec<GameMessage>) -> Option<GameServer> {
-        for event in events.iter() {}
-
-        return Some(self.get_state());
+    pub fn next_state(&mut self) -> GameState {
+        let newstate = match self.state {
+            GameState::Bid => GameState::Play,
+            GameState::Play => GameState::PostRound,
+            GameState::Pregame => GameState::Bid,
+            GameState::PostRound => GameState::PreRound,
+            GameState::PreRound => GameState::Bid,
+        };
+        self.state = newstate;
+        return self.state;
     }
 
     pub fn process_event_pregame(&mut self, events: Vec<GameMessage>) -> Option<GameServer> {
@@ -55,6 +44,9 @@ impl GameServer {
             match event.message.action {
                 GameAction::Bid(bid) => {
                     self.update_bid(event.username.clone(), &bid);
+                    if self.is_bidding_over() {
+                        self.next_state();
+                    }
                 }
                 _ => {
                     // None;
@@ -70,11 +62,6 @@ impl GameServer {
             let player_id = event.username.clone();
             match &event.message.action {
                 GameAction::PlayCard(card) => {
-                    if self.state != GameState::Play {
-                        info!("Not ready to play cards yet.");
-                        break;
-                    }
-
                     if event.username != self.curr_player_turn {
                         info!("Not {}'s turn.", player_id);
                         break;
@@ -129,9 +116,9 @@ impl GameServer {
                     }
                 }
                 GameAction::Deal => self.deal(),
-                GameAction::StartGame => {
-                    self.state = GameState::Deal;
-                } // GameAction::GetHand => todo!(),
+                // GameAction::StartGame => {
+                //     self.state = GameState::Deal;
+                // } // GameAction::GetHand => todo!(),
                 _ => {}
             }
         }
@@ -146,10 +133,17 @@ impl GameServer {
         info!("[TODO] Processing an event");
 
         match self.state {
-            GameState::Deal => return self.process_event_deal(events),
+            // Get bids from all players
             GameState::Bid => return self.process_event_bid(events),
+            // Play cards starting with after dealer
+            // Get winner once everyones played and start again with winner of round
             GameState::Play => return self.process_event_play(events),
+            // Allow new players to join
             GameState::Pregame => return self.process_event_pregame(events),
+            // Find winner after
+            GameState::PostRound => todo!(),
+            // Determine dealer, player order,
+            GameState::PreRound => todo!(),
         }
     }
 
@@ -228,7 +222,7 @@ impl GameServer {
 
             // resetting the data structures for a round before round start
             self.wins.insert(player.id.clone(), 0);
-            self.bids.insert(player.id.clone(), 0);
+            self.bids.clear();
             player.clear_hand();
         }
         // self.clear_previous_round();
@@ -244,6 +238,10 @@ impl GameServer {
     }
 
     pub fn setup_game(&mut self, max_rounds: Option<i32>) {
+        // if self.players.len() == 1 {
+        //     return;
+        // }
+
         // let num_players = 3;
         // let max_rounds = Some(3);
         let mut deal_play_order: Vec<String> =
@@ -273,6 +271,9 @@ impl GameServer {
         } else {
             52i32.div_euclid(num_players)
         };
+
+        self.deal();
+        self.state = GameState::Bid;
 
         tracing::info!("Players: {}\nRounds: {}", num_players, max_rounds);
     }
@@ -309,6 +310,10 @@ impl GameServer {
 
     fn update_bid(&mut self, player_id: String, bid: &i32) -> Result<(), String> {
         tracing::info!("Player {} to bid", player_id);
+
+        if self.curr_player_turn != player_id {
+            return Err("Not player {}'s turn.".to_string());
+        }
         let mut client = self.players.get_mut(&player_id).unwrap();
 
         match validate_bid(
@@ -445,6 +450,11 @@ impl GameServer {
     fn player_status(&self) {
         // tracing::info!("{:?}", self.players);
         tracing::info!("Score:\n{:?}", self.score);
+    }
+
+    fn is_bidding_over(&self) -> bool {
+        // check if everyone has a bid
+        return self.bids.keys().len() == self.players.len();
     }
 }
 
@@ -629,10 +639,12 @@ pub enum EventType {
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq)]
 pub enum GameState {
-    Deal,
+    // Deal,
     Bid,
     Play,
     Pregame,
+    PostRound,
+    PreRound,
 }
 
 #[derive(Debug, Clone, PartialOrd, PartialEq, Ord, Eq, Serialize, Deserialize)]
