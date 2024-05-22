@@ -474,6 +474,7 @@ dependencies = [
  "reqwest",
  "reqwest-websocket",
  "serde",
+ "serde_json",
  "tracing",
 ]
 
