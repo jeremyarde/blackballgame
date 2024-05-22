@@ -21,22 +21,102 @@ use futures_util::stream::SplitStream;
 use futures_util::SinkExt;
 use futures_util::Stream;
 
+struct AppProps {
+    tx: SplitSink<WebSocket, Message>,
+    rx: SplitStream<WebSocket>,
+}
+
 fn main() {
     // Init logger
-    dioxus_logger::init(Level::INFO).expect("failed to init logger");
+    // let setup_client = async {
+    //     info!("Creating new client");
+    //     let client = reqwest::Client::default()
+    //         .get("ws://127.0.0.1:3000/ws")
+    //         .upgrade()
+    //         .send()
+    //         .await
+    //         .unwrap()
+    //         .into_websocket()
+    //         .await
+    //         .unwrap();
 
+    //     let (mut tx, mut rx) = client.split();
+    //     return (tx, rx);
+    // };
+
+    dioxus_logger::init(Level::INFO).expect("failed to init logger");
+    // LaunchBuilder::with_context_provider(
+    //     App,
+    //     AppProps {
+    //         tx: ,
+    //         rx: todo!(),
+    //     },
+    // )
+    // get_ws().wait();
     launch(App);
+}
+
+async fn get_ws() -> WebSocket {
+    let ws = reqwest::Client::default()
+        .get("wss://echo.websocket.org/")
+        .upgrade()
+        .send()
+        .await
+        .unwrap()
+        .into_websocket()
+        .await
+        .unwrap();
+    return ws;
+    // let (mut tx, mut rx) = ws.split();
+    // return (tx, rx);
 }
 static GAMESTATE: GlobalSignal<String> = Signal::global(|| "default".to_string());
 static ERRORS: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
 
 #[component]
 fn App() -> Element {
+    let mut recv_socket = use_signal(|| None);
+    let mut send_socket = use_signal(|| None);
+    let websocket = use_future(move || async move {
+        let ws = reqwest::Client::default()
+            .get("wss://echo.websocket.org/")
+            .upgrade()
+            .send()
+            .await
+            .unwrap()
+            .into_websocket()
+            .await
+            .unwrap();
+
+        let (mut tx, mut rx) = ws.split();
+
+        // return (tx, rx);
+
+        if recv_socket.read().is_none() {
+            *recv_socket.write() = Some(rx);
+        }
+        if send_socket.read().is_none() {
+            *send_socket.write() = Some(tx);
+        }
+        // return ws;
+    });
+
+    rsx!(Game {
+        rx: recv_socket,
+        tx: send_socket
+    })
+}
+
+#[component]
+fn Game(
+    rx: Signal<Option<SplitStream<WebSocket>>>,
+    tx: Signal<Option<SplitSink<WebSocket, Message>>>,
+) -> Element {
     let mut username: Signal<String> = use_signal(|| String::new());
     let mut lobbycode: Signal<String> = use_signal(|| String::new());
     let mut client_ready = use_signal(|| false);
-    let mut recv_socket = use_signal_sync(|| None);
-    let mut send_socket = use_signal_sync(|| None);
+    let mut recv_socket = use_signal(|| None);
+    let mut send_socket = use_signal(|| None);
 
     // let websocket = use_future(move || async move {
     //     let ws = reqwest::Client::default()
@@ -55,10 +135,57 @@ fn App() -> Element {
     //     return ws;
     // });
 
-    let my_future = use_future(move || async move {
-        info!("Setup client");
-        if *client_ready.read() == false {
-            // if recv_socket.read().is_none() || send_socket.read().is_none() {
+    // info!("Waiting for client setup");
+    // my_future.finished();
+    // info!("Finish client setup");
+
+    // this is the reciever of messages
+    let sender_channel = use_coroutine(|mut rx: UnboundedReceiver<String>| async move {
+        info!("Start coroutine");
+        // if recv_socket.read().is_none() || send_socket.read().is_none() {
+        //     info!("Creating new client");
+        //     let client = reqwest::Client::default()
+        //         .get("ws://127.0.0.1:3000/ws")
+        //         .upgrade()
+        //         .send()
+        //         .await
+        //         .unwrap()
+        //         .into_websocket()
+        //         .await
+        //         .unwrap();
+
+        //     let (mut tx, mut rx) = client.split();
+
+        #[derive(Deserialize, Debug, Serialize)]
+        struct Connect {
+            username: String,
+            channel: String,
+        }
+        info!("Start connection");
+        let _ = *tx
+            .write()
+            .send(Message::Text(
+                json!(Connect {
+                    username: username.cloned(),
+                    channel: lobbycode.cloned(),
+                })
+                .to_string(),
+            ))
+            .await;
+        info!("End connect");
+        // }
+
+        info!("Start polling");
+        while let Some(action) = rx.next().await {
+            info!("rx recieved: {}", action);
+        }
+        info!("Ended polling");
+    });
+
+    // this is the reciever of messages
+    let receiver_channel = use_future(move || async move {
+        info!("Receiver - Start coroutine");
+        if recv_socket.read().is_none() || send_socket.read().is_none() {
             info!("Creating new client");
             let client = reqwest::Client::default()
                 .get("ws://127.0.0.1:3000/ws")
@@ -91,97 +218,9 @@ fn App() -> Element {
             *recv_socket.write() = Some(rx);
             *send_socket.write() = Some(tx);
         }
-        *client_ready.write() = true;
-    });
 
-    info!("Waiting for client setup");
-    my_future.finished();
-    info!("Finish client setup");
-
-    // this is the reciever of messages
-    let sender_channel = use_coroutine(|mut rx: UnboundedReceiver<String>| async move {
-        info!("Start coroutine");
-        // if recv_socket.read().is_none() || send_socket.read().is_none() {
-        //     info!("Creating new client");
-        //     let client = reqwest::Client::default()
-        //         .get("ws://127.0.0.1:3000/ws")
-        //         .upgrade()
-        //         .send()
-        //         .await
-        //         .unwrap()
-        //         .into_websocket()
-        //         .await
-        //         .unwrap();
-
-        //     let (mut tx, mut rx) = client.split();
-
-        //     #[derive(Deserialize, Debug, Serialize)]
-        //     struct Connect {
-        //         username: String,
-        //         channel: String,
-        //     }
-        //     info!("Start connection");
-        //     let _ = tx
-        //         .send(Message::Text(
-        //             json!(Connect {
-        //                 username: username.cloned(),
-        //                 channel: lobbycode.cloned(),
-        //             })
-        //             .to_string(),
-        //         ))
-        //         .await;
-        //     info!("End connect");
-        //     *recv_socket.write() = Some(rx);
-        //     *send_socket.write() = Some(tx);
-        // }
-
-        info!("Start polling");
-        while let Some(action) = rx.next().await {
-            info!("rx recieved: {}", action);
-        }
-        info!("Ended polling");
-    });
-
-    // this is the reciever of messages
-    let receiver_channel = use_future(move || async move {
-        info!("Receiver - Start coroutine");
-        // if recv_socket.read().is_none() || send_socket.read().is_none() {
-        //     info!("Creating new client");
-        //     let client = reqwest::Client::default()
-        //         .get("ws://127.0.0.1:3000/ws")
-        //         .upgrade()
-        //         .send()
-        //         .await
-        //         .unwrap()
-        //         .into_websocket()
-        //         .await
-        //         .unwrap();
-
-        //     let (mut tx, mut rx) = client.split();
-
-        //     #[derive(Deserialize, Debug, Serialize)]
-        //     struct Connect {
-        //         username: String,
-        //         channel: String,
-        //     }
-        //     info!("Start connection");
-        //     let _ = tx
-        //         .send(Message::Text(
-        //             json!(Connect {
-        //                 username: username.cloned(),
-        //                 channel: lobbycode.cloned(),
-        //             })
-        //             .to_string(),
-        //         ))
-        //         .await;
-        //     info!("End connect");
-        //     *recv_socket.write() = Some(rx);
-        //     *send_socket.write() = Some(tx);
-        // }
-
-        // let mut reciever = recv_socket.unwrap();
-        let mut receiver = recv_socket.as_mut();
-        while let Some(Ok(Message::Text(action))) = recv_socket().next().await {
+        let mut receiver = recv_socket.as_mut().unwrap();
+        while let Some(Ok(Message::Text(action))) = receiver.next().await {
             info!("rx recieved: {:?}", action);
         }
         info!("Receiver - Ended polling");
