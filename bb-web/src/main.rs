@@ -29,34 +29,8 @@ static ERRORS: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
 
 #[component]
 fn App() -> Element {
-    let ws: Signal<Option<WebSocket>> = use_signal(|| None);
-    // let ws = use_signal(|| {
-    //     reqwest::Client::default()
-    //         .get("wss://echo.websocket.org/")
-    //         .upgrade()
-    //         .send()
-    //         .await
-    //         .unwrap()
-    //         .into_websocket()
-    //         .await
-    //         .unwrap()
-    // });
-
-    // let create_websocket = async move {
-    //     let ws = reqwest::Client::default()
-    //         .get("wss://echo.websocket.org/")
-    //         .upgrade()
-    //         .send()
-    //         .await
-    //         .unwrap()
-    //         .into_websocket()
-    //         .await
-    //         .unwrap();
-
-    //     let (mut tx, mut rx) = ws.split();
-
-    //     return (tx, rx);
-    // };
+    let mut recv_socket: Signal<Option<SplitStream<WebSocket>>> = use_signal(|| None);
+    let mut send_socket: Signal<Option<SplitSink<WebSocket, Message>>> = use_signal(|| None);
 
     // let websocket = use_future(move || async move {
     //     let ws = reqwest::Client::default()
@@ -75,8 +49,9 @@ fn App() -> Element {
     //     return ws;
     // });
 
-    use_coroutine(|rx: UnboundedReceiver<String>| async move {
-        if ws.read().is_none() {
+    // this is the reciever of messages
+    use_coroutine(|mut rx: UnboundedReceiver<String>| async move {
+        if recv_socket.read().is_none() || send_socket.read().is_none() {
             let client = reqwest::Client::default()
                 .get("wss://echo.websocket.org/")
                 .upgrade()
@@ -87,19 +62,17 @@ fn App() -> Element {
                 .await
                 .unwrap();
 
-            *ws.write() = Some(client);
+            let (mut tx, mut rx) = client.split();
+
+            *recv_socket.write() = Some(rx);
+            *send_socket.write() = Some(tx);
         }
 
         while let Some(action) = rx.next().await {
-            match action {
-                Ok(x) => {
-                    let res = ws.read().unwrap().send().await;
-                }
-                Err(err) => todo!(),
-            }
+            println!("rx recieved: {}", action);
         }
     });
-    let (mut tx, mut rx) = create_websocket();
+    // let (mut tx, mut rx) = create_websocket();
 
     let mut bid = use_signal(|| 0);
     let mut bid_error = use_signal(|| "".to_string());
