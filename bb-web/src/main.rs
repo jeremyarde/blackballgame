@@ -1,7 +1,9 @@
 #![allow(non_snake_case)]
 #![feature(unboxed_closures)]
 
+use std::borrow::BorrowMut;
 use std::fmt::{self, Display};
+use std::ops::DerefMut;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
@@ -75,9 +77,10 @@ static ERRORS: GlobalSignal<Vec<String>> = Signal::global(|| Vec::new());
 
 #[component]
 fn App() -> Element {
-    let mut recv_socket = use_signal(|| None);
-    let mut send_socket = use_signal(|| None);
+    let mut recv_socket = use_signal_sync(|| None);
+    let mut send_socket = use_signal_sync(|| None);
     let websocket = use_future(move || async move {
+        std::thread::spawn(move || info!("testing"));
         let ws = reqwest::Client::default()
             .get("wss://echo.websocket.org/")
             .upgrade()
@@ -109,14 +112,14 @@ fn App() -> Element {
 
 #[component]
 fn Game(
-    rx: Signal<Option<SplitStream<WebSocket>>>,
-    tx: Signal<Option<SplitSink<WebSocket, Message>>>,
+    rx: SyncSignal<Option<SplitStream<WebSocket>>>,
+    tx: SyncSignal<Option<SplitSink<WebSocket, Message>>>,
 ) -> Element {
     let mut username: Signal<String> = use_signal(|| String::new());
     let mut lobbycode: Signal<String> = use_signal(|| String::new());
     let mut client_ready = use_signal(|| false);
-    let mut recv_socket = use_signal(|| None);
-    let mut send_socket = use_signal(|| None);
+    // let mut recv_socket = use_signal(|| None);
+    // let mut send_socket = use_signal(|| None);
 
     // let websocket = use_future(move || async move {
     //     let ws = reqwest::Client::default()
@@ -142,19 +145,6 @@ fn Game(
     // this is the reciever of messages
     let sender_channel = use_coroutine(|mut rx: UnboundedReceiver<String>| async move {
         info!("Start coroutine");
-        // if recv_socket.read().is_none() || send_socket.read().is_none() {
-        //     info!("Creating new client");
-        //     let client = reqwest::Client::default()
-        //         .get("ws://127.0.0.1:3000/ws")
-        //         .upgrade()
-        //         .send()
-        //         .await
-        //         .unwrap()
-        //         .into_websocket()
-        //         .await
-        //         .unwrap();
-
-        //     let (mut tx, mut rx) = client.split();
 
         #[derive(Deserialize, Debug, Serialize)]
         struct Connect {
@@ -162,8 +152,11 @@ fn Game(
             channel: String,
         }
         info!("Start connection");
-        let _ = *tx
-            .write()
+        if tx.peek().is_some() {
+            return;
+        }
+        let mut mytx = tx.borrow_mut().as_mut().unwrap();
+        let _ = mytx
             .send(Message::Text(
                 json!(Connect {
                     username: username.cloned(),
