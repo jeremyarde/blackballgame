@@ -133,7 +133,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                             .to_string(),
                         ))
                         .await;
-                    break;
+                    continue;
                 }
             };
 

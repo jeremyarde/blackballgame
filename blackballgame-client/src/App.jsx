@@ -4,20 +4,17 @@ import React from "react";
 import Cards from "./components/Cards";
 
 function App() {
-  const [handCards, setHandCards] = useState([]);
-  const [count, setCount] = useState(0);
-  const [resp, setResponse] = useState("");
-  const [serverState, setServerState] = useState({});
   const [username, setUsername] = useState("");
   const [lobbyCode, setLobbyCode] = useState("");
-  const [chats, setChats] = useState([]);
   const [messages, setMessages] = useState([]);
-  const [inputMessage, setInputMessage] = useState("");
 
   const [url, setUrl] = useState("ws://127.0.0.1:3000/ws");
   const [ws, setWs] = useState();
   const [gamestate, setGamestate] = useState();
   const [bid, setBid] = useState();
+
+  const [handCards, setHandCards] = useState([]);
+  const [playAreaCards, setPlayAreaCards] = useState([]);
 
   useEffect(() => {
     const ws = new WebSocket(url);
@@ -156,7 +153,7 @@ function App() {
             </li>
             <li>
               <div>
-                <b>Turn: </b>
+                <b>Player Turn: </b>
                 {gamestate.curr_player_turn}
               </div>
             </li>
@@ -209,6 +206,10 @@ function App() {
               <b>Wins: </b>
               {displayObject(gamestate.wins)}
             </li>
+            <li>
+              <b>system status: </b>
+              {displayObject(gamestate.system_status)}
+            </li>
           </ul>
         )}
       </div>
@@ -224,9 +225,15 @@ function App() {
           type="text"
           onChange={(evt) => setUsername(evt.target.value)}
         ></input>
-        <button onClick={connectToLobby}>Connect</button>
+        <button
+          className="bg-green-200 border border-solid"
+          onClick={connectToLobby}
+        >
+          Connect
+        </button>
       </div>
       <div className="bg-green-300">
+        <h2 className="bg-blue-300">Play area</h2>
         {gamestate && gamestate.state == "Bid" && (
           <div>
             <label>Enter your bid: </label>
@@ -237,17 +244,56 @@ function App() {
             <button onClick={sendBid}>Bid</button>
           </div>
         )}
-        <div>
+        <button onClick={startGame}>Start game</button>
+        <button onClick={dealCard}>Deal</button>
+        <div className="flex flex-col p-4">
           <div>
-            <h3>Cards</h3>
-            <Cards
-              cards={
-                (gamestate?.players && gamestate?.players[username].hand) || []
-              }
-            ></Cards>
+            <h3>Play area</h3>
+            {gamestate?.curr_played_cards
+              ? gamestate.curr_played_cards.map((card) => {
+                  return (
+                    <div
+                      key={card.id}
+                      className="flex h-[200px] w-[140px] items-center justify-center rounded-lg bg-white shadow-lg dark:bg-gray-800"
+                      onMouseDown={() => {}}
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <span className="text-4xl font-bold">{card.value}</span>
+                        <span className="text-2xl font-medium">
+                          {card.suit}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              : ""}
           </div>
-          <button onClick={startGame}>Start game</button>
-          <button onClick={dealCard}>Deal</button>
+          <div>
+            <h3>Your hand</h3>
+            {gamestate?.players && gamestate?.players[username].hand
+              ? gamestate.players[username].hand.map((card) => {
+                  return (
+                    <div
+                      key={card.id}
+                      className="flex h-[200px] w-[140px] items-center justify-center rounded-lg bg-white shadow-lg dark:bg-gray-800"
+                      onMouseDown={() => playCard(card)}
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <span className="text-4xl font-bold">{card.value}</span>
+                        <span className="text-2xl font-medium">
+                          {card.suit}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              : ""}
+            <input
+              className="flex w-24 h-10 px-3 py-2 text-sm border rounded-md border-input bg-background ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              placeholder="Enter bid"
+              type="number"
+            />
+          </div>
           {/* {JSON.stringify(playCard)} */}
           <button onClick={playCard}>Play Card</button>
         </div>
