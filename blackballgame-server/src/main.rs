@@ -26,6 +26,7 @@ use axum::routing::get;
 use axum::Router;
 use axum_extra::headers;
 use axum_extra::TypedHeader;
+use bevy::render::render_resource::encase::internal;
 use bevy::utils::info;
 use chrono::DateTime;
 use chrono::Utc;
@@ -321,10 +322,11 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                     {
                         let mut rooms = state.rooms.lock().await;
                         let game = rooms.get_mut(&lobby_code).unwrap();
-                        let state: Option<GameServer> = game.process_event(game_messages);
-                        if let Some(state) = state {
-                            let _ = internal_broadcast_clone.send(state);
-                        }
+                        let state: Option<GameServer> =
+                            game.process_event(game_messages, internal_broadcast_clone);
+                        // if let Some(state) = state {
+                        //     let _ = internal_broadcast_clone.send(state);
+                        // }
                     }
 
                     sleep(Duration::from_millis(500)).await;

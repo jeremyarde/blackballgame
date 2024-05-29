@@ -4,7 +4,7 @@ use axum::extract::ws::{Message, WebSocket};
 use chrono::Utc;
 use futures_util::stream::{SplitSink, SplitStream};
 use serde::{Deserialize, Serialize};
-use tokio::sync::broadcast;
+use tokio::sync::broadcast::{self, Sender};
 use tracing::info;
 
 use crate::{
@@ -25,105 +25,99 @@ impl GameServer {
         return self.state;
     }
 
-    pub fn process_event_pregame(&mut self, events: Vec<GameMessage>) -> Option<GameServer> {
-        for event in events.iter() {
-            match event.message.action {
-                // GameAction::PlayCard(_) => todo!(),
-                // GameAction::Bid(_) => todo!(),
-                GameAction::StartGame => self.setup_game(None),
-                // GameAction::Deal => todo!(),
-                _ => {}
+    pub fn process_event_pregame(&mut self, event: GameMessage) -> Option<GameServer> {
+        match event.message.action {
+            // GameAction::PlayCard(_) => todo!(),
+            // GameAction::Bid(_) => todo!(),
+            GameAction::StartGame => self.setup_game(None),
+            // GameAction::Deal => todo!(),
+            _ => {}
+        }
+
+        return Some(self.get_state());
+    }
+
+    pub fn process_event_bid(&mut self, event: GameMessage) -> Option<GameServer> {
+        match event.message.action {
+            GameAction::Bid(bid) => {
+                let res = self.update_bid(event.username.clone(), &bid);
+                if res.is_ok() {
+                    self.advance_player_turn();
+                }
+                if self.is_bidding_over() {
+                    self.next_state();
+                }
+            }
+            _ => {
+                // None;
             }
         }
 
         return Some(self.get_state());
     }
 
-    pub fn process_event_bid(&mut self, events: Vec<GameMessage>) -> Option<GameServer> {
-        for event in events.iter() {
-            match event.message.action {
-                GameAction::Bid(bid) => {
-                    let res = self.update_bid(event.username.clone(), &bid);
-                    if res.is_ok() {
-                        self.advance_player_turn();
-                    }
-                    if self.is_bidding_over() {
-                        self.next_state();
-                    }
+    pub fn process_event_play(&mut self, event: GameMessage) -> Option<GameServer> {
+        let player_id = event.username.clone();
+        match &event.message.action {
+            GameAction::PlayCard(card) => {
+                if event.username != self.curr_player_turn {
+                    info!("Not {}'s turn.", player_id);
+                    break;
                 }
-                _ => {
-                    // None;
-                }
-            }
-        }
 
-        return Some(self.get_state());
-    }
+                let player = self.players.get_mut(&player_id).unwrap();
 
-    pub fn process_event_play(&mut self, events: Vec<GameMessage>) -> Option<GameServer> {
-        for event in events.iter() {
-            let player_id = event.username.clone();
-            match &event.message.action {
-                GameAction::PlayCard(card) => {
-                    if event.username != self.curr_player_turn {
-                        info!("Not {}'s turn.", player_id);
-                        break;
-                    }
+                match is_played_card_valid(
+                    &self.curr_played_cards.clone(),
+                    &mut player.hand,
+                    &card.clone(),
+                    &self.trump,
+                ) {
+                    Ok(x) => {
+                        tracing::info!("card is valid");
+                        // card = x;
+                        // remove the card from the players hand
+                        let mut cardloc: Option<usize> = None;
+                        player.hand.iter().enumerate().for_each(|(i, c)| {
+                            if c.id == card.id {
+                                return cardloc = Some(i);
+                            }
+                        });
+                        if let Some(loc) = cardloc {
+                            player.hand.remove(loc);
+                            self.curr_played_cards.push(card.clone());
 
-                    let player = self.players.get_mut(&player_id).unwrap();
-
-                    match is_played_card_valid(
-                        &self.curr_played_cards.clone(),
-                        &mut player.hand,
-                        &card.clone(),
-                        &self.trump,
-                    ) {
-                        Ok(x) => {
-                            tracing::info!("card is valid");
-                            // card = x;
-                            // remove the card from the players hand
-                            let mut cardloc: Option<usize> = None;
-                            player.hand.iter().enumerate().for_each(|(i, c)| {
-                                if c.id == card.id {
-                                    return cardloc = Some(i);
-                                }
-                            });
-                            if let Some(loc) = cardloc {
-                                player.hand.remove(loc);
-                                self.curr_played_cards.push(card.clone());
-
-                                if let Some(currcard) = self.curr_winning_card.clone() {
-                                    // let curr = curr_winning_card.clone().unwrap();
-                                    if card.suit == currcard.suit && card.value > currcard.value {
-                                        self.curr_winning_card = Some(card.clone());
-                                    }
-                                    if card.suit == self.trump
-                                        && currcard.suit == self.trump
-                                        && card.clone().value > currcard.value
-                                    {
-                                        self.curr_winning_card = Some(card.clone());
-                                    }
-                                } else {
+                            if let Some(currcard) = self.curr_winning_card.clone() {
+                                // let curr = curr_winning_card.clone().unwrap();
+                                if card.suit == currcard.suit && card.value > currcard.value {
                                     self.curr_winning_card = Some(card.clone());
                                 }
-
-                                tracing::info!("Curr winning card: {:?}", self.curr_winning_card);
-
-                                self.advance_player_turn();
-                                break;
+                                if card.suit == self.trump
+                                    && currcard.suit == self.trump
+                                    && card.clone().value > currcard.value
+                                {
+                                    self.curr_winning_card = Some(card.clone());
+                                }
+                            } else {
+                                self.curr_winning_card = Some(card.clone());
                             }
-                        }
-                        Err(e) => {
-                            info!("card is NOT valid: {:?}", e);
+
+                            tracing::info!("Curr winning card: {:?}", self.curr_winning_card);
+
+                            self.advance_player_turn();
+                            break;
                         }
                     }
+                    Err(e) => {
+                        info!("card is NOT valid: {:?}", e);
+                    }
                 }
-                GameAction::Deal => self.deal(),
-                // GameAction::StartGame => {
-                //     self.state = GameState::Deal;
-                // } // GameAction::GetHand => todo!(),
-                _ => {}
             }
+            GameAction::Deal => self.deal(),
+            // GameAction::StartGame => {
+            //     self.state = GameState::Deal;
+            // } // GameAction::GetHand => todo!(),
+            _ => {}
         }
         return Some(self.get_state());
     }
@@ -131,22 +125,30 @@ impl GameServer {
     pub fn process_event(
         &mut self,
         events: Vec<GameMessage>,
+        sender: Sender<GameServer>,
         // player_id: String,
-    ) -> Option<GameServer> {
+    ) {
         info!("[TODO] Processing an event");
 
-        match self.state {
-            // Allow new players to join
-            GameState::Pregame => return self.process_event_pregame(events),
-            // Get bids from all players
-            GameState::Bid => return self.process_event_bid(events),
-            // Play cards starting with after dealer
-            // Get winner once everyones played and start again with winner of round
-            GameState::Play => return self.process_event_play(events),
-            // Find winner after
-            GameState::PostRound => todo!(),
-            // Determine dealer, player order,
-            GameState::PreRound => todo!(),
+        // check if its the player's turn
+        for event in events {
+            let state = match self.state {
+                // Allow new players to join
+                GameState::Pregame => return self.process_event_pregame(event),
+                // Get bids from all players
+                GameState::Bid => return self.process_event_bid(event),
+                // Play cards starting with after dealer
+                // Get winner once everyones played and start again with winner of round
+                GameState::Play => return self.process_event_play(event),
+                // Find winner after
+                GameState::PostRound => None,
+                // Determine dealer, player order,
+                GameState::PreRound => None,
+            };
+
+            if let Some(state) = state {
+                let _ = sender.send(state);
+            }
         }
     }
 
