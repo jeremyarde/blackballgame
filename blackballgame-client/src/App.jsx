@@ -146,34 +146,24 @@ function App() {
               {displayObject(gamestate.bids)}
             </li>
             <li>
-              <div>
-                <b>Played cards: </b>
-                {gamestate.curr_played_cards}
-              </div>
+              <b>Played cards: </b>
+              {gamestate.curr_played_cards}
             </li>
             <li>
-              <div>
-                <b>Player Turn: </b>
-                {gamestate.curr_player_turn}
-              </div>
+              <b>Player Turn: </b>
+              {gamestate.curr_player_turn}
             </li>
             <li>
-              <div>
-                <b>Round: </b>
-                {gamestate.curr_round}
-              </div>
+              <b>Round: </b>
+              {gamestate.curr_round}
             </li>
             <li>
-              <div>
-                <b>Winning card: </b>
-                {gamestate.curr_winning_card}
-              </div>
+              <b>Winning card: </b>
+              {gamestate.curr_winning_card}
             </li>
             <li>
-              <div>
-                <b>Deal order: </b>
-                {gamestate.dealing_order}
-              </div>
+              <b>Deal order: </b>
+              {gamestate.dealing_order}
             </li>
             <li>
               <div>
@@ -189,18 +179,13 @@ function App() {
               <b>Score: </b>
               {displayObject(gamestate.score)}
             </li>
-
             <li>
-              <div>
-                <b>State: </b>
-                {gamestate.state}
-              </div>
+              <b>State: </b>
+              {gamestate.state}
             </li>
             <li>
-              <div>
-                <b>Trump: </b>
-                {gamestate.trump}
-              </div>
+              <b>Trump: </b>
+              {gamestate.trump}
             </li>
             <li>
               <b>Wins: </b>
@@ -244,8 +229,12 @@ function App() {
             <button onClick={sendBid}>Bid</button>
           </div>
         )}
-        <button onClick={startGame}>Start game</button>
-        <button onClick={dealCard}>Deal</button>
+        <button className="p-2 m-1 outline" onClick={startGame}>
+          Start game
+        </button>
+        <button className="p-2 m-1 outline" onClick={dealCard}>
+          Deal
+        </button>
         <div className="flex flex-col p-4">
           <div>
             <h3>Play area</h3>

@@ -26,6 +26,7 @@ use axum::routing::get;
 use axum::Router;
 use axum_extra::headers;
 use axum_extra::TypedHeader;
+use bevy::utils::info;
 use chrono::DateTime;
 use chrono::Utc;
 use client::GameClient;
@@ -164,24 +165,58 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                                 .unwrap()
                                 .clone(),
                         );
+
+                        if !x.players.contains_key(&connect.username) {
+                            info!("room did not contain user, adding them...");
+                            let _ = sender
+                                .send(Message::Text(
+                                    json!(ServerMessage {
+                                        message: format!("{} joined the game.", username),
+                                        from: "System".to_string(),
+                                    })
+                                    .to_string(),
+                                ))
+                                .await;
+
+                            x.players.insert(
+                                connect.username.to_owned(),
+                                GameClient::new(connect.username.clone(), player_role),
+                            );
+                            username = connect.username.clone();
+                        } else {
+                            println!("Room already had username, choose a new name");
+                            let _ = sender
+                                .send(Message::Text(
+                                    json!(ServerMessage {
+                                        message: "Username already taken.".to_string(),
+                                        from: username.clone(),
+                                    })
+                                    .to_string(),
+                                ))
+                                .await;
+
+                            continue;
+                        }
+
                         x
                     }
                     None => {
                         // this is not pretty
                         info!("Created a new game");
+                        let _ = sender
+                            .send(Message::Text(
+                                json!(ServerMessage {
+                                    message: "User created a new game".to_string(),
+                                    from: "System".into()
+                                })
+                                .to_string(),
+                            ))
+                            .await;
                         created_new_game = true;
                         player_role = PlayerRole::Leader;
                         let server = GameServer::new();
                         rooms.insert(connect.channel.clone(), server);
-                        // tx_from_game_to_client = Some(
-                        //     state
-                        //         .room_broadcast_channel
-                        //         .lock()
-                        //         .await
-                        //         .get(&connect.channel)
-                        //         .unwrap()
-                        //         .clone(),
-                        // );
+
                         let broadcast_channel = tokio::sync::broadcast::channel(10).0;
                         {
                             let mut channels = state.room_broadcast_channel.lock().await;
@@ -190,50 +225,27 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
 
                         tx_from_game_to_client = Some(broadcast_channel);
 
-                        rooms.get_mut(&connect.channel).unwrap()
+                        let game = rooms.get_mut(&connect.channel).unwrap();
+
+                        game.players.insert(
+                            connect.username.to_owned(),
+                            GameClient::new(connect.username.clone(), player_role),
+                        );
+                        username = connect.username.clone();
+
+                        game
                     }
                 };
 
-                // internal_send = Some(game.tx.clone());
-
                 info!("room users: {:?}", game.players);
-
-                if !game.players.contains_key(&connect.username) {
-                    info!("room did not contain user, adding them...");
-                    let _ = sender
-                        .send(Message::Text(
-                            json!(ServerMessage {
-                                message: format!("{} joined the game.", username),
-                                from: "System".to_string(),
-                            })
-                            .to_string(),
-                        ))
-                        .await;
-
-                    game.players.insert(
-                        connect.username.to_owned(),
-                        GameClient::new(connect.username.clone(), player_role),
-                    );
-                    username = connect.username.clone();
-                } else {
-                    let _ = sender
-                        .send(Message::Text(
-                            json!(ServerMessage {
-                                message: "Username already taken.".to_string(),
-                                from: username.clone(),
-                            })
-                            .to_string(),
-                        ))
-                        .await;
-                }
+                info!("Connection completed.");
+                break;
             }
-
-            break;
         } else {
             let _ = sender
                 .send(Message::Text(
                     json!(ServerMessage {
-                        message: "Wrong message format".to_string(),
+                        message: "Wrong message format, try to connect again".to_string(),
                         from: username.clone()
                     })
                     .to_string(),
@@ -241,24 +253,20 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                 .await;
         }
     }
-    // let room = state.room_broadcast_channel.lock().await;
+
     let mut rx = tx_from_game_to_client.as_ref().unwrap().subscribe();
 
     // Recieve from client
-    // let channel_for_recv = lobby_code.clone();
     let username_for_recv = username.clone();
 
     let (tx_game_messages, mut rx_game_messages) = tokio::sync::mpsc::channel::<GameMessage>(100);
-    // let queue_for_recv = queue.clone();
-    // let shared_game_message_queue = Arc::new(vec![]);
-    // let shared_game_message_queue_2 = shared_game_message_queue.clone();
-
     let mut recv_messages_from_clients = tokio::spawn(async move {
         info!(
             "Reciever for user={} is now ready to accept messages.",
             username_for_recv
         );
         while let Some(Ok(Message::Text(msg))) = receiver.next().await {
+            info!("Attempt to deserialize GameMessage: {}", msg);
             let gamemessage: GameMessage = match serde_json::from_str(&msg) {
                 Ok(x) => x,
                 Err(err) => {
@@ -267,27 +275,10 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                 }
             };
 
-            // let _ = tx_game_messages.send(gamemessage);
             let _ = tx_game_messages.send(gamemessage).await;
-
-            // let gamestate;
-            // let internal_sender;
-            // {
-            //     let mut gameguard = state.rooms.lock().await;
-            //     let game = gameguard.get_mut(&channel_for_recv).unwrap();
-            //     // game.process_event(gamemessage);
-            //     gamestate = game.get_state();
-            //     internal_sender = game.tx.clone();
-            // }
-
-            // if internal_sender.send(gamestate).is_err() {
-            //     info!("Could not send a message, breaking");
-            //     break;
-            // }
         }
     });
 
-    // let channel_for_send = lobby_code.clone();
     let username_for_send = username.clone();
 
     let mut send_messages_to_client = {
@@ -298,16 +289,6 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
             );
             // recieve message from a channel subscribed to events from any client
             while let Ok(text) = rx.recv().await {
-                // info!("messaging client -> {:?}", text);
-
-                // let game_message: GameMessage = match serde_json::from_str(&text) {
-                //     Ok(x) => x,
-                //     Err(err) => {
-                //         info!("Error deserializing game message: {}", err);
-                //         continue;
-                //     }
-                // };
-
                 // send message back to original client
                 let _ = sender.send(Message::Text(json!(text).to_string())).await;
             }
