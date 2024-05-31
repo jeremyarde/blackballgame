@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, collections::HashMap, fmt};
 
 use axum::extract::ws::{Message, WebSocket};
+use bevy::utils::info;
 use chrono::Utc;
 use futures_util::stream::{SplitSink, SplitStream};
 use serde::{Deserialize, Serialize};
@@ -31,7 +32,7 @@ impl GameServer {
             // GameAction::Bid(_) => todo!(),
             GameAction::StartGame => self.setup_game(None),
             // GameAction::Deal => todo!(),
-            _ => {}
+            _ => return None,
         }
 
         return Some(self.get_state());
@@ -60,10 +61,10 @@ impl GameServer {
         let player_id = event.username.clone();
         match &event.message.action {
             GameAction::PlayCard(card) => {
-                if event.username != self.curr_player_turn {
-                    info!("Not {}'s turn.", player_id);
-                    break;
-                }
+                // if event.username != self.curr_player_turn {
+                //     info!("Not {}'s turn.", player_id);
+                //     break;
+                // }
 
                 let player = self.players.get_mut(&player_id).unwrap();
 
@@ -105,7 +106,6 @@ impl GameServer {
                             tracing::info!("Curr winning card: {:?}", self.curr_winning_card);
 
                             self.advance_player_turn();
-                            break;
                         }
                     }
                     Err(e) => {
@@ -125,21 +125,30 @@ impl GameServer {
     pub fn process_event(
         &mut self,
         events: Vec<GameMessage>,
-        sender: Sender<GameServer>,
+        sender: &Sender<GameServer>,
         // player_id: String,
     ) {
         info!("[TODO] Processing an event");
 
-        // check if its the player's turn
         for event in events {
+            // check if its the player's turn
+            if self.state != GameState::Pregame && event.username != self.curr_player_turn {
+                info!(
+                    "{} turn, not {} turn.",
+                    self.curr_player_turn, event.username
+                );
+                // continue because we have multiple messages
+                continue;
+            }
+
             let state = match self.state {
                 // Allow new players to join
-                GameState::Pregame => return self.process_event_pregame(event),
+                GameState::Pregame => self.process_event_pregame(event),
                 // Get bids from all players
-                GameState::Bid => return self.process_event_bid(event),
+                GameState::Bid => self.process_event_bid(event),
                 // Play cards starting with after dealer
                 // Get winner once everyones played and start again with winner of round
-                GameState::Play => return self.process_event_play(event),
+                GameState::Play => self.process_event_play(event),
                 // Find winner after
                 GameState::PostRound => None,
                 // Determine dealer, player order,
@@ -262,7 +271,7 @@ impl GameServer {
         self.curr_player_turn = self.play_order.get(0).unwrap().clone();
 
         self.players.iter().for_each(|(id, player)| {
-            self.bids.insert(id.clone(), 0);
+            // self.bids.insert(id.clone(), 0);
             self.wins.insert(id.clone(), 0);
             self.score.insert(id.clone(), 0);
         });
@@ -366,7 +375,10 @@ impl GameServer {
                     .filter_map(|card| {
                         match is_played_card_valid(&played_cards, &player.hand, card, &self.trump) {
                             Ok(x) => Some(x),
-                            Err(err) => None,
+                            Err(err) => {
+                                info("Attempted to play a not valid card");
+                                None
+                            }
                         }
                     })
                     .collect::<Vec<Card>>();

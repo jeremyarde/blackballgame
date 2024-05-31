@@ -322,8 +322,8 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                     {
                         let mut rooms = state.rooms.lock().await;
                         let game = rooms.get_mut(&lobby_code).unwrap();
-                        let state: Option<GameServer> =
-                            game.process_event(game_messages, internal_broadcast_clone);
+
+                        game.process_event(game_messages, &internal_broadcast_clone);
                         // if let Some(state) = state {
                         //     let _ = internal_broadcast_clone.send(state);
                         // }
