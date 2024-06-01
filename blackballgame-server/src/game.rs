@@ -340,7 +340,7 @@ impl GameServer {
     fn advance_player_turn(&mut self) {
         let mut next_player_idx = 0;
         for (i, player) in self.play_order.iter().enumerate() {
-            if player == &self.curr_player_turn {
+            if player == &self.curr_player_turn.clone().unwrap() {
                 next_player_idx = i + 1;
             }
         }
@@ -355,7 +355,7 @@ impl GameServer {
     fn update_bid(&mut self, player_id: String, bid: &i32) -> Result<i32, String> {
         tracing::info!("Player {} to bid", player_id);
 
-        if self.curr_player_turn != player_id {
+        if self.curr_player_turn.clone().unwrap() != player_id {
             self.system_status.push("Not player {}'s turn.".to_string());
             return Err("Not player {}'s turn.".to_string());
         }
