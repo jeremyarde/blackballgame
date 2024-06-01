@@ -103,9 +103,11 @@ impl GameServer {
 
                             tracing::info!("Curr winning card: {:?}", self.curr_winning_card);
                         }
+                        self.advance_player_turn();
                     }
                     Err(e) => {
                         info!("card is NOT valid: {:?}", e);
+                        self.broadcast_message(format!("Card is not valid: {:?}", e));
                     }
                 }
             }
@@ -115,8 +117,6 @@ impl GameServer {
         // in theory everyone played a card
         if self.curr_played_cards.len() == self.players.len() {
             self.end_hand();
-        } else {
-            self.advance_player_turn();
         }
 
         // if all hands have been played, then we can end the round
@@ -224,17 +224,15 @@ impl GameServer {
             .iter()
             .for_each(|c| tracing::info!("{}", c));
 
-        let winner = self
-            .curr_winning_card
-            .as_ref()
-            .unwrap()
-            .played_by
-            .as_ref()
-            .unwrap();
+        let winner = self.curr_winning_card.clone().unwrap().played_by.unwrap();
 
-        if let Some(x) = self.wins.get_mut(winner) {
+        if let Some(x) = self.wins.get_mut(&winner) {
             *x = *x + 1;
         }
+
+        self.curr_played_cards = vec![];
+        self.curr_winning_card = None;
+        self.curr_player_turn = winner; // person who won the hand plays first next hand
     }
 
     pub fn end_round(&mut self) {
