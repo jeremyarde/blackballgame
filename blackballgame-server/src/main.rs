@@ -12,7 +12,6 @@ use std::ops::ControlFlow;
 use std::path::PathBuf;
 use std::str::Bytes;
 use std::sync::Arc;
-use std::task::Context;
 use std::task::Waker;
 use std::time::Duration;
 
@@ -96,7 +95,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
     let mut created_new_game = false;
     // let mut tx = None::<Sender<String>>;
     let mut tx_from_game_to_client = None::<tokio::sync::broadcast::Sender<GameServer>>;
-    let mut recv_channel: tokio::sync::mpsc::Receiver<GameMessage>;
+    let mut recv_channel: Option<tokio::sync::mpsc::Receiver<GameMessage>> = None;
 
     if socket.send(Message::Ping(vec![1, 2, 3])).await.is_ok() {
         info!("Pinged {who}...");
@@ -221,11 +220,11 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                         let server = GameServer::new();
                         rooms.insert(connect.channel.clone(), server);
 
-                        // let broadcast_channel = tokio::sync::broadcast::channel(10).0;
-                        // {
-                        //     let mut channels = state.room_broadcast_channel.lock().await;
-                        //     channels.insert(connect.channel.clone(), broadcast_channel.clone());
-                        // }
+                        let broadcast_channel = tokio::sync::broadcast::channel(10).0;
+                        {
+                            let mut channels = state.room_broadcast_channel.lock().await;
+                            channels.insert(connect.channel.clone(), broadcast_channel.clone());
+                        }
                         // let (lobby_sender, lobby_reciever) = tokio::sync::mpsc::channel(10);
                         let (lobby_sender, lobby_reciever) = tokio::sync::mpsc::channel(10);
                         {
@@ -234,10 +233,10 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
 
                             // let mut clientchannels = state.lobby_to_game_channel_recv.lock().await;
                             // clientchannels.insert(connect.channel.clone(), lobby_reciever);
-                            recv_channel = lobby_reciever;
+                            recv_channel = Some(lobby_reciever);
                         }
 
-                        // tx_from_game_to_client = Some(broadcast_channel);
+                        tx_from_game_to_client = Some(broadcast_channel);
 
                         let game = rooms.get_mut(&connect.channel).unwrap();
 
@@ -321,7 +320,8 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
     };
 
     // only create a new thread when the first person has created a game
-    if created_new_game {
+    if created_new_game && recv_channel.is_some() {
+        let mut recv_channel_inner = recv_channel.unwrap();
         let internal_broadcast_clone = tx_from_game_to_client.unwrap().clone();
         let mut game_loop = {
             tokio::spawn(async move {
@@ -331,7 +331,9 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                     let mut game_messages = Vec::with_capacity(event_cap);
 
                     info!("Waiting for messages");
-                    recv_channel.recv_many(&mut game_messages, event_cap).await;
+                    recv_channel_inner
+                        .recv_many(&mut game_messages, event_cap)
+                        .await;
 
                     if game_messages.len() == 0 {
                         sleep(Duration::from_millis(2000)).await;

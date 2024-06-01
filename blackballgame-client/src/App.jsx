@@ -146,10 +146,6 @@ function App() {
               {displayObject(gamestate.bids)}
             </li>
             <li>
-              <b>Played cards: </b>
-              {gamestate.curr_played_cards}
-            </li>
-            <li>
               <b>Player Turn: </b>
               {gamestate.curr_player_turn}
             </li>
@@ -159,7 +155,7 @@ function App() {
             </li>
             <li>
               <b>Winning card: </b>
-              {gamestate.curr_winning_card}
+              {displayObject(gamestate.curr_winning_card)}
             </li>
             <li>
               <b>Deal order: </b>
@@ -171,10 +167,10 @@ function App() {
                 {gamestate.play_order}
               </div>
             </li>
-            <li>
+            {/* <li>
               <b>Players: </b>
               {displayObject(gamestate.players)}
-            </li>
+            </li> */}
             <li>
               <b>Score: </b>
               {displayObject(gamestate.score)}
@@ -220,7 +216,7 @@ function App() {
       <div className="bg-green-300">
         <h2 className="bg-blue-300">Play area</h2>
         {gamestate && gamestate.state == "Bid" && (
-          <div>
+          <div className="flex flex-col">
             <label>Enter your bid: </label>
             <input
               type="number"
@@ -283,8 +279,6 @@ function App() {
               type="number"
             />
           </div>
-          {/* {JSON.stringify(playCard)} */}
-          <button onClick={playCard}>Play Card</button>
         </div>
       </div>
       <div>

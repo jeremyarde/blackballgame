@@ -61,11 +61,6 @@ impl GameServer {
         let player_id = event.username.clone();
         match &event.message.action {
             GameAction::PlayCard(card) => {
-                // if event.username != self.curr_player_turn {
-                //     info!("Not {}'s turn.", player_id);
-                //     break;
-                // }
-
                 let player = self.players.get_mut(&player_id).unwrap();
 
                 match is_played_card_valid(
@@ -76,7 +71,7 @@ impl GameServer {
                 ) {
                     Ok(x) => {
                         tracing::info!("card is valid");
-                        // card = x;
+
                         // remove the card from the players hand
                         let mut cardloc: Option<usize> = None;
                         player.hand.iter().enumerate().for_each(|(i, c)| {
@@ -84,6 +79,7 @@ impl GameServer {
                                 return cardloc = Some(i);
                             }
                         });
+
                         if let Some(loc) = cardloc {
                             player.hand.remove(loc);
                             self.curr_played_cards.push(card.clone());
@@ -113,7 +109,7 @@ impl GameServer {
                     }
                 }
             }
-            GameAction::Deal => self.deal(),
+            // GameAction::Deal => self.deal(),
             // GameAction::StartGame => {
             //     self.state = GameState::Deal;
             // } // GameAction::GetHand => todo!(),
@@ -134,9 +130,13 @@ impl GameServer {
             // check if its the player's turn
             if self.state != GameState::Pregame && event.username != self.curr_player_turn {
                 info!(
-                    "{} turn, not {} turn.",
+                    "{}'s turn, not {}'s turn.",
                     self.curr_player_turn, event.username
                 );
+                self.broadcast_message(format!(
+                    "{}'s turn, not {}'s turn.",
+                    self.curr_player_turn, event.username
+                ));
                 // continue because we have multiple messages
                 continue;
             }
@@ -252,10 +252,15 @@ impl GameServer {
         tracing::info!("Player status: {:#?}", self.player_status());
     }
 
+    pub fn broadcast_message(&mut self, message: String) {
+        self.system_status.push(message);
+    }
+
     pub fn setup_game(&mut self, max_rounds: Option<i32>) {
         if self.players.len() == 1 {
             // Should maybe send a better message
-            self.system_status.push("Not enough players".into());
+            // self.system_status.push("Not enough players".into());
+            self.broadcast_message("Not enough players".to_string());
             return;
         }
         let mut deal_play_order: Vec<String> =
@@ -344,6 +349,7 @@ impl GameServer {
             }
             Err(e) => {
                 tracing::info!("Error with bid: {:?}", e);
+                self.broadcast_message(format!("Error with bid: {:?}", e));
                 return Err("Bid not valid".to_string());
             }
         }
