@@ -216,7 +216,7 @@ function App() {
       <div className="bg-green-300">
         <h2 className="bg-blue-300">Play area</h2>
         {gamestate && gamestate.state == "Bid" && (
-          <div className="flex flex-col">
+          <div className="flex flex-row">
             <label>Enter your bid: </label>
             <input
               type="number"

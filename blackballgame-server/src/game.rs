@@ -14,13 +14,14 @@ use crate::{
 };
 
 impl GameServer {
-    pub fn next_state(&mut self) -> GameState {
+    pub fn update_to_next_state(&mut self) -> GameState {
         let newstate = match self.state {
             GameState::Bid => GameState::Play,
-            GameState::Play => GameState::PostRound,
+            // GameState::Play => GameState::PostRound,
             GameState::Pregame => GameState::Bid,
-            GameState::PostRound => GameState::PreRound,
-            GameState::PreRound => GameState::Bid,
+            GameState::Play => GameState::Bid,
+            // GameState::PostRound => GameState::Bid,
+            // GameState::PreRound => GameState::Bid,
         };
         self.state = newstate;
         return self.state;
@@ -46,7 +47,7 @@ impl GameServer {
                     self.advance_player_turn();
                 }
                 if self.is_bidding_over() {
-                    self.next_state();
+                    self.update_to_next_state();
                 }
             }
             _ => {
@@ -59,6 +60,7 @@ impl GameServer {
 
     pub fn process_event_play(&mut self, event: GameMessage) -> Option<GameServer> {
         let player_id = event.username.clone();
+
         match &event.message.action {
             GameAction::PlayCard(card) => {
                 let player = self.players.get_mut(&player_id).unwrap();
@@ -100,8 +102,6 @@ impl GameServer {
                             }
 
                             tracing::info!("Curr winning card: {:?}", self.curr_winning_card);
-
-                            self.advance_player_turn();
                         }
                     }
                     Err(e) => {
@@ -109,12 +109,23 @@ impl GameServer {
                     }
                 }
             }
-            // GameAction::Deal => self.deal(),
-            // GameAction::StartGame => {
-            //     self.state = GameState::Deal;
-            // } // GameAction::GetHand => todo!(),
             _ => {}
         }
+
+        // in theory everyone played a card
+        if self.curr_played_cards.len() == self.players.len() {
+            self.end_hand();
+        } else {
+            self.advance_player_turn();
+        }
+
+        // if all hands have been played, then we can end the round
+        if self.wins.values().sum::<i32>() == self.curr_round {
+            self.end_round();
+        }
+
+        return Some(self.get_state());
+
         return Some(self.get_state());
     }
 
@@ -150,14 +161,14 @@ impl GameServer {
                 // Get winner once everyones played and start again with winner of round
                 GameState::Play => self.process_event_play(event),
                 // Find winner after
-                GameState::PostRound => None,
-                // Determine dealer, player order,
-                GameState::PreRound => None,
+                // GameState::PostRound => self.process_postround(event),
             };
 
-            if let Some(state) = state {
-                let _ = sender.send(state);
-            }
+            // if let Some(state) = state {
+            //     let _ = sender.send(state);
+            // }
+            // always send state for now
+            let _ = sender.send(self.get_state());
         }
     }
 
@@ -206,7 +217,7 @@ impl GameServer {
             .insert(player_id.clone(), GameClient::new(player_id, role));
     }
 
-    pub fn end_round(&mut self) {
+    pub fn end_hand(&mut self) {
         tracing::info!("End turn, trump={:?}, played cards:", self.trump);
         self.curr_played_cards
             .clone()
@@ -224,7 +235,9 @@ impl GameServer {
         if let Some(x) = self.wins.get_mut(winner) {
             *x = *x + 1;
         }
+    }
 
+    pub fn end_round(&mut self) {
         tracing::info!("Bids won: {:#?}\nBids wanted: {:#?}", self.wins, self.bids);
         for player_id in self.play_order.iter() {
             let player = self.players.get_mut(player_id).unwrap();
@@ -238,9 +251,9 @@ impl GameServer {
             // resetting the data structures for a round before round start
             self.wins.insert(player.id.clone(), 0);
             self.bids.clear();
+            self.deck = create_deck();
             player.clear_hand();
         }
-        // self.clear_previous_round();
         self.advance_trump();
         self.curr_round += 1;
         let curr_dealer = self.dealing_order.remove(0);
@@ -248,6 +261,11 @@ impl GameServer {
 
         let first_player = self.play_order.remove(0);
         self.play_order.push(first_player);
+        self.curr_played_cards = vec![];
+        self.curr_player_turn = self.play_order[0].clone();
+        self.curr_winning_card = None;
+        self.deal();
+        self.update_to_next_state();
 
         tracing::info!("Player status: {:#?}", self.player_status());
     }
@@ -292,7 +310,7 @@ impl GameServer {
         };
 
         self.deal();
-        self.state = GameState::Bid;
+        self.update_to_next_state();
 
         tracing::info!("Players: {}\nRounds: {}", num_players, max_rounds);
     }
@@ -355,104 +373,6 @@ impl GameServer {
         }
     }
 
-    fn play_round(&mut self) {
-        for handnum in 1..=self.curr_round {
-            tracing::info!(
-                "--- Hand #{}/{} - Trump: {}---",
-                handnum,
-                self.curr_round,
-                self.trump
-            );
-            // need to use a few things to see who goes first
-            // 1. highest bid (at round start)
-            // 2. person who won the trick in last round goes first, then obey existing order
-
-            // ask for input from each client in specific order (first person after dealer)
-            let mut played_cards: Vec<Card> = vec![];
-
-            let mut curr_winning_card: Option<Card> = None;
-
-            for player_id in self.play_order.iter() {
-                let player = self.players.get_mut(player_id).unwrap();
-
-                let valid_cards_to_play = player
-                    .hand
-                    .iter()
-                    .filter_map(|card| {
-                        match is_played_card_valid(&played_cards, &player.hand, card, &self.trump) {
-                            Ok(x) => Some(x),
-                            Err(err) => {
-                                info("Attempted to play a not valid card");
-                                None
-                            }
-                        }
-                    })
-                    .collect::<Vec<Card>>();
-
-                let (loc, mut card) = player.play_card(&valid_cards_to_play);
-                loop {
-                    match is_played_card_valid(
-                        &played_cards.clone(),
-                        &mut player.hand,
-                        &card.clone(),
-                        &self.trump,
-                    ) {
-                        Ok(x) => {
-                            tracing::info!("card is valid");
-                            card = x;
-                            // remove the card from the players hand
-                            player.hand.remove(loc);
-                            break;
-                        }
-                        Err(e) => {
-                            tracing::info!("card is NOT valid: {:?}", e);
-                            (_, card) = player.play_card(&valid_cards_to_play);
-                        }
-                    }
-                }
-                played_cards.push(card.clone());
-
-                // logic for finding the winning card
-                if curr_winning_card.is_none() {
-                    curr_winning_card = Some(card);
-                } else {
-                    let curr = curr_winning_card.clone().unwrap();
-                    if card.suit == curr.suit && card.value > curr.value {
-                        curr_winning_card = Some(card.clone());
-                    }
-                    if card.suit == self.trump
-                        && curr.suit == self.trump
-                        && card.clone().value > curr.value
-                    {
-                        curr_winning_card = Some(card);
-                    }
-                }
-
-                tracing::info!(
-                    "Curr winning card: {:?}",
-                    curr_winning_card.clone().unwrap()
-                );
-            }
-
-            tracing::info!("End turn, trump={:?}, played cards:", self.trump);
-            played_cards
-                .clone()
-                .iter()
-                .for_each(|c| tracing::info!("{}", c));
-
-            let win_card = curr_winning_card.unwrap();
-            tracing::info!(
-                "Player {:?} won. Winning card: {:?}",
-                win_card.played_by,
-                win_card
-            );
-            let winner = win_card.played_by;
-            if let Some(x) = self.wins.get_mut(&winner.unwrap()) {
-                *x = *x + 1;
-            }
-        }
-    }
-
     fn deal(&mut self) {
         tracing::info!("=== Dealing ===");
         tracing::info!("Dealer: {}", self.dealing_order[0]);
@@ -480,6 +400,14 @@ impl GameServer {
         // check if everyone has a bid
         return self.bids.keys().len() == self.players.len();
     }
+
+    // fn process_postround(&mut self, event: GameMessage) -> Option<GameServer> {
+    //     self.curr_played_cards = vec![];
+    //     self.curr_winning_card = None;
+    //     self.update_to_next_state();
+
+    //     return Some(self.get_state());
+    // }
 }
 
 fn get_random_card(mut deck: &mut Vec<Card>) -> Option<Card> {
@@ -668,8 +596,8 @@ pub enum GameState {
     Bid,
     Play,
     Pregame,
-    PostRound,
-    PreRound,
+    // PostRound,
+    // PreRound,
 }
 
 #[derive(Debug, Clone, PartialOrd, PartialEq, Ord, Eq, Serialize, Deserialize)]
