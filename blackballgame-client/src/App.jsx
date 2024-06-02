@@ -122,13 +122,18 @@ function App() {
     sendMessage(message);
   };
 
-  const sendBid = (evt) => {
-    console.log("sendBid: ", bid);
+  const sendBid = (bidValue) => {
+    let bidToSend = bid;
+    if (!bidValue) {
+      // bidToSend = bidValue;
+      return;
+    }
+    console.log("sendBid: ", bidToSend);
     let message = {
       username: username,
       message: {
         action: {
-          bid: bid,
+          bid: bidToSend,
         },
         origin: { player: username },
       },
@@ -197,8 +202,8 @@ function App() {
           )}
         </div>
       )}
-      <div className="">
-        <div className="flex flex-col items-center justify-center w-1/2 align-middle border rounded-md border-input bg-background ring-offset-background">
+      <div className="flex flex-col">
+        <div className="flex flex-col items-center justify-center w-1/2 align-middle border rounded-md bg-fuchsia-200 border-input bg-background ring-offset-background">
           <div>
             <label>Lobby code: </label>
             <input
@@ -216,7 +221,7 @@ function App() {
             ></input>
           </div>
           <button
-            className="w-20 bg-green-500 border border-solid"
+            className="w-24 h-10 border border-solid rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             onClick={connectToLobby}
           >
             Connect
@@ -224,6 +229,36 @@ function App() {
           <button className="p-2 m-1 outline" onClick={startGame}>
             Start game
           </button>
+        </div>
+        <div className="flex flex-col w-1/2 bg-orange-200 border border-solid rounded-md bg-background">
+          <label>Round: {gamestate.curr_round}</label>
+          <label>Player Turn: {gamestate.curr_player_turn}</label>
+          <ul>
+            {gamestate.play_order.map((playername) => {
+              return (
+                <li key={playername}>
+                  <label
+                    className={
+                      playername === gamestate.curr_player_turn
+                        ? "bg-green-400"
+                        : ""
+                    }
+                  >
+                    {playername}
+                    {playername === gamestate.curr_player_turn ? "<-- " : ""}
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+          <div>
+            Hands won: {gamestate.wins[username]}/
+            {gamestate.bids[username] ?? "0"}
+          </div>
+          <label>
+            Current hand #:{" "}
+            {gamestate.wins[username] ? gamestate.wins[username] + 1 : 0}
+          </label>
         </div>
         <div className="bg-green-300">
           <div className="flex flex-col p-4">
@@ -280,7 +315,27 @@ function App() {
                 <div className="flex justify-center m-4">
                   {gamestate && gamestate.state == "Bid" && (
                     <>
-                      <input
+                      <ol className="flex flex-row">
+                        {gamestate?.players &&
+                        gamestate.players[username] &&
+                        gamestate?.players[username].hand
+                          ? [...Array(gamestate.curr_round + 1).keys()].map(
+                              (element, i) => {
+                                return (
+                                  <li key={i}>
+                                    <button
+                                      className="w-24 h-10 border border-solid rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                      onClick={sendBid(i)}
+                                    >
+                                      {i}
+                                    </button>
+                                  </li>
+                                );
+                              }
+                            )
+                          : "Failed"}
+                      </ol>
+                      {/* <input
                         className="flex w-24 h-10 border rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         placeholder="Enter bid"
                         onChange={(evt) => setBid(parseInt(evt.target.value))}
@@ -290,10 +345,13 @@ function App() {
                             sendBid();
                           }
                         }}
-                      />
-                      <button className="" onClick={sendBid}>
+                      /> */}
+                      {/* <button
+                        className="w-24 h-10 border rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        onClick={sendBid}
+                      >
                         Submit
-                      </button>
+                      </button> */}
                     </>
                   )}
                 </div>
