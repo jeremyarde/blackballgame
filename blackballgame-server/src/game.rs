@@ -714,4 +714,32 @@ mod tests {
         println!("Winning: {}", res);
         assert!(res.id == 2)
     }
+
+    #[test]
+    fn test_finding_winning_card_no_trump_first_suit_wins() {
+        let cards = vec![
+            Card {
+                id: 1,
+                played_by: Some("person".to_string()),
+                suit: Suit::Diamond,
+                value: 1,
+            },
+            Card {
+                id: 2,
+                played_by: Some("spade".to_string()),
+                suit: Suit::Club,
+                value: 2,
+            },
+            Card {
+                id: 3,
+                played_by: Some("spade".to_string()),
+                suit: Suit::Spade,
+                value: 14,
+            },
+        ];
+        let trump = Suit::Heart;
+        let res = find_winning_card(cards, trump);
+        println!("Winning: {}", res);
+        assert!(res.id == 1)
+    }
 }

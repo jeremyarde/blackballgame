@@ -230,87 +230,14 @@ function App() {
             Start game
           </button>
         </div>
-
-        {gamestate && gamestate.players && (
-          <div className="flex flex-col w-1/2 bg-orange-200 border border-solid rounded-md bg-background">
-            <label>Round: {gamestate.curr_round}</label>
-            <label>Player Turn: {gamestate.curr_player_turn}</label>
-            <ul className="flex space-x-2">
-              <label>Play order:</label>
-              {gamestate &&
-                gamestate.play_order &&
-                gamestate.play_order.map((playername) => {
-                  return (
-                    <li className="flex flex-row" key={playername}>
-                      <label
-                        className={
-                          playername === gamestate.curr_player_turn
-                            ? "bg-green-400"
-                            : ""
-                        }
-                      >
-                        {playername}
-                        {playername === gamestate.curr_player_turn
-                          ? "<-- "
-                          : ""}
-                      </label>
-                    </li>
-                  );
-                })}
-            </ul>
-            <div>
-              Hands won: {gamestate.wins[username]}/
-              {gamestate.bids[username] ?? "0"}
-            </div>
-            <label>
-              Current hand #:{" "}
-              {gamestate.wins[username] ? gamestate.wins[username] + 1 : 0}
-            </label>
-            <label>
-              Player bids:
-              {gamestate.bids ? displayObject(gamestate.bids) : "No bids"}
-            </label>
-          </div>
-        )}
-        <div className="bg-green-300">
-          <div className="flex flex-col p-4">
-            <div>
-              <h3>Played Cards</h3>
-              <div className="flex flex-row justify-center">
-                {gamestate?.curr_played_cards
-                  ? gamestate.curr_played_cards.map((card) => {
-                      return (
-                        <div
-                          key={card.id}
-                          className="flex h-[140px] w-[100px] items-center justify-center rounded-lg bg-white shadow-lg "
-                          onMouseDown={() => playCard(card)}
-                        >
-                          <div className="flex flex-col items-center gap-2">
-                            <span className="text-xl font-bold">
-                              {card.value}
-                            </span>
-                            <span className="font-medium text-md">
-                              {card.suit}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })
-                  : ""}
-              </div>
-              <div
-                className={
-                  gamestate.curr_player_turn === username
-                    ? "outline-4 outline-yellow-300 m-2 outline bg-slate-400"
-                    : "m-2 outline outline-1 bg-slate-400"
-                }
-              >
-                <h3>Your hand</h3>
+        <div className="flex">
+          <div className="w-3/4 bg-green-300">
+            <div className="flex flex-col p-4">
+              <div>
+                <h3>Played Cards</h3>
                 <div className="flex flex-row justify-center">
-                  {gamestate?.players &&
-                  gamestate.players[username] &&
-                  gamestate?.players[username].hand
-                    ? gamestate.players[username].hand.map((card) => {
+                  {gamestate?.curr_played_cards
+                    ? gamestate.curr_played_cards.map((card) => {
                         return (
                           <div
                             key={card.id}
@@ -330,64 +257,117 @@ function App() {
                       })
                     : ""}
                 </div>
-                <div className="flex justify-center m-4">
-                  {gamestate && gamestate.state == "Bid" && (
-                    <>
-                      <label>Bid</label>
-                      <ol className="flex flex-row">
-                        {gamestate?.players &&
-                        gamestate.players[username] &&
-                        gamestate?.players[username].hand
-                          ? bids.map((i) => {
-                              return (
-                                <li key={i}>
-                                  <button
-                                    className="w-24 h-10 border border-solid rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    onClick={() => sendBid(i)}
-                                  >
-                                    {i}
-                                  </button>
-                                </li>
-                              );
-                            })
-                          : "Failed"}
-                      </ol>
-                      {/* <input
-                        className="flex w-24 h-10 border rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        placeholder="Enter bid"
-                        onChange={(evt) => setBid(parseInt(evt.target.value))}
-                        type="number"
-                        onKeyDown={(evt) => {
-                          if (evt.key === "Enter") {
-                            sendBid();
-                          }
-                        }}
-                      /> */}
-                      {/* <button
-                        className="w-24 h-10 border rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        onClick={sendBid}
-                      >
-                        Submit
-                      </button> */}
-                    </>
-                  )}
+                <div className="flex">
+                  <div
+                    className={`outline-4 w-3/4 m-2 outline bg-slate-400 flex flex-col ${
+                      gamestate.curr_player_turn === username
+                        ? "outline-yellow-300"
+                        : ""
+                    }`}
+                  >
+                    <h3>Your hand</h3>
+                    <div className="flex flex-row justify-center">
+                      {gamestate?.players &&
+                      gamestate.players[username] &&
+                      gamestate?.players[username].hand
+                        ? gamestate.players[username].hand.map((card) => {
+                            return (
+                              <div
+                                key={card.id}
+                                className="flex h-[140px] w-[100px] items-center justify-center rounded-lg bg-white shadow-lg "
+                                onMouseDown={() => playCard(card)}
+                              >
+                                <div className="flex flex-col items-center gap-2">
+                                  <span className="text-xl font-bold">
+                                    {card.value}
+                                  </span>
+                                  <span className="font-medium text-md">
+                                    {card.suit}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })
+                        : ""}
+                    </div>
+                    {gamestate && gamestate.state == "Bid" && (
+                      <div className="flex justify-center m-4">
+                        <>
+                          <label>Bid</label>
+                          <ol className="flex flex-row">
+                            {gamestate?.players &&
+                            gamestate.players[username] &&
+                            gamestate?.players[username].hand
+                              ? bids.map((i) => {
+                                  return (
+                                    <li key={i}>
+                                      <button
+                                        className="w-24 h-10 border border-solid rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        onClick={() => sendBid(i)}
+                                      >
+                                        {i}
+                                      </button>
+                                    </li>
+                                  );
+                                })
+                              : "Failed"}
+                          </ol>
+                        </>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col w-1/4 bg-cyan-200">
+                    <h2>Hand details</h2>
+                    <div>{displayObject(gamestate.trump)}</div>
+                    <div>{displayObject(gamestate.system_status)}</div>
+                    {/* <div>{displayObject(gamestate.wins[username])}</div> */}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-        <div>
-          <ul>
-            {messages.map((message, index) => (
-              <div key={index}>
-                <li>
-                  {/* <span>{message.timestamp}: </span>
-              <span>{message.text}</span> */}
-                  <span>{JSON.stringify(message)}</span>
-                </li>
+          {gamestate && gamestate.players && (
+            <div className="flex flex-col w-1/4 bg-orange-200 border border-solid rounded-md bg-background">
+              <h2>Game details</h2>
+              <label>Round: {gamestate.curr_round}</label>
+              <label>Player Turn: {gamestate.curr_player_turn}</label>
+              <ul className="flex space-x-2">
+                <label>Play order:</label>
+                {gamestate &&
+                  gamestate.play_order &&
+                  gamestate.play_order.map((playername) => {
+                    return (
+                      <li className="flex flex-row" key={playername}>
+                        <label
+                          className={
+                            playername === gamestate.curr_player_turn
+                              ? "bg-green-400"
+                              : ""
+                          }
+                        >
+                          {playername}
+                          {playername === gamestate.curr_player_turn
+                            ? "<-- "
+                            : ""}
+                        </label>
+                      </li>
+                    );
+                  })}
+              </ul>
+              <div>
+                Hands won: {gamestate.wins[username]}/
+                {gamestate.bids[username] ?? "0"}
               </div>
-            ))}
-          </ul>
+              <label>
+                Current hand #:{" "}
+                {gamestate.wins[username] ? gamestate.wins[username] + 1 : 0}
+              </label>
+              <label>
+                Player bids:
+                {gamestate.bids ? displayObject(gamestate.bids) : "No bids"}
+              </label>
+            </div>
+          )}
         </div>
       </div>
     </>
