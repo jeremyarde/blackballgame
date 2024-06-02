@@ -1,6 +1,11 @@
 export const EXAMPLE = {
   bids: {},
-  curr_played_cards: [],
+  curr_played_cards: [
+    { id: 18, played_by: null, suit: "club", value: 6 },
+    { id: 15, played_by: null, suit: "spade", value: 5 },
+    { id: 43, played_by: null, suit: "spade", value: 12 },
+    { id: 2, played_by: null, suit: "club", value: 2 },
+  ],
   curr_player_turn: "a",
   curr_round: 1,
   curr_winning_card: null,

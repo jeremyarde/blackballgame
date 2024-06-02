@@ -197,111 +197,123 @@ function App() {
           )}
         </div>
       )}
-
-      <div>
-        <label>Lobby code: </label>
-        <input
-          type="text"
-          onChange={(evt) => setLobbyCode(evt.target.value)}
-        ></input>
-        <label>Name: </label>
-        <input
-          type="text"
-          onChange={(evt) => setUsername(evt.target.value)}
-        ></input>
-        <button
-          className="bg-green-200 border border-solid"
-          onClick={connectToLobby}
-        >
-          Connect
-        </button>
-      </div>
-      <div className="bg-green-300">
-        <h2 className="bg-blue-300">Play area</h2>
-        {gamestate && gamestate.state == "Bid" && (
-          <div className="flex flex-row">
-            <label>Enter your bid: </label>
+      <div className="">
+        <div className="flex flex-col items-center justify-center w-1/2 align-middle border rounded-md border-input bg-background ring-offset-background">
+          <div>
+            <label>Lobby code: </label>
             <input
-              type="number"
-              onChange={(evt) => setBid(parseInt(evt.target.value))}
+              className="w-24 h-10 border rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              type="text"
+              onChange={(evt) => setLobbyCode(evt.target.value)}
             ></input>
-            <button onClick={sendBid}>Bid</button>
-          </div>
-        )}
-        <button className="p-2 m-1 outline" onClick={startGame}>
-          Start game
-        </button>
-        <button className="p-2 m-1 outline" onClick={dealCard}>
-          Deal
-        </button>
-        <div className="flex flex-col p-4">
-          <div>
-            <h3>Play area</h3>
-            {gamestate?.curr_played_cards
-              ? gamestate.curr_played_cards.map((card) => {
-                  return (
-                    <div
-                      key={card.id}
-                      className="flex h-[200px] w-[140px] items-center justify-center rounded-lg bg-white shadow-lg dark:bg-gray-800"
-                      onMouseDown={() => {}}
-                    >
-                      <div className="flex flex-col items-center gap-2">
-                        <span className="text-4xl font-bold">{card.value}</span>
-                        <span className="text-2xl font-medium">
-                          {card.suit}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })
-              : ""}
           </div>
           <div>
-            <h3>Your hand</h3>
-            <div className="flex flex-row">
-              {gamestate?.players &&
-              gamestate.players[username] &&
-              gamestate?.players[username].hand
-                ? gamestate.players[username].hand.map((card) => {
-                    return (
-                      <div
-                        key={card.id}
-                        className="flex h-[200px] w-[140px] items-center justify-center rounded-lg bg-white shadow-lg dark:bg-gray-800"
-                        onMouseDown={() => playCard(card)}
-                      >
-                        <div className="flex flex-col items-center gap-2">
-                          <span className="text-4xl font-bold">
-                            {card.value}
-                          </span>
-                          <span className="text-2xl font-medium">
-                            {card.suit}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })
-                : ""}
-            </div>
+            <label>Name: </label>
+            <input
+              type="text"
+              className="w-24 h-10 border rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              onChange={(evt) => setUsername(evt.target.value)}
+            ></input>
           </div>
-          <input
-            className="flex w-24 h-10 px-3 py-2 text-sm border rounded-md border-input bg-background ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            placeholder="Enter bid"
-            type="number"
-          />
+          <button
+            className="w-20 bg-green-500 border border-solid"
+            onClick={connectToLobby}
+          >
+            Connect
+          </button>
+          <button className="p-2 m-1 outline" onClick={startGame}>
+            Start game
+          </button>
         </div>
-      </div>
-      <div>
-        <ul>
-          {messages.map((message, index) => (
-            <div key={index}>
-              <li>
-                {/* <span>{message.timestamp}: </span>
-              <span>{message.text}</span> */}
-                <span>{JSON.stringify(message)}</span>
-              </li>
+        <div className="bg-green-300">
+          <div className="flex flex-col p-4">
+            <div>
+              <h3>Played Cards</h3>
+              <div className="flex flex-row justify-center">
+                {gamestate?.curr_played_cards
+                  ? gamestate.curr_played_cards.map((card) => {
+                      return (
+                        <div
+                          key={card.id}
+                          className="flex h-[200px] w-[140px] items-center justify-center rounded-lg bg-white shadow-lg dark:bg-gray-800"
+                          onMouseDown={() => {}}
+                        >
+                          <div className="flex flex-col items-center gap-2">
+                            <span className="text-4xl font-bold">
+                              {card.value}
+                            </span>
+                            <span className="text-2xl font-medium">
+                              {card.suit}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  : ""}
+              </div>
+              <div className="m-2 outline outline-1 bg-slate-400">
+                <h3>Your hand</h3>
+                <div className="flex flex-row justify-center">
+                  {gamestate?.players &&
+                  gamestate.players[username] &&
+                  gamestate?.players[username].hand
+                    ? gamestate.players[username].hand.map((card) => {
+                        return (
+                          <div
+                            key={card.id}
+                            className="flex h-[200px] w-[140px] items-center justify-center rounded-lg bg-white shadow-lg dark:bg-gray-800"
+                            onMouseDown={() => playCard(card)}
+                          >
+                            <div className="flex flex-col items-center gap-2">
+                              <span className="text-4xl font-bold">
+                                {card.value}
+                              </span>
+                              <span className="text-2xl font-medium">
+                                {card.suit}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })
+                    : ""}
+                </div>
+                <div className="flex justify-center m-4">
+                  {gamestate && gamestate.state == "Bid" && (
+                    <>
+                      <input
+                        className="flex w-24 h-10 border rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        placeholder="Enter bid"
+                        onChange={(evt) => setBid(parseInt(evt.target.value))}
+                        type="number"
+                        onKeyDown={(evt) => {
+                          if (evt.key === "Enter") {
+                            sendBid();
+                          }
+                        }}
+                      />
+                      <button className="" onClick={sendBid}>
+                        Submit
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
-          ))}
-        </ul>
+          </div>
+        </div>
+        <div>
+          <ul>
+            {messages.map((message, index) => (
+              <div key={index}>
+                <li>
+                  {/* <span>{message.timestamp}: </span>
+              <span>{message.text}</span> */}
+                  <span>{JSON.stringify(message)}</span>
+                </li>
+              </div>
+            ))}
+          </ul>
+        </div>
       </div>
     </>
   );
