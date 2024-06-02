@@ -316,56 +316,59 @@ function App() {
                       </div>
                     )}
                   </div>
-                  <div className="flex flex-col w-1/4 bg-cyan-200">
-                    <h2>Hand details</h2>
-                    <div>{displayObject(gamestate.trump)}</div>
-                    <div>{displayObject(gamestate.system_status)}</div>
-                    {/* <div>{displayObject(gamestate.wins[username])}</div> */}
-                  </div>
                 </div>
               </div>
             </div>
           </div>
           {gamestate && gamestate.players && (
             <div className="flex flex-col w-1/4 bg-orange-200 border border-solid rounded-md bg-background">
-              <h2>Game details</h2>
-              <label>Round: {gamestate.curr_round}</label>
-              <label>Player Turn: {gamestate.curr_player_turn}</label>
-              <ul className="flex space-x-2">
-                <label>Play order:</label>
-                {gamestate &&
-                  gamestate.play_order &&
-                  gamestate.play_order.map((playername) => {
-                    return (
-                      <li className="flex flex-row" key={playername}>
-                        <label
-                          className={
-                            playername === gamestate.curr_player_turn
-                              ? "bg-green-400"
-                              : ""
-                          }
-                        >
-                          {playername}
-                          {playername === gamestate.curr_player_turn
-                            ? "<-- "
-                            : ""}
-                        </label>
-                      </li>
-                    );
-                  })}
-              </ul>
               <div>
-                Hands won: {gamestate.wins[username]}/
-                {gamestate.bids[username] ?? "0"}
+                <h2>Game details</h2>
+                <label>Round: {gamestate.curr_round}</label>
+                <label>Player Turn: {gamestate.curr_player_turn}</label>
+                <ul className="flex space-x-2">
+                  <label>Play order:</label>
+                  {gamestate &&
+                    gamestate.play_order &&
+                    gamestate.play_order.map((playername) => {
+                      return (
+                        <li className="flex flex-row" key={playername}>
+                          <label
+                            className={
+                              playername === gamestate.curr_player_turn
+                                ? "bg-green-400"
+                                : ""
+                            }
+                          >
+                            {playername}
+                            {playername === gamestate.curr_player_turn
+                              ? "<-- "
+                              : ""}
+                          </label>
+                        </li>
+                      );
+                    })}
+                </ul>
+                <div>
+                  Hands won: {gamestate.wins[username]}/
+                  {gamestate.bids[username] ?? "0"}
+                </div>
+                <label>
+                  Current hand #:{" "}
+                  {gamestate.wins[username] ? gamestate.wins[username] + 1 : 0}
+                </label>
+                <label>
+                  Player bids:
+                  {gamestate.bids ? displayObject(gamestate.bids) : "No bids"}
+                </label>
               </div>
-              <label>
-                Current hand #:{" "}
-                {gamestate.wins[username] ? gamestate.wins[username] + 1 : 0}
-              </label>
-              <label>
-                Player bids:
-                {gamestate.bids ? displayObject(gamestate.bids) : "No bids"}
-              </label>
+
+              <div className="flex flex-col bg-cyan-200">
+                <h2>Hand details</h2>
+                <div>{displayObject(gamestate.trump)}</div>
+                <div>{displayObject(gamestate.system_status)}</div>
+                {/* <div>{displayObject(gamestate.wins[username])}</div> */}
+              </div>
             </div>
           )}
         </div>
