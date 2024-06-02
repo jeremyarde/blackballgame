@@ -7,7 +7,7 @@ export const EXAMPLE = {
     { id: 2, played_by: null, suit: "club", value: 2 },
   ],
   curr_player_turn: "a",
-  curr_round: 1,
+  curr_round: 2,
   curr_winning_card: null,
   dealing_order: ["a", "q"],
   deck: [

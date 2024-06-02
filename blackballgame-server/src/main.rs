@@ -174,7 +174,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                             let _ = sender
                                 .send(Message::Text(
                                     json!(ServerMessage {
-                                        message: format!("{} joined the game.", username),
+                                        message: format!("{} joined the game.", connect.username),
                                         from: "System".to_string(),
                                     })
                                     .to_string(),
