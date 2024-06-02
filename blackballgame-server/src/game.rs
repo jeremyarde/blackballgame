@@ -85,24 +85,13 @@ impl GameServer {
                         if let Some(loc) = cardloc {
                             player.hand.remove(loc);
                             self.curr_played_cards.push(card.clone());
-
-                            if let Some(currcard) = self.curr_winning_card.clone() {
-                                // let curr = curr_winning_card.clone().unwrap();
-                                if card.suit == currcard.suit && card.value > currcard.value {
-                                    self.curr_winning_card = Some(card.clone());
-                                }
-                                if card.suit == self.trump
-                                    && currcard.suit == self.trump
-                                    && card.clone().value > currcard.value
-                                {
-                                    self.curr_winning_card = Some(card.clone());
-                                }
-                            } else {
-                                self.curr_winning_card = Some(card.clone());
-                            }
-
-                            tracing::info!("Curr winning card: {:?}", self.curr_winning_card);
                         }
+
+                        self.curr_winning_card = Some(find_winning_card(
+                            self.curr_played_cards.clone(),
+                            self.trump.clone(),
+                        ));
+
                         self.advance_player_turn();
                     }
                     Err(e) => {
@@ -134,7 +123,7 @@ impl GameServer {
         // player_id: String,
     ) {
         info!("[TODO] Processing an event");
-
+        self.event_log.extend(events.clone());
         for event in events {
             // check if its the player's turn
             if self.state == GameState::Play
@@ -309,7 +298,6 @@ impl GameServer {
             9
         } else {
             52i32.div_euclid(num_players)
-            
         };
 
         self.deal();
@@ -412,6 +400,33 @@ impl GameServer {
 
     //     return Some(self.get_state());
     // }
+}
+
+fn find_winning_card(curr_played_cards: Vec<Card>, trump: Suit) -> Card {
+    // scenarios for current played card
+    // 1. Same suit, higher value = win, lower = lose
+    // 2. Different suit, not trump = lose
+    // 3. trump, higher than other trump = win, lower = lose
+    let mut curr_winning_card = curr_played_cards[0].clone();
+    for card in curr_played_cards {
+        if card.suit == curr_winning_card.suit && card.value > curr_winning_card.value {
+            curr_winning_card = card.clone();
+        }
+
+        if card.suit == trump && curr_winning_card.suit != trump {
+            curr_winning_card = card.clone();
+        }
+
+        if card.suit == trump
+            && curr_winning_card.suit == trump
+            && card.value > curr_winning_card.value
+        {
+            curr_winning_card = card.clone();
+        }
+    }
+
+    tracing::info!("Curr winning card: {:?}", curr_winning_card);
+    return curr_winning_card;
 }
 
 fn get_random_card(mut deck: &mut Vec<Card>) -> Option<Card> {
@@ -644,5 +659,59 @@ impl fmt::Display for Card {
             String::new()
         };
         write!(f, "[{} {}]{}", self.value, self.suit, played_by)
+    }
+}
+
+mod tests {
+    use super::{find_winning_card, Card, Suit};
+
+    #[test]
+    fn test_finding_winning_card() {
+        let cards = vec![
+            Card {
+                id: 44,
+                played_by: Some("person".to_string()),
+                suit: Suit::Heart,
+                value: 13,
+            },
+            Card {
+                id: 51,
+                played_by: Some("spade".to_string()),
+                suit: Suit::Spade,
+                value: 14,
+            },
+        ];
+        let trump = Suit::Spade;
+        let res = find_winning_card(cards, trump);
+        println!("Winning: {}", res);
+        assert!(res.id == 51)
+    }
+
+    #[test]
+    fn test_finding_winning_card_same_suit() {
+        let cards = vec![
+            Card {
+                id: 1,
+                played_by: Some("person".to_string()),
+                suit: Suit::Heart,
+                value: 1,
+            },
+            Card {
+                id: 2,
+                played_by: Some("spade".to_string()),
+                suit: Suit::Heart,
+                value: 2,
+            },
+            Card {
+                id: 3,
+                played_by: Some("spade".to_string()),
+                suit: Suit::Spade,
+                value: 14,
+            },
+        ];
+        let trump = Suit::Heart;
+        let res = find_winning_card(cards, trump);
+        println!("Winning: {}", res);
+        assert!(res.id == 2)
     }
 }

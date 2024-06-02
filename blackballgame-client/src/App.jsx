@@ -235,12 +235,13 @@ function App() {
           <div className="flex flex-col w-1/2 bg-orange-200 border border-solid rounded-md bg-background">
             <label>Round: {gamestate.curr_round}</label>
             <label>Player Turn: {gamestate.curr_player_turn}</label>
-            <ul>
+            <ul className="flex space-x-2">
+              <label>Play order:</label>
               {gamestate &&
                 gamestate.play_order &&
                 gamestate.play_order.map((playername) => {
                   return (
-                    <li key={playername}>
+                    <li className="flex flex-row" key={playername}>
                       <label
                         className={
                           playername === gamestate.curr_player_turn
