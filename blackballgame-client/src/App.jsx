@@ -1,20 +1,21 @@
 import { useState, useEffect } from "react";
 import "./App.css";
 import React from "react";
-import Cards from "./components/Cards";
+import { EXAMPLE } from "./constant";
 
 function App() {
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState("a");
   const [lobbyCode, setLobbyCode] = useState("");
   const [messages, setMessages] = useState([]);
+  const [hideState, setHideState] = useState(false);
 
   const [url, setUrl] = useState("ws://127.0.0.1:3000/ws");
   const [ws, setWs] = useState();
-  const [gamestate, setGamestate] = useState();
+  const [gamestate, setGamestate] = useState(EXAMPLE);
   const [bid, setBid] = useState();
 
-  const [handCards, setHandCards] = useState([]);
-  const [playAreaCards, setPlayAreaCards] = useState([]);
+  // const [handCards, setHandCards] = useState([]);
+  // const [playAreaCards, setPlayAreaCards] = useState([]);
 
   useEffect(() => {
     const ws = new WebSocket(url);
@@ -138,62 +139,64 @@ function App() {
 
   return (
     <>
-      <div style={{ justifyContent: "left", textAlign: "left" }}>
-        {gamestate && (
-          <ul>
-            <li>
-              <b>Bids: </b>
-              {displayObject(gamestate.bids)}
-            </li>
-            <li>
-              <b>Player Turn: </b>
-              {gamestate.curr_player_turn}
-            </li>
-            <li>
-              <b>Round: </b>
-              {gamestate.curr_round}
-            </li>
-            <li>
-              <b>Winning card: </b>
-              {displayObject(gamestate.curr_winning_card)}
-            </li>
-            <li>
-              <b>Deal order: </b>
-              {gamestate.dealing_order}
-            </li>
-            <li>
-              <div>
-                <b>Play order: </b>
-                {gamestate.play_order}
-              </div>
-            </li>
-            {/* <li>
+      {hideState && (
+        <div style={{ justifyContent: "left", textAlign: "left" }}>
+          {gamestate && (
+            <ul>
+              <li>
+                <b>Bids: </b>
+                {displayObject(gamestate.bids)}
+              </li>
+              <li>
+                <b>Player Turn: </b>
+                {gamestate.curr_player_turn}
+              </li>
+              <li>
+                <b>Round: </b>
+                {gamestate.curr_round}
+              </li>
+              <li>
+                <b>Winning card: </b>
+                {displayObject(gamestate.curr_winning_card)}
+              </li>
+              <li>
+                <b>Deal order: </b>
+                {gamestate.dealing_order}
+              </li>
+              <li>
+                <div>
+                  <b>Play order: </b>
+                  {gamestate.play_order}
+                </div>
+              </li>
+              {/* <li>
               <b>Players: </b>
               {displayObject(gamestate.players)}
             </li> */}
-            <li>
-              <b>Score: </b>
-              {displayObject(gamestate.score)}
-            </li>
-            <li>
-              <b>State: </b>
-              {gamestate.state}
-            </li>
-            <li>
-              <b>Trump: </b>
-              {gamestate.trump}
-            </li>
-            <li>
-              <b>Wins: </b>
-              {displayObject(gamestate.wins)}
-            </li>
-            <li>
-              <b>system status: </b>
-              {displayObject(gamestate.system_status)}
-            </li>
-          </ul>
-        )}
-      </div>
+              <li>
+                <b>Score: </b>
+                {displayObject(gamestate.score)}
+              </li>
+              <li>
+                <b>State: </b>
+                {gamestate.state}
+              </li>
+              <li>
+                <b>Trump: </b>
+                {gamestate.trump}
+              </li>
+              <li>
+                <b>Wins: </b>
+                {displayObject(gamestate.wins)}
+              </li>
+              <li>
+                <b>system status: </b>
+                {displayObject(gamestate.system_status)}
+              </li>
+            </ul>
+          )}
+        </div>
+      )}
 
       <div>
         <label>Lobby code: </label>
@@ -255,30 +258,36 @@ function App() {
           </div>
           <div>
             <h3>Your hand</h3>
-            {gamestate?.players && gamestate?.players[username].hand
-              ? gamestate.players[username].hand.map((card) => {
-                  return (
-                    <div
-                      key={card.id}
-                      className="flex h-[200px] w-[140px] items-center justify-center rounded-lg bg-white shadow-lg dark:bg-gray-800"
-                      onMouseDown={() => playCard(card)}
-                    >
-                      <div className="flex flex-col items-center gap-2">
-                        <span className="text-4xl font-bold">{card.value}</span>
-                        <span className="text-2xl font-medium">
-                          {card.suit}
-                        </span>
+            <div className="flex flex-row">
+              {gamestate?.players &&
+              gamestate.players[username] &&
+              gamestate?.players[username].hand
+                ? gamestate.players[username].hand.map((card) => {
+                    return (
+                      <div
+                        key={card.id}
+                        className="flex h-[200px] w-[140px] items-center justify-center rounded-lg bg-white shadow-lg dark:bg-gray-800"
+                        onMouseDown={() => playCard(card)}
+                      >
+                        <div className="flex flex-col items-center gap-2">
+                          <span className="text-4xl font-bold">
+                            {card.value}
+                          </span>
+                          <span className="text-2xl font-medium">
+                            {card.suit}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })
-              : ""}
-            <input
-              className="flex w-24 h-10 px-3 py-2 text-sm border rounded-md border-input bg-background ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              placeholder="Enter bid"
-              type="number"
-            />
+                    );
+                  })
+                : ""}
+            </div>
           </div>
+          <input
+            className="flex w-24 h-10 px-3 py-2 text-sm border rounded-md border-input bg-background ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            placeholder="Enter bid"
+            type="number"
+          />
         </div>
       </div>
       <div>

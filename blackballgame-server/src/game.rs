@@ -45,18 +45,6 @@ impl GameServer {
                 let res = self.update_bid(event.username.clone(), &bid);
                 if res.is_ok() {
                     self.advance_player_turn();
-                    if self.curr_player_turn.is_none() {
-                        self.curr_player_turn = Some(event.username);
-                    } else {
-                        if &bid
-                            > self
-                                .bids
-                                .get(&self.curr_player_turn.clone().unwrap())
-                                .unwrap()
-                        {
-                            self.curr_player_turn = Some(event.username);
-                        }
-                    }
                 }
                 if self.is_bidding_over() {
                     self.update_to_next_state();
@@ -149,12 +137,20 @@ impl GameServer {
 
         for event in events {
             // check if its the player's turn
-            let curr_player = self.curr_player_turn.clone().unwrap();
-            if self.state != GameState::Pregame && event.username != curr_player {
-                info!("{}'s turn, not {}'s turn.", curr_player, event.username);
+            if self.state == GameState::Play
+                && event
+                    .username
+                    .ne(&self.curr_player_turn.clone().unwrap_or("".into()))
+            {
+                info!(
+                    "{}'s turn, not {}'s turn.",
+                    self.curr_player_turn.clone().unwrap(),
+                    event.username
+                );
                 self.broadcast_message(format!(
                     "{}'s turn, not {}'s turn.",
-                    curr_player, event.username
+                    self.curr_player_turn.clone().unwrap(),
+                    event.username
                 ));
                 // continue because we have multiple messages
                 continue;
@@ -268,8 +264,7 @@ impl GameServer {
         let first_player = self.play_order.remove(0);
         self.play_order.push(first_player);
         self.curr_played_cards = vec![];
-        // self.curr_player_turn = Some(self.play_order[0].clone());
-        self.curr_player_turn = None;
+        self.curr_player_turn = Some(self.play_order[0].clone());
         self.curr_winning_card = None;
         self.deal();
         self.update_to_next_state();
@@ -314,6 +309,7 @@ impl GameServer {
             9
         } else {
             52i32.div_euclid(num_players)
+            
         };
 
         self.deal();
@@ -356,7 +352,8 @@ impl GameServer {
         tracing::info!("Player {} to bid", player_id);
 
         if self.curr_player_turn.clone().unwrap() != player_id {
-            self.system_status.push("Not player {}'s turn.".to_string());
+            self.system_status
+                .push(format!("Not player {}'s turn.", player_id));
             return Err("Not player {}'s turn.".to_string());
         }
         let mut client = self.players.get_mut(&player_id).unwrap();
