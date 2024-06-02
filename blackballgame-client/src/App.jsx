@@ -13,7 +13,7 @@ function App() {
   const [ws, setWs] = useState();
   const [gamestate, setGamestate] = useState(EXAMPLE);
   const [bid, setBid] = useState();
-
+  const [connected, setConnected] = useState(false);
   // const [handCards, setHandCards] = useState([]);
   // const [playAreaCards, setPlayAreaCards] = useState([]);
 
@@ -26,9 +26,26 @@ function App() {
   }, [url]);
 
   useEffect(() => {
-    if (!ws) return;
+    let connectionDetails = localStorage.getItem("connectionDetails");
+    console.log("Connection details loaded: ", connectionDetails);
+    if (connectionDetails) {
+      setLobbyCode(connectionDetails.lobbyCode ?? undefined);
+      setUsername(connectionDetails.username ?? undefined);
+    }
+    if (!ws || connected) {
+      console.log("Already connected");
+      return;
+    }
 
     ws.onopen = () => {
+      localStorage.setItem(
+        "connectionDetails",
+        JSON.stringify({
+          username: username,
+          channel: lobbyCode,
+        })
+      );
+      setConnected(true);
       console.log("WebSocket connected");
     };
 
@@ -47,6 +64,7 @@ function App() {
     };
 
     ws.onclose = () => {
+      setConnected(false);
       console.log("WebSocket disconnected");
       setMessages([]);
 
@@ -326,11 +344,11 @@ function App() {
                 <h2>Game details</h2>
                 <label>Round: {gamestate.curr_round}</label>
                 <label>Player Turn: {gamestate.curr_player_turn}</label>
-                <ul className="flex space-x-2">
-                  <label>Play order:</label>
+                <ul className="flex flex-row space-x-2">
+                  <label>Player order:</label>
                   {gamestate &&
-                    gamestate.play_order &&
-                    gamestate.play_order.map((playername) => {
+                    gamestate.player_order &&
+                    gamestate.player_order.map((playername) => {
                       return (
                         <li className="flex flex-row" key={playername}>
                           <label
@@ -349,6 +367,7 @@ function App() {
                       );
                     })}
                 </ul>
+                <div>Dealer: {gamestate.curr_dealer}</div>
                 <div>
                   Hands won: {gamestate.wins[username]}/
                   {gamestate.bids[username] ?? "0"}
@@ -367,7 +386,12 @@ function App() {
                 <h2>Hand details</h2>
                 <div>{displayObject(gamestate.trump)}</div>
                 <div>{displayObject(gamestate.system_status)}</div>
-                {/* <div>{displayObject(gamestate.wins[username])}</div> */}
+                <div>
+                  wins:{" "}
+                  {gamestate.wins && gamestate.wins[username]
+                    ? displayObject(gamestate.wins[username])
+                    : "N/A"}
+                </div>
               </div>
             </div>
           )}

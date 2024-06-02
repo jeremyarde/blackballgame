@@ -173,9 +173,8 @@ impl GameServer {
             deck: create_deck(),
             curr_round: 1,
             trump: Suit::Heart,
-            dealing_order: vec![],
-            play_order: vec![],
-            // dealer_id: deal_play_order[0],
+            player_order: vec![],
+            // play_order: vec![],
             bids: HashMap::new(),
             wins: HashMap::new(),
             score: HashMap::new(),
@@ -188,6 +187,7 @@ impl GameServer {
             curr_played_cards: vec![],
             curr_player_turn: None,
             curr_winning_card: None,
+            curr_dealer: String::new(),
             system_status: vec![],
             // tx,
             // rx,
@@ -230,8 +230,8 @@ impl GameServer {
 
     pub fn end_round(&mut self) {
         tracing::info!("Bids won: {:#?}\nBids wanted: {:#?}", self.wins, self.bids);
-        for player_id in self.play_order.iter() {
-            let player = self.players.get_mut(player_id).unwrap();
+        for (player_id, player) in self.players.iter_mut() {
+            // let player = self.players.get_mut(player_id).unwrap();
 
             if self.wins.get(&player.id) == self.bids.get(&player.id) {
                 let bidscore = self.bids.get(&player.id).unwrap() + 10;
@@ -246,14 +246,10 @@ impl GameServer {
             player.clear_hand();
         }
         self.advance_trump();
+        self.advance_dealer();
         self.curr_round += 1;
-        let curr_dealer = self.dealing_order.remove(0);
-        self.dealing_order.push(curr_dealer);
 
-        let first_player = self.play_order.remove(0);
-        self.play_order.push(first_player);
         self.curr_played_cards = vec![];
-        self.curr_player_turn = Some(self.play_order[0].clone());
         self.curr_winning_card = None;
         self.deal();
         self.update_to_next_state();
@@ -276,13 +272,9 @@ impl GameServer {
             self.players.iter().map(|(id, player)| id.clone()).collect();
         fastrand::shuffle(&mut deal_play_order);
 
-        let mut play_order = deal_play_order.clone();
-        let first = play_order.remove(0);
-        play_order.push(first);
-
-        self.play_order = play_order;
-        self.dealing_order = deal_play_order;
-        self.curr_player_turn = Some(self.play_order.get(0).unwrap().clone());
+        self.player_order = deal_play_order;
+        // person after dealer
+        self.curr_player_turn = Some(self.player_order.get(1).unwrap().clone());
 
         self.players.iter().for_each(|(id, player)| {
             // self.bids.insert(id.clone(), 0);
@@ -322,18 +314,28 @@ impl GameServer {
     }
 
     fn advance_player_turn(&mut self) {
-        let mut next_player_idx = 0;
-        for (i, player) in self.play_order.iter().enumerate() {
-            if player == &self.curr_player_turn.clone().unwrap() {
-                next_player_idx = i + 1;
+        let mut loc = 0;
+        for (i, p) in self.player_order.iter().enumerate() {
+            if p == &self.curr_player_turn.clone().unwrap() {
+                loc = i + 1;
             }
         }
 
-        if next_player_idx == self.play_order.len() {
-            self.curr_player_turn = Some(self.play_order.get(0).unwrap().clone());
-        } else {
-            self.curr_player_turn = Some(self.play_order.get(next_player_idx).unwrap().clone());
+        if loc == self.player_order.len() {
+            self.curr_player_turn = Some(self.player_order[0].clone());
         }
+        // let mut next_player_idx = 0;
+        // for (i, player) in self.player_order.iter().enumerate() {
+        //     if i != 0 && player == &self.curr_player_turn.clone().unwrap() {
+        //         next_player_idx = i + 1;
+        //     }
+        // }
+
+        // if next_player_idx == self.player_order.len() {
+        //     self.curr_player_turn = Some(self.player_order.get(0).unwrap().clone());
+        // } else {
+        //     self.curr_player_turn = Some(self.player_order.get(next_player_idx).unwrap().clone());
+        // }
     }
 
     fn update_bid(&mut self, player_id: String, bid: &i32) -> Result<i32, String> {
@@ -350,7 +352,7 @@ impl GameServer {
             &bid,
             self.curr_round,
             &self.bids,
-            self.dealing_order[0] == client.id,
+            self.player_order[0] == client.id,
         ) {
             Ok(x) => {
                 tracing::info!("bid was: {}", x);
@@ -367,12 +369,12 @@ impl GameServer {
 
     fn deal(&mut self) {
         tracing::info!("=== Dealing ===");
-        tracing::info!("Dealer: {}", self.dealing_order[0]);
+        tracing::info!("Dealer: {}", self.player_order[0]);
         fastrand::shuffle(&mut self.deck);
 
         for i in 1..=self.curr_round {
             // get random card, give to a player
-            for player_id in self.dealing_order.iter() {
+            for player_id in self.player_order.iter() {
                 let card = get_random_card(&mut self.deck).unwrap();
                 let player: &mut GameClient = self.players.get_mut(player_id).unwrap();
 
@@ -391,6 +393,21 @@ impl GameServer {
     fn is_bidding_over(&self) -> bool {
         // check if everyone has a bid
         return self.bids.keys().len() == self.players.len();
+    }
+
+    fn advance_dealer(&mut self) -> String {
+        for (i, player) in self.player_order.iter().enumerate() {
+            if player.eq(&self.curr_dealer) {
+                let nextdealer = match self.player_order.get(i + 1) {
+                    Some(x) => x,
+                    None => &self.player_order[0],
+                };
+                self.curr_dealer = nextdealer.clone();
+                return self.curr_dealer.clone();
+            }
+        }
+
+        return "".to_string();
     }
 
     // fn process_postround(&mut self, event: GameMessage) -> Option<GameServer> {
@@ -477,11 +494,12 @@ pub struct GameServer {
     deck: Vec<Card>,
     curr_round: i32,
     trump: Suit,
-    dealing_order: Vec<String>,
+    player_order: Vec<String>,
     curr_played_cards: Vec<Card>,
     curr_player_turn: Option<String>,
     curr_winning_card: Option<Card>,
-    play_order: Vec<String>,
+    curr_dealer: String,
+    // play_order: Vec<String>,
     // dealer_id: i32,
     bids: HashMap<String, i32>,
     wins: HashMap<String, i32>,
