@@ -23,6 +23,8 @@ impl GameServer {
             // GameState::PostRound => GameState::Bid,
             // GameState::PreRound => GameState::Bid,
         };
+
+        tracing::info!("=== Transition: {:?} -> {:?} ===", self.state, newstate);
         self.state = newstate;
         return self.state;
     }
@@ -239,7 +241,7 @@ impl GameServer {
 
         self.curr_played_cards = vec![];
         self.curr_winning_card = None;
-        self.bid_order = vec![];
+        // self.bid_order = vec![];
         self.curr_player_turn = Some(winner); // person who won the hand plays first next hand
     }
 
@@ -256,10 +258,10 @@ impl GameServer {
 
             // resetting the data structures for a round before round start
             self.wins.insert(player.id.clone(), 0);
-            self.bids.clear();
-            self.deck = create_deck();
             player.clear_hand();
         }
+        self.bids.clear();
+        self.deck = create_deck();
         self.advance_trump();
         self.advance_dealer();
         self.curr_player_turn = Some(advance_player_turn(
@@ -348,7 +350,7 @@ impl GameServer {
             &bid,
             self.curr_round,
             &self.bids,
-            self.player_order[0] == client.id,
+            self.curr_dealer == client.id,
         ) {
             Ok(x) => {
                 tracing::info!("bid was: {}", x);
