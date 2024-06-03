@@ -43,10 +43,17 @@ impl GameServer {
         match event.message.action {
             GameAction::Bid(bid) => {
                 let res = self.update_bid(event.username.clone(), &bid);
+
                 if res.is_ok() {
-                    self.advance_player_turn();
+                    self.curr_player_turn = Some(advance_player_turn(
+                        &self.curr_player_turn.clone().unwrap(),
+                        &self.player_order,
+                    ));
                 }
+
                 if self.is_bidding_over() {
+                    // need to update who plays next based on the bids
+                    self.curr_player_turn = Some(update_curr_player_from_bids(&self.bid_order));
                     self.update_to_next_state();
                 }
             }
@@ -92,7 +99,10 @@ impl GameServer {
                             self.trump.clone(),
                         ));
 
-                        self.advance_player_turn();
+                        self.curr_player_turn = Some(advance_player_turn(
+                            &self.curr_player_turn.clone().unwrap(),
+                            &self.player_order,
+                        ));
                     }
                     Err(e) => {
                         info!("card is NOT valid: {:?}", e);
@@ -176,6 +186,7 @@ impl GameServer {
             player_order: vec![],
             // play_order: vec![],
             bids: HashMap::new(),
+            bid_order: Vec::new(),
             wins: HashMap::new(),
             score: HashMap::new(),
             state: GameState::Pregame,
@@ -196,7 +207,10 @@ impl GameServer {
     }
 
     pub fn get_state(&self) -> Self {
-        return self.clone();
+        let mut cloned = self.clone();
+        cloned.deck = vec![];
+        // cloned.players = HashMap::new();
+        return cloned;
     }
 
     fn add_player(
@@ -225,6 +239,7 @@ impl GameServer {
 
         self.curr_played_cards = vec![];
         self.curr_winning_card = None;
+        self.bid_order = vec![];
         self.curr_player_turn = Some(winner); // person who won the hand plays first next hand
     }
 
@@ -247,10 +262,15 @@ impl GameServer {
         }
         self.advance_trump();
         self.advance_dealer();
+        self.curr_player_turn = Some(advance_player_turn(
+            &self.curr_player_turn.clone().unwrap(),
+            &self.player_order,
+        ));
         self.curr_round += 1;
 
         self.curr_played_cards = vec![];
         self.curr_winning_card = None;
+        self.bid_order = vec![];
         self.deal();
         self.update_to_next_state();
 
@@ -273,6 +293,7 @@ impl GameServer {
         fastrand::shuffle(&mut deal_play_order);
 
         self.player_order = deal_play_order;
+        self.curr_dealer = self.player_order[0].clone();
         // person after dealer
         self.curr_player_turn = Some(self.player_order.get(1).unwrap().clone());
 
@@ -313,31 +334,6 @@ impl GameServer {
         }
     }
 
-    fn advance_player_turn(&mut self) {
-        let mut loc = 0;
-        for (i, p) in self.player_order.iter().enumerate() {
-            if p == &self.curr_player_turn.clone().unwrap() {
-                loc = i + 1;
-            }
-        }
-
-        if loc == self.player_order.len() {
-            self.curr_player_turn = Some(self.player_order[0].clone());
-        }
-        // let mut next_player_idx = 0;
-        // for (i, player) in self.player_order.iter().enumerate() {
-        //     if i != 0 && player == &self.curr_player_turn.clone().unwrap() {
-        //         next_player_idx = i + 1;
-        //     }
-        // }
-
-        // if next_player_idx == self.player_order.len() {
-        //     self.curr_player_turn = Some(self.player_order.get(0).unwrap().clone());
-        // } else {
-        //     self.curr_player_turn = Some(self.player_order.get(next_player_idx).unwrap().clone());
-        // }
-    }
-
     fn update_bid(&mut self, player_id: String, bid: &i32) -> Result<i32, String> {
         tracing::info!("Player {} to bid", player_id);
 
@@ -357,6 +353,7 @@ impl GameServer {
             Ok(x) => {
                 tracing::info!("bid was: {}", x);
                 self.bids.insert(client.id.clone(), x);
+                self.bid_order.push((client.id.clone(), x));
                 return Ok(x);
             }
             Err(e) => {
@@ -409,7 +406,6 @@ impl GameServer {
 
         return "".to_string();
     }
-
     // fn process_postround(&mut self, event: GameMessage) -> Option<GameServer> {
     //     self.curr_played_cards = vec![];
     //     self.curr_winning_card = None;
@@ -417,6 +413,36 @@ impl GameServer {
 
     //     return Some(self.get_state());
     // }
+}
+
+fn advance_player_turn(curr: &String, players: &Vec<String>) -> String {
+    let mut loc = 0;
+    for (i, p) in players.iter().enumerate() {
+        if p == curr {
+            loc = i;
+        }
+    }
+
+    // Current player is at the end of the order, loop back around to the start
+    if loc + 1 == players.len() {
+        return players[0].clone();
+    }
+
+    return players[loc + 1].clone();
+}
+
+fn update_curr_player_from_bids(bid_order: &Vec<(String, i32)>) -> String {
+    info(format!(
+        "Finding first player based on bid. Bids: {:?}",
+        bid_order
+    ));
+    let mut curr_highest_bid = bid_order[0].clone();
+    for (player, bid) in bid_order.iter() {
+        if bid > &curr_highest_bid.1 {
+            curr_highest_bid = (player.to_string(), *bid);
+        }
+    }
+    return curr_highest_bid.0;
 }
 
 fn find_winning_card(curr_played_cards: Vec<Card>, trump: Suit) -> Card {
@@ -502,6 +528,8 @@ pub struct GameServer {
     // play_order: Vec<String>,
     // dealer_id: i32,
     bids: HashMap<String, i32>,
+    bid_order: Vec<(String, i32)>,
+    // bid_order: Vec<
     wins: HashMap<String, i32>,
     score: HashMap<String, i32>,
     state: GameState,
@@ -681,7 +709,7 @@ impl fmt::Display for Card {
 }
 
 mod tests {
-    use super::{find_winning_card, Card, Suit};
+    use super::{advance_player_turn, find_winning_card, update_curr_player_from_bids, Card, Suit};
 
     #[test]
     fn test_finding_winning_card() {
@@ -759,5 +787,70 @@ mod tests {
         let res = find_winning_card(cards, trump);
         println!("Winning: {}", res);
         assert!(res.id == 1)
+    }
+
+    #[test]
+    fn test_get_curr_player_from_bids() {
+        let bid_order = vec![
+            ("P1".to_string(), 2),
+            ("P2".to_string(), 1),
+            ("P3".to_string(), 3),
+        ];
+        let next = update_curr_player_from_bids(&bid_order);
+
+        assert!(next == "P3");
+    }
+
+    #[test]
+    fn test_get_curr_player_from_bids_multiple_same_bid() {
+        let bid_order = vec![
+            ("P1".to_string(), 6),
+            ("P2".to_string(), 0),
+            ("P3".to_string(), 6),
+        ];
+        let next = update_curr_player_from_bids(&bid_order);
+
+        assert!(next == "P1");
+    }
+
+    #[test]
+    fn test_get_curr_player_from_bids_no_bids() {
+        let bid_order = vec![
+            ("P1".to_string(), 0),
+            ("P2".to_string(), 0),
+            ("P3".to_string(), 0),
+        ];
+        let next = update_curr_player_from_bids(&bid_order);
+
+        assert!(next == "P1");
+    }
+
+    #[test]
+    fn test_advance_player_turn() {
+        let players = vec![
+            "P1".to_string(),
+            "P2".to_string(),
+            "P3".to_string(),
+            "P4".to_string(),
+        ];
+
+        let curr = "P1".to_string();
+        let res = advance_player_turn(&curr, &players);
+
+        assert!(res == "P2".to_string());
+    }
+    #[test]
+    fn test_advance_player_turn_end_player() {
+        let players = vec![
+            "P1".to_string(),
+            "P2".to_string(),
+            "P3".to_string(),
+            "P4".to_string(),
+        ];
+
+        let curr = "P4".to_string();
+        let res = advance_player_turn(&curr, &players);
+
+        assert!(res == "P1".to_string());
     }
 }

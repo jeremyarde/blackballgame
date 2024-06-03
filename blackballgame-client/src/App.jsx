@@ -7,7 +7,7 @@ function App() {
   const [username, setUsername] = useState("a");
   const [lobbyCode, setLobbyCode] = useState("");
   const [messages, setMessages] = useState([]);
-  const [hideState, setHideState] = useState(false);
+  const [hideState, setHideState] = useState(true);
 
   const [url, setUrl] = useState("ws://127.0.0.1:3000/ws");
   const [ws, setWs] = useState();
@@ -84,7 +84,11 @@ function App() {
   }
 
   function displayObject(obj) {
-    return <div>{JSON.stringify(obj)}</div>;
+    return (
+      <code>
+        <pre>{JSON.stringify(obj, null, 2)}</pre>
+      </code>
+    );
   }
 
   function connectToLobby() {
@@ -164,60 +168,7 @@ function App() {
     <>
       {hideState && (
         <div style={{ justifyContent: "left", textAlign: "left" }}>
-          {gamestate && (
-            <ul>
-              <li>
-                <b>Bids: </b>
-                {displayObject(gamestate.bids)}
-              </li>
-              <li>
-                <b>Player Turn: </b>
-                {gamestate.curr_player_turn}
-              </li>
-              <li>
-                <b>Round: </b>
-                {gamestate.curr_round}
-              </li>
-              <li>
-                <b>Winning card: </b>
-                {displayObject(gamestate.curr_winning_card)}
-              </li>
-              <li>
-                <b>Deal order: </b>
-                {gamestate.dealing_order}
-              </li>
-              <li>
-                <div>
-                  <b>Play order: </b>
-                  {gamestate.play_order}
-                </div>
-              </li>
-              {/* <li>
-              <b>Players: </b>
-              {displayObject(gamestate.players)}
-            </li> */}
-              <li>
-                <b>Score: </b>
-                {displayObject(gamestate.score)}
-              </li>
-              <li>
-                <b>State: </b>
-                {gamestate.state}
-              </li>
-              <li>
-                <b>Trump: </b>
-                {gamestate.trump}
-              </li>
-              <li>
-                <b>Wins: </b>
-                {displayObject(gamestate.wins)}
-              </li>
-              <li>
-                <b>system status: </b>
-                {displayObject(gamestate.system_status)}
-              </li>
-            </ul>
-          )}
+          <div>{displayObject(gamestate)}</div>
         </div>
       )}
       <div className="flex flex-col w-full h-full">
