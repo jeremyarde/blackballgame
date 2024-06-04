@@ -4,8 +4,9 @@ import React from "react";
 import { EXAMPLE } from "./constant";
 
 function App() {
-  const [username, setUsername] = useState("a");
+  const [username, setUsername] = useState("");
   const [lobbyCode, setLobbyCode] = useState("");
+  const [secret, setSecret] = useState("");
   const [messages, setMessages] = useState([]);
   const [hideState, setHideState] = useState(true);
 
@@ -28,23 +29,23 @@ function App() {
   useEffect(() => {
     let connectionDetails = localStorage.getItem("connectionDetails");
     console.log("Connection details loaded: ", connectionDetails);
-    if (connectionDetails) {
+    if (
+      connectionDetails &&
+      connectionDetails.lobbyCode &&
+      connectionDetails.username
+    ) {
+      console.log("Setting lobbycode and username");
       setLobbyCode(connectionDetails.lobbyCode ?? undefined);
       setUsername(connectionDetails.username ?? undefined);
     }
-    if (!ws || connected) {
+
+    // if (!ws || connected) {
+    if (!ws) {
       console.log("Already connected");
       return;
     }
 
     ws.onopen = () => {
-      localStorage.setItem(
-        "connectionDetails",
-        JSON.stringify({
-          username: username,
-          channel: lobbyCode,
-        })
-      );
       setConnected(true);
       console.log("WebSocket connected");
     };
@@ -96,8 +97,24 @@ function App() {
       username: username,
       channel: lobbyCode,
     });
+
     console.log(connectMessage);
     ws.send(connectMessage);
+
+    console.log(
+      "Setting lobbycode and username:",
+      JSON.stringify({
+        username: username,
+        channel: lobbyCode,
+      })
+    );
+    localStorage.setItem(
+      "connectionDetails",
+      JSON.stringify({
+        username: username,
+        channel: lobbyCode,
+      })
+    );
     // sendMessage(connectMessage);
   }
 
@@ -166,11 +183,6 @@ function App() {
 
   return (
     <>
-      {hideState && (
-        <div style={{ justifyContent: "left", textAlign: "left" }}>
-          <div>{displayObject(gamestate)}</div>
-        </div>
-      )}
       <div className="flex flex-col w-full h-full">
         <div className="flex flex-col items-center justify-center align-middle border rounded-md bg-fuchsia-200 border-input bg-background ring-offset-background">
           <div>
@@ -291,8 +303,9 @@ function App() {
           {/* </div> */}
           {gamestate && gamestate.players && (
             <div className="flex flex-col bg-orange-200 border border-solid rounded-md bg-background">
-              <div>
+              <div className="flex flex-col">
                 <h2>Game details</h2>
+                <label>TRUMP: {gamestate.trump}</label>
                 <label>Round: {gamestate.curr_round}</label>
                 <label>Player Turn: {gamestate.curr_player_turn}</label>
                 <ul className="flex flex-row space-x-2">
@@ -347,6 +360,11 @@ function App() {
             </div>
           )}
         </div>
+        {hideState && (
+          <div style={{ justifyContent: "left", textAlign: "left" }}>
+            <div>{displayObject(gamestate)}</div>
+          </div>
+        )}
       </div>
     </>
   );

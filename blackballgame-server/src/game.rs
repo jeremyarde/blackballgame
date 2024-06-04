@@ -202,6 +202,7 @@ impl GameServer {
             curr_winning_card: None,
             curr_dealer: String::new(),
             system_status: vec![],
+            players_secrets: HashMap::new(),
             // tx,
             // rx,
         };
@@ -519,6 +520,7 @@ fn create_deck() -> Vec<Card> {
 #[derive(Debug, Clone, Serialize)]
 pub struct GameServer {
     pub players: HashMap<String, GameClient>,
+    pub players_secrets: HashMap<String, String>,
     deck: Vec<Card>,
     curr_round: i32,
     trump: Suit,
