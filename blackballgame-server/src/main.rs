@@ -171,14 +171,14 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                         );
 
                         // if player name is chosen and secret
-                        let saved_secret = x.players_secrets.get(&connect.username);
+                        let saved_secret = gameserver.players_secrets.get(&connect.username);
                         match (
-                            x.players.contains_key(&connect.username),
+                            gameserver.players.contains_key(&connect.username),
                             (saved_secret.is_some() && connect.secret.is_some()),
                         ) {
                             (true, true) => {
                                 // check if secrets match
-                                info!("Room already had username, choose a new name");
+                                info!("Room already had username, checking is secrets match");
                                 if saved_secret.unwrap() == &connect.secret.unwrap() {
                                     info!("Secrets match, attempting to reconnect");
 
@@ -195,7 +195,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                                         ))
                                         .await;
 
-                                    x.players.insert(
+                                    gameserver.players.insert(
                                         connect.username.to_owned(),
                                         GameClient::new(connect.username.clone(), player_role),
                                     );
@@ -233,10 +233,26 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                                     ))
                                     .await;
 
-                                x.players.insert(
+                                gameserver.players.insert(
                                     connect.username.to_owned(),
                                     GameClient::new(connect.username.clone(), player_role),
                                 );
+
+                                let client_secret = connect.username.clone();
+                                gameserver
+                                    .players_secrets
+                                    .insert(connect.username.clone(), client_secret.clone());
+
+                                let _ = sender
+                                    .send(Message::Text(
+                                        json!(ServerMessage {
+                                            message: format!("secret: {}", client_secret),
+                                            from: "System".to_string(),
+                                        })
+                                        .to_string(),
+                                    ))
+                                    .await;
+
                                 username = connect.username.clone();
                             }
                             (_, _) => {
@@ -297,7 +313,22 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                             connect.username.to_owned(),
                             GameClient::new(connect.username.clone(), player_role),
                         );
+                        // insert secret for reconnects
+                        let client_secret = connect.username.clone();
+                        gameserver
+                            .players_secrets
+                            .insert(connect.username.clone(), client_secret.clone());
                         username = connect.username.clone();
+
+                        let _ = sender
+                            .send(Message::Text(
+                                json!(ServerMessage {
+                                    message: format!("secret: {}", client_secret.as_str()),
+                                    from: "System".into(),
+                                })
+                                .to_string(),
+                            ))
+                            .await;
 
                         gameserver
                     }
@@ -454,10 +485,10 @@ async fn root() -> &'static str {
 #[derive(Debug)]
 struct AppState {
     rooms: Mutex<HashMap<String, GameServer>>,
-    players: Mutex<HashMap<(String, String), SplitSink<WebSocket, axum::extract::ws::Message>>>, // gameid, playerid
+    // players: Mutex<HashMap<(String, String), SplitSink<WebSocket, axum::extract::ws::Message>>>, // gameid, playerid
     room_broadcast_channel: Mutex<HashMap<String, tokio::sync::broadcast::Sender<GameServer>>>,
     lobby_to_game_channel_send: Mutex<HashMap<String, tokio::sync::mpsc::Sender<GameMessage>>>,
-    lobby_to_game_channel_recv: Mutex<HashMap<String, tokio::sync::mpsc::Receiver<GameMessage>>>,
+    // lobby_to_game_channel_recv: Mutex<HashMap<String, tokio::sync::mpsc::Receiver<GameMessage>>>,
     // lobby_message_queue
 }
 
@@ -486,10 +517,10 @@ async fn main() {
     // let serverstate: Arc<AppState> = Arc::new(allgames);
     let serverstate = Arc::new(AppState {
         rooms: Mutex::new(HashMap::new()),
-        players: Mutex::new(HashMap::new()),
+        // players: Mutex::new(HashMap::new()),
         room_broadcast_channel: Mutex::new(HashMap::new()),
         lobby_to_game_channel_send: Mutex::new(HashMap::new()),
-        lobby_to_game_channel_recv: Mutex::new(HashMap::new()),
+        // lobby_to_game_channel_recv: Mutex::new(HashMap::new()),
     });
 
     let app = Router::new()

@@ -11,9 +11,11 @@ function App() {
   const [hideState, setHideState] = useState(true);
 
   const [url, setUrl] = useState("ws://127.0.0.1:3000/ws");
-  const [ws, setWs] = useState();
-  const [gamestate, setGamestate] = useState(EXAMPLE);
-  const [bid, setBid] = useState();
+  const [ws, setWs] = useState(undefined);
+  // const [gamestate, setGamestate] = useState(EXAMPLE);
+  const [gamestate, setGamestate] = useState();
+
+  // const [bid, setBid] = useState();
   const [connected, setConnected] = useState(false);
   // const [handCards, setHandCards] = useState([]);
   // const [playAreaCards, setPlayAreaCards] = useState([]);
@@ -28,15 +30,18 @@ function App() {
 
   useEffect(() => {
     let connectionDetails = localStorage.getItem("connectionDetails");
+    // let connectionDetails = {};
     console.log("Connection details loaded: ", connectionDetails);
     if (
       connectionDetails &&
       connectionDetails.lobbyCode &&
-      connectionDetails.username
+      connectionDetails.username &&
+      connectionDetails.secret
     ) {
       console.log("Setting lobbycode and username");
       setLobbyCode(connectionDetails.lobbyCode ?? undefined);
       setUsername(connectionDetails.username ?? undefined);
+      setSecret(connectionDetails.secret ?? undefined);
     }
 
     // if (!ws || connected) {
@@ -52,25 +57,38 @@ function App() {
 
     ws.onmessage = (message) => {
       console.log(`Message from server: ${message.data}`);
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        JSON.parse(message.data),
-      ]);
+      let parseddata = JSON.parse(message.data);
 
-      setGamestate(JSON.parse(message.data));
+      if (parseddata.message?.startsWith("secret: ")) {
+        console.log("setting secret value", parseddata.message);
+
+        setSecret(parseddata.message.split(": ")[1]);
+        localStorage.setItem(
+          "connectionDetails",
+          JSON.stringify({
+            username: username,
+            channel: lobbyCode,
+            secret: secret,
+          })
+        );
+      }
+
+      setMessages((prevMessages) => [...prevMessages, parseddata]);
+
+      setGamestate(parseddata);
 
       console.log("all messages");
       console.log(messages);
       // setMessages((prevMessages) => [...prevMessages, message.data]);
     };
 
-    ws.onclose = () => {
-      setConnected(false);
-      console.log("WebSocket disconnected");
-      setMessages([]);
+    // ws.onclose = () => {
+    //   setConnected(false);
+    //   console.log("WebSocket disconnected");
+    //   setMessages([]);
 
-      // setWs(null);
-    };
+    //   // setWs(null);
+    // };
 
     return () => {
       ws.close();
@@ -96,6 +114,7 @@ function App() {
     var connectMessage = JSON.stringify({
       username: username,
       channel: lobbyCode,
+      secret: secret,
     });
 
     console.log(connectMessage);
@@ -106,6 +125,7 @@ function App() {
       JSON.stringify({
         username: username,
         channel: lobbyCode,
+        secret: secret,
       })
     );
     localStorage.setItem(
@@ -113,6 +133,7 @@ function App() {
       JSON.stringify({
         username: username,
         channel: lobbyCode,
+        secret: secret,
       })
     );
     // sendMessage(connectMessage);
@@ -177,8 +198,10 @@ function App() {
   };
 
   let bids = [];
-  for (let i = 0; i < gamestate.curr_round + 1; i++) {
-    bids.push(i);
+  if (gamestate?.curr_round) {
+    for (let i = 0; i < gamestate.curr_round + 1; i++) {
+      bids.push(i);
+    }
   }
 
   return (
@@ -241,7 +264,7 @@ function App() {
               <div className="flex">
                 <div
                   className={`outline-4 m-2 w-full outline bg-slate-400 flex flex-col ${
-                    gamestate.curr_player_turn === username
+                    gamestate?.curr_player_turn === username
                       ? "outline-yellow-300"
                       : ""
                   }`}
