@@ -195,10 +195,11 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                                         ))
                                         .await;
 
-                                    gameserver.players.insert(
-                                        connect.username.to_owned(),
-                                        GameClient::new(connect.username.clone(), player_role),
-                                    );
+                                    // don't need to replace the player
+                                    // gameserver.players.insert(
+                                    //     connect.username.to_owned(),
+                                    //     GameClient::new(connect.username.clone(), player_role),
+                                    // );
                                     username = connect.username.clone();
                                 } else {
                                     info!("Could not reconnect because secrets don't match");

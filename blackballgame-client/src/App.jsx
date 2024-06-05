@@ -62,15 +62,16 @@ function App() {
       if (parseddata.message?.startsWith("secret: ")) {
         console.log("setting secret value", parseddata.message);
 
-        setSecret(parseddata.message.split(": ")[1]);
+        let clientsecret = parseddata.message.split(": ")[1];
         localStorage.setItem(
           "connectionDetails",
           JSON.stringify({
             username: username,
             channel: lobbyCode,
-            secret: secret,
+            secret: clientsecret,
           })
         );
+        setSecret(clientsecret);
       }
 
       setMessages((prevMessages) => [...prevMessages, parseddata]);
@@ -79,16 +80,15 @@ function App() {
 
       console.log("all messages");
       console.log(messages);
-      // setMessages((prevMessages) => [...prevMessages, message.data]);
     };
 
-    // ws.onclose = () => {
-    //   setConnected(false);
-    //   console.log("WebSocket disconnected");
-    //   setMessages([]);
+    ws.onclose = () => {
+      setConnected(false);
+      console.log("WebSocket disconnected");
+      setMessages([]);
 
-    //   // setWs(null);
-    // };
+      // setWs(null);
+    };
 
     return () => {
       ws.close();
@@ -111,14 +111,14 @@ function App() {
   }
 
   function connectToLobby() {
-    var connectMessage = JSON.stringify({
+    var connectMessage = {
       username: username,
       channel: lobbyCode,
       secret: secret,
-    });
+    };
 
-    console.log(connectMessage);
-    ws.send(connectMessage);
+    console.log("Sending connection request:", connectMessage);
+    sendMessage(connectMessage);
 
     console.log(
       "Setting lobbycode and username:",
