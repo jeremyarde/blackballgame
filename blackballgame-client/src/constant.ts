@@ -96,3 +96,7 @@ export const EXAMPLE = {
   trump: "heart",
   wins: { a: 0, q: 0 },
 };
+
+export const LOBBYCODE_KEY = "lobbyCodeKey";
+export const USERNAME_KEY = "usernameKey";
+export const SECRET_KEY = "secretKey";

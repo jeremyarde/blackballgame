@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import "./App.css";
 import React from "react";
-import { EXAMPLE } from "./constant";
+import { EXAMPLE, LOBBYCODE_KEY, SECRET_KEY, USERNAME_KEY } from "./constant";
 
 function App() {
+  // connection to server state
   const [username, setUsername] = useState("");
   const [lobbyCode, setLobbyCode] = useState("");
   const [secret, setSecret] = useState("");
+
   const [messages, setMessages] = useState([]);
   const [hideState, setHideState] = useState(true);
 
@@ -21,6 +23,11 @@ function App() {
   // const [playAreaCards, setPlayAreaCards] = useState([]);
 
   useEffect(() => {
+    // localStorage.setItem(LOBBYCODE_KEY, )
+    setUsername(localStorage.getItem(USERNAME_KEY));
+    setLobbyCode(localStorage.getItem(LOBBYCODE_KEY));
+    setSecret(localStorage.getItem(SECRET_KEY));
+
     const ws = new WebSocket(url);
     setWs(ws);
     return () => {
@@ -29,20 +36,20 @@ function App() {
   }, [url]);
 
   useEffect(() => {
-    let connectionDetails = localStorage.getItem("connectionDetails");
+    // let connectionDetails = localStorage.getItem("connectionDetails");
     // let connectionDetails = {};
-    console.log("Connection details loaded: ", connectionDetails);
-    if (
-      connectionDetails &&
-      connectionDetails.lobbyCode &&
-      connectionDetails.username &&
-      connectionDetails.secret
-    ) {
-      console.log("Setting lobbycode and username");
-      setLobbyCode(connectionDetails.lobbyCode ?? undefined);
-      setUsername(connectionDetails.username ?? undefined);
-      setSecret(connectionDetails.secret ?? undefined);
-    }
+    // console.log("Connection details loaded: ", connectionDetails);
+    // if (
+    //   connectionDetails &&
+    //   connectionDetails.lobbyCode &&
+    //   connectionDetails.username &&
+    //   connectionDetails.secret
+    // ) {
+    //   console.log("Setting lobbycode and username");
+    //   setLobbyCode(connectionDetails.lobbyCode ?? undefined);
+    //   setUsername(connectionDetails.username ?? undefined);
+    //   setSecret(connectionDetails.secret ?? undefined);
+    // }
 
     // if (!ws || connected) {
     if (!ws) {
@@ -59,19 +66,16 @@ function App() {
       console.log(`Message from server: ${message.data}`);
       let parseddata = JSON.parse(message.data);
 
-      if (parseddata.message?.startsWith("secret: ")) {
-        console.log("setting secret value", parseddata.message);
+      if (parseddata.client_secret) {
+        console.log("setting secret value", parseddata.message.client_secret);
 
-        let clientsecret = parseddata.message.split(": ")[1];
-        localStorage.setItem(
-          "connectionDetails",
-          JSON.stringify({
-            username: username,
-            channel: lobbyCode,
-            secret: clientsecret,
-          })
-        );
-        setSecret(clientsecret);
+        setUsername(username);
+        setLobbyCode(lobbyCode);
+        setSecret(parseddata.message.client_secret);
+
+        localStorage.setItem(username);
+        localStorage.setItem(lobbyCode);
+        localStorage.setItem(secret);
       }
 
       setMessages((prevMessages) => [...prevMessages, parseddata]);

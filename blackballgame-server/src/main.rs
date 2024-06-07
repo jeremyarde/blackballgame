@@ -246,11 +246,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
 
                                 let _ = sender
                                     .send(Message::Text(
-                                        json!(ServerMessage {
-                                            message: format!("secret: {}", client_secret),
-                                            from: "System".to_string(),
-                                        })
-                                        .to_string(),
+                                        json!({"client_secret": client_secret}).to_string(),
                                     ))
                                     .await;
 
@@ -323,11 +319,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
 
                         let _ = sender
                             .send(Message::Text(
-                                json!(ServerMessage {
-                                    message: format!("secret: {}", client_secret.as_str()),
-                                    from: "System".into(),
-                                })
-                                .to_string(),
+                                json!({"client_secret": client_secret}).to_string(),
                             ))
                             .await;
 
