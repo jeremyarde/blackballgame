@@ -239,7 +239,8 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                                     GameClient::new(connect.username.clone(), player_role),
                                 );
 
-                                let client_secret = connect.username.clone();
+                                let client_secret = format!("sky_{}", connect.username.clone());
+
                                 gameserver
                                     .players_secrets
                                     .insert(connect.username.clone(), client_secret.clone());

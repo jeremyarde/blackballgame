@@ -24,7 +24,8 @@ function App() {
 
   useEffect(() => {
     // localStorage.setItem(LOBBYCODE_KEY, )
-    setUsername(localStorage.getItem(USERNAME_KEY));
+    localStorage.getItem(USERNAME_KEY) ??
+      setUsername(localStorage.getItem(USERNAME_KEY));
     setLobbyCode(localStorage.getItem(LOBBYCODE_KEY));
     setSecret(localStorage.getItem(SECRET_KEY));
 
@@ -36,22 +37,6 @@ function App() {
   }, [url]);
 
   useEffect(() => {
-    // let connectionDetails = localStorage.getItem("connectionDetails");
-    // let connectionDetails = {};
-    // console.log("Connection details loaded: ", connectionDetails);
-    // if (
-    //   connectionDetails &&
-    //   connectionDetails.lobbyCode &&
-    //   connectionDetails.username &&
-    //   connectionDetails.secret
-    // ) {
-    //   console.log("Setting lobbycode and username");
-    //   setLobbyCode(connectionDetails.lobbyCode ?? undefined);
-    //   setUsername(connectionDetails.username ?? undefined);
-    //   setSecret(connectionDetails.secret ?? undefined);
-    // }
-
-    // if (!ws || connected) {
     if (!ws) {
       console.log("Already connected");
       return;
@@ -67,15 +52,15 @@ function App() {
       let parseddata = JSON.parse(message.data);
 
       if (parseddata.client_secret) {
-        console.log("setting secret value", parseddata.message.client_secret);
+        console.log("setting secret value", parseddata.client_secret);
 
-        setUsername(username);
-        setLobbyCode(lobbyCode);
-        setSecret(parseddata.message.client_secret);
+        // setUsername(username);
+        // setLobbyCode(lobbyCode);
+        setSecret(parseddata.client_secret);
 
-        localStorage.setItem(username);
-        localStorage.setItem(lobbyCode);
-        localStorage.setItem(secret);
+        localStorage.setItem(USERNAME_KEY, username);
+        localStorage.setItem(LOBBYCODE_KEY, lobbyCode);
+        localStorage.setItem(SECRET_KEY, parseddata.client_secret);
       }
 
       setMessages((prevMessages) => [...prevMessages, parseddata]);
@@ -132,15 +117,6 @@ function App() {
         secret: secret,
       })
     );
-    localStorage.setItem(
-      "connectionDetails",
-      JSON.stringify({
-        username: username,
-        channel: lobbyCode,
-        secret: secret,
-      })
-    );
-    // sendMessage(connectMessage);
   }
 
   const startGame = () => {
