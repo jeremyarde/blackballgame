@@ -23,11 +23,15 @@ function App() {
   // const [playAreaCards, setPlayAreaCards] = useState([]);
 
   useEffect(() => {
-    // localStorage.setItem(LOBBYCODE_KEY, )
-    localStorage.getItem(USERNAME_KEY) ??
+    if (localStorage.getItem(USERNAME_KEY)) {
       setUsername(localStorage.getItem(USERNAME_KEY));
-    setLobbyCode(localStorage.getItem(LOBBYCODE_KEY));
-    setSecret(localStorage.getItem(SECRET_KEY));
+    }
+    if (localStorage.getItem(LOBBYCODE_KEY)) {
+      setLobbyCode(localStorage.getItem(LOBBYCODE_KEY));
+    }
+    if (localStorage.getItem(SECRET_KEY)) {
+      setSecret(localStorage.getItem(SECRET_KEY));
+    }
 
     const ws = new WebSocket(url);
     setWs(ws);
@@ -53,14 +57,13 @@ function App() {
 
       if (parseddata.client_secret) {
         console.log("setting secret value", parseddata.client_secret);
-
-        // setUsername(username);
-        // setLobbyCode(lobbyCode);
         setSecret(parseddata.client_secret);
 
-        localStorage.setItem(USERNAME_KEY, username);
-        localStorage.setItem(LOBBYCODE_KEY, lobbyCode);
-        localStorage.setItem(SECRET_KEY, parseddata.client_secret);
+        setConnectionDetails({
+          currLobbyCode: null,
+          currUsername: null,
+          currSecret: parseddata.client_secret,
+        });
       }
 
       setMessages((prevMessages) => [...prevMessages, parseddata]);
@@ -91,6 +94,23 @@ function App() {
     }
   }
 
+  function setConnectionDetails({ currUsername, currLobbyCode, currSecret }) {
+    console.log("Setting connection details in local storage: ", {
+      currUsername,
+      currLobbyCode,
+      secret,
+    });
+    if (currUsername && currUsername !== "") {
+      localStorage.setItem(USERNAME_KEY, currUsername);
+    }
+    if (currLobbyCode && currLobbyCode !== "") {
+      localStorage.setItem(LOBBYCODE_KEY, currLobbyCode);
+    }
+    if (currSecret && currSecret !== "") {
+      localStorage.setItem(SECRET_KEY, currSecret);
+    }
+  }
+
   function displayObject(obj) {
     return (
       <code>
@@ -117,6 +137,12 @@ function App() {
         secret: secret,
       })
     );
+
+    setConnectionDetails({
+      currLobbyCode: username,
+      currUsername: lobbyCode,
+      currSecret: secret,
+    });
   }
 
   const startGame = () => {
@@ -194,6 +220,7 @@ function App() {
               className="w-24 h-10 border rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               type="text"
               onChange={(evt) => setLobbyCode(evt.target.value)}
+              value={lobbyCode}
             ></input>
           </div>
           <div>
@@ -202,6 +229,7 @@ function App() {
               type="text"
               className="w-24 h-10 border rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               onChange={(evt) => setUsername(evt.target.value)}
+              value={username}
             ></input>
           </div>
           <button
@@ -346,6 +374,10 @@ function App() {
                 <label>
                   Player bids:
                   {gamestate.bids ? displayObject(gamestate.bids) : "No bids"}
+                </label>
+                <label>
+                  Player scores:
+                  {gamestate.bids ? displayObject(gamestate.score) : "No bids"}
                 </label>
               </div>
 
