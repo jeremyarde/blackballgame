@@ -4,13 +4,20 @@ use axum::extract::ws::{Message, WebSocket};
 use bevy::utils::info;
 use futures_util::stream::{SplitSink, SplitStream};
 use serde::{Deserialize, Serialize};
-use tokio::sync::broadcast::{Sender};
+use tokio::sync::broadcast::Sender;
 use tracing::info;
 
 use crate::{
     client::{GameClient, PlayerRole},
     GameMessage,
 };
+
+/*
+THINGS TO FIX
+1. fix dealer not updating nicely
+2. Player who bid most not needing to go first
+3. Errors for game related things should be an enum
+*/
 
 impl GameServer {
     pub fn update_to_next_state(&mut self) -> GameState {
@@ -179,7 +186,6 @@ impl GameServer {
     pub fn new() -> Self {
         // let (tx, rx) = broadcast::channel(10);
 
-        
         GameServer {
             players: HashMap::new(),
             deck: create_deck(),
@@ -394,7 +400,7 @@ impl GameServer {
         return self.bids.keys().len() == self.players.len();
     }
 
-    fn advance_dealer(&mut self) -> String {
+    fn advance_dealer(&mut self) -> Result<String, GameError> {
         for (i, player) in self.player_order.iter().enumerate() {
             if player.eq(&self.curr_dealer) {
                 let nextdealer = match self.player_order.get(i + 1) {
@@ -402,11 +408,12 @@ impl GameServer {
                     None => &self.player_order[0],
                 };
                 self.curr_dealer = nextdealer.clone();
-                return self.curr_dealer.clone();
+                return Ok(self.curr_dealer.clone());
             }
         }
-
-        "".to_string()
+        return Err(GameError::InternalIssue(String::from(
+            "Could not advance dealer",
+        )));
     }
     // fn process_postround(&mut self, event: GameMessage) -> Option<GameServer> {
     //     self.curr_played_cards = vec![];
@@ -415,6 +422,10 @@ impl GameServer {
 
     //     return Some(self.get_state());
     // }
+}
+
+enum GameError {
+    InternalIssue(String),
 }
 
 fn advance_player_turn(curr: &String, players: &Vec<String>) -> String {
@@ -712,7 +723,7 @@ impl fmt::Display for Card {
 }
 
 mod tests {
-    
+    use crate::game::{find_winning_card, Card, Suit};
 
     #[test]
     fn test_finding_winning_card() {

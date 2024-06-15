@@ -60,8 +60,8 @@ function App() {
         setSecret(parseddata.client_secret);
 
         setConnectionDetails({
-          currLobbyCode: null,
-          currUsername: null,
+          currLobbyCode: lobbyCode,
+          currUsername: username,
           currSecret: parseddata.client_secret,
         });
       }
@@ -125,7 +125,6 @@ function App() {
       channel: lobbyCode,
       secret: secret,
     };
-
     console.log("Sending connection request:", connectMessage);
     sendMessage(connectMessage);
 
@@ -139,8 +138,8 @@ function App() {
     );
 
     setConnectionDetails({
-      currLobbyCode: username,
-      currUsername: lobbyCode,
+      currUsername: username,
+      currLobbyCode: lobbyCode,
       currSecret: secret,
     });
   }

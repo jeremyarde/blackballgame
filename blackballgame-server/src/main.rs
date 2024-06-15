@@ -198,7 +198,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                                 }
                             }
                             (false, _) => {
-                                println!("Username available");
+                                println!("Username available in lobby, connecting");
                                 let _ = sender
                                     .send(Message::Text(
                                         json!(ServerMessage {
@@ -232,6 +232,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                                 username = connect.username.clone();
                             }
                             (_, _) => {
+                                info!("Username is already taken, asking user to choose new one");
                                 let _ = sender
                                     .send(Message::Text(
                                         json!(ServerMessage {
@@ -311,10 +312,15 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                 break;
             }
         } else {
+            info!("Message from user was not in Text format");
+
             let _ = sender
                 .send(Message::Text(
                     json!(ServerMessage {
-                        message: "Wrong message format, try to connect again".to_string(),
+                        message: format!(
+                            "Wrong message format, try to connect again. Message: {:?}",
+                            msg
+                        ),
                         from: username.clone()
                     })
                     .to_string(),
