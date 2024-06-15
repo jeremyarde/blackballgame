@@ -1,48 +1,28 @@
-use std::borrow::BorrowMut;
-use std::borrow::Cow;
-use std::clone;
 use std::collections::HashMap;
-use std::collections::HashSet;
-use std::env;
-use std::fmt;
-use std::future::IntoFuture;
-use std::io;
 use std::net::SocketAddr;
-use std::ops::ControlFlow;
 use std::path::PathBuf;
-use std::str::Bytes;
 use std::sync::Arc;
-use std::task::Waker;
 use std::time::Duration;
 
-use axum::extract::ws::CloseFrame;
 use axum::extract::ConnectInfo;
-use axum::extract::Path;
 use axum::extract::State;
 use axum::http::Method;
 use axum::response::IntoResponse;
-use axum::response::Response;
 use axum::routing::get;
 use axum::Router;
 use axum_extra::headers;
 use axum_extra::TypedHeader;
-use bevy::render::render_resource::encase::internal;
-use bevy::utils::info;
 use chrono::DateTime;
 use chrono::Utc;
 use client::GameClient;
 use futures_util::stream::SplitSink;
 use futures_util::stream::SplitStream;
 use futures_util::SinkExt;
-use futures_util::Stream;
 use futures_util::StreamExt;
 use game::GameServer;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::json;
-use serde_json::Value;
-use tokio::io::AsyncWriteExt;
-use tokio::net::TcpStream;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 
@@ -51,7 +31,6 @@ use tower_http::cors::Any;
 use tower_http::cors::CorsLayer;
 use tower_http::services::ServeDir;
 use tower_http::services::ServeFile;
-use tracing::debug;
 use tracing::info;
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
@@ -61,7 +40,6 @@ use tracing_subscriber::EnvFilter;
 
 use crate::client::PlayerRole;
 use crate::game::GameEvent;
-use crate::game::GameState;
 
 mod client;
 mod game;
@@ -83,13 +61,13 @@ struct ServerMessage {
 
 impl ServerMessage {
     fn from(message: String, from: &str) -> Self {
-        return ServerMessage {
+        ServerMessage {
             message,
             from: from.to_string(),
-        };
+        }
     }
 }
-async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<AppState>) {
+async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppState>) {
     let mut username = String::new();
     let mut lobby_code = String::new();
     let mut created_new_game = false;
@@ -152,7 +130,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                 info!("All rooms: {:?}", rooms.keys());
                 lobby_code = connect.channel.clone(); // set lobby code as what we connected with
 
-                let mut player_role: PlayerRole;
+                let player_role: PlayerRole;
 
                 // Check if there is a game already ongoing, and connect to the channel if yes
                 let game = match rooms.get_mut(&connect.channel) {
@@ -404,7 +382,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
         let mut game_loop = {
             tokio::spawn(async move {
                 let event_cap = 5;
-                let mymessagechannel = info!("Starting up game");
+                info!("Starting up game");
                 loop {
                     let mut game_messages = Vec::with_capacity(event_cap);
 
@@ -413,7 +391,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, mut state: Arc<Ap
                         .recv_many(&mut game_messages, event_cap)
                         .await;
 
-                    if game_messages.len() == 0 {
+                    if game_messages.is_empty() {
                         sleep(Duration::from_millis(2000)).await;
                         continue;
                     }

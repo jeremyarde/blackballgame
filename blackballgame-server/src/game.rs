@@ -1,11 +1,10 @@
-use std::{borrow::Borrow, collections::HashMap, fmt};
+use std::{collections::HashMap, fmt};
 
 use axum::extract::ws::{Message, WebSocket};
 use bevy::utils::info;
-use chrono::Utc;
 use futures_util::stream::{SplitSink, SplitStream};
 use serde::{Deserialize, Serialize};
-use tokio::sync::broadcast::{self, Sender};
+use tokio::sync::broadcast::{Sender};
 use tracing::info;
 
 use crate::{
@@ -26,7 +25,7 @@ impl GameServer {
 
         tracing::info!("=== Transition: {:?} -> {:?} ===", self.state, newstate);
         self.state = newstate;
-        return self.state;
+        self.state
     }
 
     pub fn process_event_pregame(&mut self, event: GameMessage) -> Option<GameServer> {
@@ -38,7 +37,7 @@ impl GameServer {
             _ => return None,
         }
 
-        return Some(self.get_state());
+        Some(self.get_state())
     }
 
     pub fn process_event_bid(&mut self, event: GameMessage) -> Option<GameServer> {
@@ -64,7 +63,7 @@ impl GameServer {
             }
         }
 
-        return Some(self.get_state());
+        Some(self.get_state())
     }
 
     pub fn process_event_play(&mut self, event: GameMessage) -> Option<GameServer> {
@@ -87,7 +86,7 @@ impl GameServer {
                         let mut cardloc: Option<usize> = None;
                         player.hand.iter().enumerate().for_each(|(i, c)| {
                             if c.id == card.id {
-                                return cardloc = Some(i);
+                                cardloc = Some(i)
                             }
                         });
 
@@ -125,7 +124,7 @@ impl GameServer {
             self.end_round();
         }
 
-        return Some(self.get_state());
+        Some(self.get_state())
     }
 
     pub fn process_event(
@@ -180,7 +179,8 @@ impl GameServer {
     pub fn new() -> Self {
         // let (tx, rx) = broadcast::channel(10);
 
-        let mut server = GameServer {
+        
+        GameServer {
             players: HashMap::new(),
             deck: create_deck(),
             curr_round: 1,
@@ -205,15 +205,14 @@ impl GameServer {
             players_secrets: HashMap::new(),
             // tx,
             // rx,
-        };
-        server
+        }
     }
 
     pub fn get_state(&self) -> Self {
         let mut cloned = self.clone();
         cloned.deck = vec![];
         // cloned.players = HashMap::new();
-        return cloned;
+        cloned
     }
 
     fn add_player(
@@ -237,7 +236,7 @@ impl GameServer {
         let winner = self.curr_winning_card.clone().unwrap().played_by.unwrap();
 
         if let Some(x) = self.wins.get_mut(&winner) {
-            *x = *x + 1;
+            *x += 1;
         }
 
         self.curr_played_cards = vec![];
@@ -324,7 +323,7 @@ impl GameServer {
 
     fn get_random_card(&mut self) -> Option<Card> {
         fastrand::shuffle(&mut self.deck);
-        return self.deck.pop();
+        self.deck.pop()
     }
 
     fn advance_trump(&mut self) {
@@ -345,10 +344,10 @@ impl GameServer {
                 .push(format!("Not player {}'s turn.", player_id));
             return Err("Not player {}'s turn.".to_string());
         }
-        let mut client = self.players.get_mut(&player_id).unwrap();
+        let client = self.players.get_mut(&player_id).unwrap();
 
         match validate_bid(
-            &bid,
+            bid,
             self.curr_round,
             &self.bids,
             self.curr_dealer == client.id,
@@ -357,12 +356,12 @@ impl GameServer {
                 tracing::info!("bid was: {}", x);
                 self.bids.insert(client.id.clone(), x);
                 self.bid_order.push((client.id.clone(), x));
-                return Ok(x);
+                Ok(x)
             }
             Err(e) => {
                 tracing::info!("Error with bid: {:?}", e);
                 self.broadcast_message(format!("Error with bid: {:?}", e));
-                return Err("Bid not valid".to_string());
+                Err("Bid not valid".to_string())
             }
         }
     }
@@ -407,7 +406,7 @@ impl GameServer {
             }
         }
 
-        return "".to_string();
+        "".to_string()
     }
     // fn process_postround(&mut self, event: GameMessage) -> Option<GameServer> {
     //     self.curr_played_cards = vec![];
@@ -431,7 +430,7 @@ fn advance_player_turn(curr: &String, players: &Vec<String>) -> String {
         return players[0].clone();
     }
 
-    return players[loc + 1].clone();
+    players[loc + 1].clone()
 }
 
 fn update_curr_player_from_bids(bid_order: &Vec<(String, i32)>) -> String {
@@ -445,7 +444,7 @@ fn update_curr_player_from_bids(bid_order: &Vec<(String, i32)>) -> String {
             curr_highest_bid = (player.to_string(), *bid);
         }
     }
-    return curr_highest_bid.0;
+    curr_highest_bid.0
 }
 
 fn find_winning_card(curr_played_cards: Vec<Card>, trump: Suit) -> Card {
@@ -472,12 +471,12 @@ fn find_winning_card(curr_played_cards: Vec<Card>, trump: Suit) -> Card {
     }
 
     tracing::info!("Curr winning card: {:?}", curr_winning_card);
-    return curr_winning_card;
+    curr_winning_card
 }
 
-fn get_random_card(mut deck: &mut Vec<Card>) -> Option<Card> {
-    fastrand::shuffle(&mut deck);
-    return deck.pop();
+fn get_random_card(deck: &mut Vec<Card>) -> Option<Card> {
+    fastrand::shuffle(deck);
+    deck.pop()
 }
 
 fn create_deck() -> Vec<Card> {
@@ -489,13 +488,13 @@ fn create_deck() -> Vec<Card> {
         cards.push(Card {
             id: cardid,
             suit: Suit::Heart,
-            value: value,
+            value,
             played_by: None,
         });
         cards.push(Card {
             id: cardid + 1,
             suit: Suit::Diamond,
-            value: value,
+            value,
             played_by: None,
         });
         cards.push(Card {
@@ -503,18 +502,18 @@ fn create_deck() -> Vec<Card> {
             suit: Suit::Club,
             played_by: None,
 
-            value: value,
+            value,
         });
         cards.push(Card {
             id: cardid + 3,
             suit: Suit::Spade,
-            value: value,
+            value,
             played_by: None,
         });
         cardid += 4;
     }
 
-    return cards;
+    cards
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -606,7 +605,7 @@ fn validate_bid(
         return Err(BidError::EqualsRound);
     }
 
-    return Ok(bid.clone());
+    Ok(*bid)
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -625,7 +624,7 @@ fn is_played_card_valid(
     // 1. must follow suit if available
     // 2. can't play trump to start a round unless that is all the player has
 
-    if played_cards.len() == 0 {
+    if played_cards.is_empty() {
         if played_card.suit == *trump {
             // all cards in hand must be trump
             for c in hand {
@@ -639,7 +638,7 @@ fn is_played_card_valid(
         }
     }
 
-    let led_suit = played_cards.get(0).unwrap().suit.clone();
+    let led_suit = played_cards.first().unwrap().suit.clone();
     if led_suit != played_card.suit {
         // make sure player does not have that suit
         for c in hand {
@@ -648,7 +647,7 @@ fn is_played_card_valid(
             }
         }
     }
-    return Ok(played_card.clone());
+    Ok(played_card.clone())
 }
 
 pub enum EventType {
@@ -713,7 +712,7 @@ impl fmt::Display for Card {
 }
 
 mod tests {
-    use super::{advance_player_turn, find_winning_card, update_curr_player_from_bids, Card, Suit};
+    
 
     #[test]
     fn test_finding_winning_card() {

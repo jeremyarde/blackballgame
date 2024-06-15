@@ -1,14 +1,10 @@
-use std::{fmt, io, os::unix::net::SocketAddr};
+use std::{fmt, io};
 
-use axum::extract::ws::{Message, WebSocket};
-use futures_util::stream::SplitSink;
 use serde::Serialize;
-use tokio::sync::mpsc::{self, Sender};
 use tracing::info;
 
 use crate::{
     game::{Card, PlayerState, Suit},
-    GameMessage,
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -43,7 +39,7 @@ impl GameClient {
     ) -> Self {
         // let (tx, rx) = mpsc::unbounded_channel();
 
-        return GameClient {
+        GameClient {
             id,
             state: PlayerState::Idle,
             hand: vec![],
@@ -54,7 +50,7 @@ impl GameClient {
             // rx: rx,
             // tx: tx,
             // sender,
-        };
+        }
     }
 
     pub fn clear_hand(&mut self) {
@@ -95,10 +91,10 @@ impl GameClient {
         }
         info!("range: {:?}, selected: {}", (0..self.hand.len() - 1), input);
 
-        return (
+        (
             parse_result.clone().unwrap() as usize,
             self.hand[(parse_result.unwrap()) as usize].clone(),
-        );
+        )
     }
 
     pub fn get_client_bids(&mut self, allowed_bids: &Vec<i32>) -> i32 {
