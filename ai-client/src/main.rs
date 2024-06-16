@@ -38,19 +38,23 @@ fn main() {
         println!("waiting on user input...");
         let mut user_input = String::new();
         io::stdin().read_line(&mut user_input).unwrap();
+
         let user_input = user_input.trim();
-        let mut input_chars = user_input.chars();
+        if user_input.is_empty() {
+            println!("No input to process");
+            continue;
+        }
+
+        let mut input_chars = user_input.chars().collect::<Vec<char>>();
 
         println!("Chars: {:?}", input_chars);
-        match input_chars.nth(0).unwrap() {
+        match input_chars[0] {
             'b' => {
                 _ = socket.send(Message::Text(
                     json!(GameMessage {
                         username: username.clone(),
                         message: GameEvent {
-                            action: GameAction::Bid(
-                                input_chars.nth(1).unwrap().to_digit(10).unwrap() as i32
-                            ),
+                            action: GameAction::Bid(input_chars[1].to_digit(10).unwrap() as i32),
                             origin: Actioner::Player(username.clone())
                         },
                         timestamp: Utc::now()
@@ -60,19 +64,19 @@ fn main() {
             }
 
             'p' => {
-                // _ = socket.send(Message::Text(
-                //     json!(GameMessage {
-                //         username: username.clone(),
-                //         message: GameEvent {
-                //             action: GameAction::PlayCard(
-                //                 input_chars.nth(1).unwrap().to_digit(10).unwrap() as i32
-                //             ),
-                //             origin: Actioner::Player(username.clone())
-                //         },
-                //         timestamp: Utc::now()
-                //     })
-                //     .to_string(),
-                // ));
+                _ = socket.send(Message::Text(
+                    json!(GameMessage {
+                        username: username.clone(),
+                        message: GameEvent {
+                            action: GameAction::PlayCard(
+                                input_chars[1].to_digit(10).unwrap() as i32
+                            ),
+                            origin: Actioner::Player(username.clone())
+                        },
+                        timestamp: Utc::now()
+                    })
+                    .to_string(),
+                ));
                 println!("'p' not implemented yet")
             }
             's' => {
@@ -87,6 +91,19 @@ fn main() {
                     })
                     .to_string(),
                 ));
+            }
+            'c' => {
+                _ = socket.send(Message::Text(
+                    json!(GameMessage {
+                        username: username.clone(),
+                        message: GameEvent {
+                            action: GameAction::CurrentState,
+                            origin: Actioner::Player(username.clone())
+                        },
+                        timestamp: Utc::now()
+                    })
+                    .to_string(),
+                ))
             }
             _ => {}
         }

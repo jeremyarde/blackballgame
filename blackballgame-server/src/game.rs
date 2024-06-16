@@ -144,6 +144,10 @@ impl GameServer {
         info!("[TODO] Processing an event");
         self.event_log.extend(events.clone());
         for event in events {
+            if event.message.action == GameAction::CurrentState {
+                let _ = sender.send(self.get_state());
+            }
+
             // check if its the player's turn
             if self.state == GameState::Play
                 && event
