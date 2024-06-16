@@ -64,19 +64,19 @@ fn main() {
             }
 
             'p' => {
-                _ = socket.send(Message::Text(
-                    json!(GameMessage {
-                        username: username.clone(),
-                        message: GameEvent {
-                            action: GameAction::PlayCard(
-                                input_chars[1].to_digit(10).unwrap() as i32
-                            ),
-                            origin: Actioner::Player(username.clone())
-                        },
-                        timestamp: Utc::now()
-                    })
-                    .to_string(),
-                ));
+                // _ = socket.send(Message::Text(
+                //     json!(GameMessage {
+                //         username: username.clone(),
+                //         message: GameEvent {
+                //             action: GameAction::PlayCard(
+                //                 input_chars[1].to_digit(10).unwrap() as i32
+                //             ),
+                //             origin: Actioner::Player(username.clone())
+                //         },
+                //         timestamp: Utc::now()
+                //     })
+                //     .to_string(),
+                // ));
                 println!("'p' not implemented yet")
             }
             's' => {

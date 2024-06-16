@@ -146,6 +146,7 @@ impl GameServer {
         for event in events {
             if event.message.action == GameAction::CurrentState {
                 let _ = sender.send(self.get_state());
+                continue;
             }
 
             // check if its the player's turn
