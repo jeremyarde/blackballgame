@@ -35,9 +35,13 @@ fn main() {
             Err(_) => println!("Message could not be read"),
         };
 
+        println!("waiting on user input...");
         let mut user_input = String::new();
         io::stdin().read_line(&mut user_input).unwrap();
+        let user_input = user_input.trim();
         let mut input_chars = user_input.chars();
+
+        println!("Chars: {:?}", input_chars);
         match input_chars.nth(0).unwrap() {
             'b' => {
                 _ = socket.send(Message::Text(

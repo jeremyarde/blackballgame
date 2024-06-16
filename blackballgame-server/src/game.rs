@@ -2,6 +2,7 @@ use std::{collections::HashMap, fmt};
 
 use axum::extract::ws::{Message, WebSocket};
 use bevy::utils::info;
+use common::{Card, GameAction, GameMessage, Suit};
 use futures_util::stream::{SplitSink, SplitStream};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast::Sender;
@@ -9,7 +10,7 @@ use tracing::info;
 
 use crate::{
     client::{GameClient, PlayerRole},
-    GameMessage,
+    // GameMessage,
 };
 
 /*
@@ -556,32 +557,6 @@ pub struct GameServer {
     //     rx: SplitStream<Message>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "lowercase")]
-pub struct GameEvent {
-    action: GameAction,
-    origin: Actioner,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "lowercase")]
-pub enum GameAction {
-    // Player actions
-    PlayCard(Card),
-    Bid(i32),
-
-    // System actions
-    StartGame,
-    Deal,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "lowercase")]
-pub enum Actioner {
-    System,
-    Player(String),
-}
-
 #[derive(Debug, Clone, Serialize)]
 pub enum PlayerState {
     Idle,
@@ -679,53 +654,10 @@ pub enum GameState {
     // PreRound,
 }
 
-#[derive(Debug, Clone, PartialOrd, PartialEq, Ord, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Suit {
-    Heart,
-    Diamond,
-    Club,
-    Spade,
-    NoTrump,
-}
-
-impl fmt::Display for Suit {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let suit = match self {
-            &Self::Heart => "H",
-            &Self::Diamond => "D",
-            &Self::Club => "C",
-            &Self::Spade => "S",
-            &Self::NoTrump => "None",
-        };
-        write!(f, "{}", suit)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub struct Card {
-    id: usize,
-    suit: Suit,
-    value: i32,
-    played_by: Option<String>,
-}
-
-impl fmt::Display for Card {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let played_by = if self.played_by.is_some() {
-            format!(" (Player {:?})", self.played_by)
-        } else {
-            String::new()
-        };
-        write!(f, "[{} {}]{}", self.value, self.suit, played_by)
-    }
-}
-
 mod tests {
-    use crate::game::{
-        advance_player_turn, find_winning_card, update_curr_player_from_bids, Card, Suit,
-    };
+    use common::{Card, Suit};
+
+    use crate::game::{advance_player_turn, find_winning_card, update_curr_player_from_bids};
 
     #[test]
     fn test_finding_winning_card() {

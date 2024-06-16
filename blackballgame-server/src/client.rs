@@ -1,11 +1,10 @@
 use std::{fmt, io};
 
+use common::{Card, Suit};
 use serde::Serialize;
 use tracing::info;
 
-use crate::{
-    game::{Card, PlayerState, Suit},
-};
+use crate::game::PlayerState;
 
 #[derive(Debug, Clone, Serialize)]
 pub enum PlayerRole {

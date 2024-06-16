@@ -30,6 +30,7 @@ pub enum GameAction {
     // System actions
     StartGame,
     Deal,
+    CurrentState,
 }
 
 #[derive(Debug, Clone, PartialOrd, PartialEq, Ord, Eq, Serialize, Deserialize)]

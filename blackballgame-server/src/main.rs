@@ -15,6 +15,7 @@ use axum_extra::TypedHeader;
 use chrono::DateTime;
 use chrono::Utc;
 use client::GameClient;
+use common::GameMessage;
 use futures_util::stream::SplitSink;
 use futures_util::stream::SplitStream;
 use futures_util::SinkExt;
@@ -39,7 +40,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::EnvFilter;
 
 use crate::client::PlayerRole;
-use crate::game::GameEvent;
+use common::GameEvent;
 
 mod client;
 mod game;
@@ -430,13 +431,6 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
             _ = (&mut recv_messages_from_clients) => send_messages_to_client.abort(),
         };
     }
-}
-
-#[derive(Deserialize, Debug, Serialize, Clone)]
-pub struct GameMessage {
-    username: String,
-    message: GameEvent,
-    timestamp: DateTime<Utc>,
 }
 
 async fn ws_handler(
