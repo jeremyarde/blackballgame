@@ -723,7 +723,9 @@ impl fmt::Display for Card {
 }
 
 mod tests {
-    use crate::game::{find_winning_card, Card, Suit};
+    use crate::game::{
+        advance_player_turn, find_winning_card, update_curr_player_from_bids, Card, Suit,
+    };
 
     #[test]
     fn test_finding_winning_card() {
