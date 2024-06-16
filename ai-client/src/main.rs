@@ -50,6 +50,7 @@ fn main() {
         println!("Chars: {:?}", input_chars);
         match input_chars[0] {
             'b' => {
+                println!("Requesting Bid");
                 _ = socket.send(Message::Text(
                     json!(GameMessage {
                         username: username.clone(),
@@ -80,6 +81,7 @@ fn main() {
                 println!("'p' not implemented yet")
             }
             's' => {
+                println!("Requesting StartGame");
                 _ = socket.send(Message::Text(
                     json!(GameMessage {
                         username: username.clone(),
@@ -93,6 +95,7 @@ fn main() {
                 ));
             }
             'c' => {
+                println!("Requesting CurrentState");
                 _ = socket.send(Message::Text(
                     json!(GameMessage {
                         username: username.clone(),

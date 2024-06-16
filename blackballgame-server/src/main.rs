@@ -157,7 +157,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                         ) {
                             (true, true) => {
                                 // check if secrets match
-                                info!("Room already had username, checking is secrets match");
+                                info!("Room already had username, checking if secrets match");
                                 if saved_secret.unwrap() == &connect.secret.unwrap() {
                                     info!("Secrets match, attempting to reconnect");
 
@@ -267,12 +267,14 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                         let server = GameServer::new();
                         rooms.insert(connect.channel.clone(), server);
 
+                        // channel that exists to transmit game state to each player
                         let broadcast_channel = tokio::sync::broadcast::channel(10).0;
                         {
                             let mut channels = state.room_broadcast_channel.lock().await;
                             channels.insert(connect.channel.clone(), broadcast_channel.clone());
                         }
-                        // let (lobby_sender, lobby_reciever) = tokio::sync::mpsc::channel(10);
+
+                        // setting up
                         let (lobby_sender, lobby_reciever) = tokio::sync::mpsc::channel(10);
                         {
                             let mut clientchannels = state.lobby_to_game_channel_send.lock().await;
@@ -334,8 +336,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
 
     // Recieve messages from client
     let username_for_recv = username.clone();
-    let mut cloned_sender = None::<Sender<GameMessage>>;
-    // let (tx_game_messages, mut rx_game_messages) = tokio::sync::mpsc::channel::<GameMessage>(100);
+    let lobby_sender;
     {
         let channels = state.lobby_to_game_channel_send.lock().await;
 
@@ -344,9 +345,10 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
             None => panic!("Can't join a game that doesn't exist"),
         };
 
-        cloned_sender = Some(mysender.clone());
+        lobby_sender = Some(mysender.clone());
     }
 
+    // recieving messages from clients, passing to game
     let mut recv_messages_from_clients = tokio::spawn(async move {
         info!(
             "Reciever for user={} is now ready to accept messages.",
@@ -362,12 +364,13 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                 }
             };
 
-            let _ = cloned_sender.clone().unwrap().send(gamemessage).await;
+            let _ = lobby_sender.clone().unwrap().send(gamemessage).await;
         }
     });
 
     let username_for_send = username.clone();
 
+    //
     let mut send_messages_to_client = {
         tokio::spawn(async move {
             info!(
@@ -382,6 +385,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
         })
     };
 
+    // GAME SERVER THREAD, updates state from user input
     // only create a new thread when the first person has created a game
     if created_new_game && recv_channel.is_some() {
         let mut recv_channel_inner = recv_channel.unwrap();
