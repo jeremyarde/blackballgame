@@ -115,10 +115,13 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "common",
+ "futures-util",
  "serde",
  "serde_json",
  "tokio",
  "tokio-tungstenite 0.23.0",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

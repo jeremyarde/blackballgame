@@ -139,64 +139,57 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                         info!("Game already ongoing, joining");
                         created_new_game = false;
                         player_role = PlayerRole::Player;
-                        tx_from_game_to_client = Some(
-                            state
-                                .room_broadcast_channel
-                                .lock()
-                                .await
-                                .get(&connect.channel)
-                                .unwrap()
-                                .clone(),
-                        );
+                        // tx_from_game_to_client = Some(
+                        //     state
+                        //         .room_broadcast_channel
+                        //         .lock()
+                        //         .await
+                        //         .get(&connect.channel)
+                        //         .unwrap()
+                        //         .clone(),
+                        // );
 
                         // if player name is chosen and secret
                         let saved_secret = gameserver.players_secrets.get(&connect.username);
                         match (
                             gameserver.players.contains_key(&connect.username),
-                            (saved_secret.is_some() && connect.secret.is_some()),
+                            (saved_secret.is_some()
+                                && connect.secret.is_some()
+                                && saved_secret.unwrap().eq(&connect.secret.unwrap())),
                         ) {
+                            // Username taken, secrets match
                             (true, true) => {
-                                // check if secrets match
-                                info!("Room already had username, checking if secrets match");
-                                if saved_secret.unwrap() == &connect.secret.unwrap() {
-                                    info!("Secrets match, attempting to reconnect");
+                                info!("Secrets match, attempting to reconnect");
 
-                                    let _ = sender
-                                        .send(Message::Text(
-                                            json!(ServerMessage {
-                                                message: format!(
-                                                    "{} joined the game.",
-                                                    connect.username
-                                                ),
-                                                from: "System".to_string(),
-                                            })
-                                            .to_string(),
-                                        ))
-                                        .await;
+                                let _ = sender
+                                    .send(Message::Text(
+                                        json!(ServerMessage {
+                                            message: format!(
+                                                "{} joined the game.",
+                                                connect.username
+                                            ),
+                                            from: "System".to_string(),
+                                        })
+                                        .to_string(),
+                                    ))
+                                    .await;
 
-                                    // don't need to replace the player
-                                    // gameserver.players.insert(
-                                    //     connect.username.to_owned(),
-                                    //     GameClient::new(connect.username.clone(), player_role),
-                                    // );
-                                    username = connect.username.clone();
-                                } else {
-                                    info!("Could not reconnect because secrets don't match");
-                                    let _ = sender
-                                        .send(Message::Text(
-                                            json!(ServerMessage {
-                                                message: format!(
-                                                    "{} joined the game.",
-                                                    connect.username
-                                                ),
-                                                from: "System".to_string(),
-                                            })
-                                            .to_string(),
-                                        ))
-                                        .await;
+                                let channels = state.room_broadcast_channel.lock().await;
+                                tx_from_game_to_client =
+                                    Some(channels.get(&connect.channel).unwrap().clone());
 
-                                    continue;
-                                }
+                                username = connect.username.clone();
+                            }
+                            (true, false) => {
+                                let _ = sender
+                                    .send(Message::Text(
+                                        json!(ServerMessage {
+                                            message: format!("Username taken, attempted to reconnect or secrets did not match."),
+                                            from: "System".to_string(),
+                                        })
+                                        .to_string(),
+                                    ))
+                                    .await;
                             }
                             (false, _) => {
                                 println!("Username available in lobby, connecting");
@@ -212,6 +205,10 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                                         .to_string(),
                                     ))
                                     .await;
+
+                                let channels = state.room_broadcast_channel.lock().await;
+                                tx_from_game_to_client =
+                                    Some(channels.get(&connect.channel).unwrap().clone());
 
                                 gameserver.players.insert(
                                     connect.username.to_owned(),
@@ -273,6 +270,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                             let mut channels = state.room_broadcast_channel.lock().await;
                             channels.insert(connect.channel.clone(), broadcast_channel.clone());
                         }
+                        tx_from_game_to_client = Some(broadcast_channel);
 
                         // setting up
                         let (lobby_sender, lobby_reciever) = tokio::sync::mpsc::channel(10);
@@ -284,8 +282,6 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                             // clientchannels.insert(connect.channel.clone(), lobby_reciever);
                             recv_channel = Some(lobby_reciever);
                         }
-
-                        tx_from_game_to_client = Some(broadcast_channel);
 
                         let gameserver = rooms.get_mut(&connect.channel).unwrap();
 
