@@ -11,10 +11,81 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tokio_tungstenite::{
     connect_async,
-    tungstenite::{accept, connect, Message},
+    tungstenite::{
+        accept, connect,
+        protocol::{frame::coding::CloseCode, CloseFrame},
+        Message,
+    },
 };
 use tracing::{error, info};
 use tracing_subscriber::{fmt::format::FmtSpan, util::SubscriberInitExt, EnvFilter};
+
+// fn get_request() {
+//     let mut input_chars = user_input.chars().collect::<Vec<char>>();
+//     info!("Chars: {:?}", input_chars);
+//     match input_chars[0] {
+//         'b' => {
+//             info!("Requesting Bid");
+//             _ = writer.send(Message::Text(
+//                 json!(GameMessage {
+//                     username: username.clone(),
+//                     message: GameEvent {
+//                         action: GameAction::Bid(input_chars[1].to_digit(10).unwrap() as i32),
+//                         origin: Actioner::Player(username.clone())
+//                     },
+//                     timestamp: Utc::now()
+//                 })
+//                 .to_string(),
+//             ));
+//         }
+
+//         'p' => {
+//             // _ = socket.send(Message::Text(
+//             //     json!(GameMessage {
+//             //         username: username.clone(),
+//             //         message: GameEvent {
+//             //             action: GameAction::PlayCard(
+//             //                 input_chars[1].to_digit(10).unwrap() as i32
+//             //             ),
+//             //             origin: Actioner::Player(username.clone())
+//             //         },
+//             //         timestamp: Utc::now()
+//             //     })
+//             //     .to_string(),
+//             // ));
+//             info!("'p' not implemented yet")
+//         }
+//         's' => {
+//             info!("Requesting StartGame");
+//             _ = writer.send(Message::Text(
+//                 json!(GameMessage {
+//                     username: username.clone(),
+//                     message: GameEvent {
+//                         action: GameAction::StartGame,
+//                         origin: Actioner::Player(username.clone())
+//                     },
+//                     timestamp: Utc::now()
+//                 })
+//                 .to_string(),
+//             ));
+//         }
+//         'c' => {
+//             info!("Requesting CurrentState");
+//             _ = writer.send(Message::Text(
+//                 json!(GameMessage {
+//                     username: username.clone(),
+//                     message: GameEvent {
+//                         action: GameAction::CurrentState,
+//                         origin: Actioner::Player(username.clone())
+//                     },
+//                     timestamp: Utc::now()
+//                 })
+//                 .to_string(),
+//             ))
+//         }
+//         _ => {}
+//     }
+// }
 
 fn main() {
     tracing_subscriber::fmt()
@@ -30,19 +101,46 @@ fn main() {
     let username = "ai".to_string();
     let channel = "a".to_string();
 
-    let (mut socket, _) = connect("ws://127.0.0.1:3000/ws").unwrap();
+    let (mut socket, response) = connect("ws://localhost:3000/ws").expect("Can't connect");
+
+    let _ = socket.send(Message::Pong(vec![1, 2, 3]));
+    sleep(Duration::from_secs(10));
 
     let res = socket.send(Message::Text(
         json!(Connect {
             username: username.clone(),
             channel: channel,
-            secret: Some("sky_ai".to_string()) // secret: None
+            // secret: Some("sky_ai".to_string())
+            secret: None
         })
         .to_string(),
     ));
-    while socket.can_read() {
-        let msg = socket.read();
-        println!("Message: {:?}", msg)
+
+    println!("Connected to the server");
+    println!("Response HTTP code: {}", response.status());
+    println!("Response contains the following headers:");
+    for (ref header, _value) in response.headers() {
+        println!("* {}", header);
+    }
+
+    // socket
+    //     .send(Message::Text("Hello WebSocket".into()))
+    //     .unwrap();
+    loop {
+        socket.send(Message::Text("test".to_string()));
+        sleep(Duration::from_secs(5));
+        match socket.read() {
+            Ok(x) => println!("Message recieved: {}", x),
+            Err(err) => {
+                println!("Error message recieved: {:?}", err);
+                // socket.close(Some(CloseFrame {
+                //     code: CloseCode::,
+                //     reason: (),
+                // }))
+                return;
+            }
+        }
+        // println!("Received: {}", msg);
     }
 
     // loop {
@@ -83,71 +181,6 @@ fn main() {
     //     // if user_input.is_empty() {
     //     //     info!("No input to process");
     //     //     continue;
-    //     // }
-
-    //     // let mut input_chars = user_input.chars().collect::<Vec<char>>();
-    //     // info!("Chars: {:?}", input_chars);
-    //     // match input_chars[0] {
-    //     //     'b' => {
-    //     //         info!("Requesting Bid");
-    //     //         _ = writer.send(Message::Text(
-    //     //             json!(GameMessage {
-    //     //                 username: username.clone(),
-    //     //                 message: GameEvent {
-    //     //                     action: GameAction::Bid(input_chars[1].to_digit(10).unwrap() as i32),
-    //     //                     origin: Actioner::Player(username.clone())
-    //     //                 },
-    //     //                 timestamp: Utc::now()
-    //     //             })
-    //     //             .to_string(),
-    //     //         ));
-    //     //     }
-
-    //     //     'p' => {
-    //     //         // _ = socket.send(Message::Text(
-    //     //         //     json!(GameMessage {
-    //     //         //         username: username.clone(),
-    //     //         //         message: GameEvent {
-    //     //         //             action: GameAction::PlayCard(
-    //     //         //                 input_chars[1].to_digit(10).unwrap() as i32
-    //     //         //             ),
-    //     //         //             origin: Actioner::Player(username.clone())
-    //     //         //         },
-    //     //         //         timestamp: Utc::now()
-    //     //         //     })
-    //     //         //     .to_string(),
-    //     //         // ));
-    //     //         info!("'p' not implemented yet")
-    //     //     }
-    //     //     's' => {
-    //     //         info!("Requesting StartGame");
-    //     //         _ = writer.send(Message::Text(
-    //     //             json!(GameMessage {
-    //     //                 username: username.clone(),
-    //     //                 message: GameEvent {
-    //     //                     action: GameAction::StartGame,
-    //     //                     origin: Actioner::Player(username.clone())
-    //     //                 },
-    //     //                 timestamp: Utc::now()
-    //     //             })
-    //     //             .to_string(),
-    //     //         ));
-    //     //     }
-    //     //     'c' => {
-    //     //         info!("Requesting CurrentState");
-    //     //         _ = writer.send(Message::Text(
-    //     //             json!(GameMessage {
-    //     //                 username: username.clone(),
-    //     //                 message: GameEvent {
-    //     //                     action: GameAction::CurrentState,
-    //     //                     origin: Actioner::Player(username.clone())
-    //     //                 },
-    //     //                 timestamp: Utc::now()
-    //     //             })
-    //     //             .to_string(),
-    //     //         ))
-    //     //     }
-    //     //     _ => {}
     //     // }
 
     //     // sleep(Duration::from_secs(10));

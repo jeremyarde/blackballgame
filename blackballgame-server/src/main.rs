@@ -179,8 +179,10 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                                     Some(channels.get(&connect.channel).unwrap().clone());
 
                                 username = connect.username.clone();
+                                break;
                             }
                             (true, false) => {
+                                info!("Username taken or secrets don't match");
                                 let _ = sender
                                     .send(Message::Text(
                                         json!(ServerMessage {
@@ -190,6 +192,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                                         .to_string(),
                                     ))
                                     .await;
+                                continue;
                             }
                             (false, _) => {
                                 println!("Username available in lobby, connecting");
@@ -228,6 +231,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                                     .await;
 
                                 username = connect.username.clone();
+                                break;
                             }
                             (_, _) => {
                                 info!("Username is already taken, asking user to choose new one");
@@ -307,8 +311,8 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                 };
 
                 info!("room users: {:?}", game.players);
-                info!("Connection completed.");
-                break;
+                info!("Connection completed or possible not?");
+                // break;
             }
         } else {
             info!("Message from user was not in Text format");
