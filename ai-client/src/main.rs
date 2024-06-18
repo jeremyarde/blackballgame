@@ -35,8 +35,8 @@ fn main() {
     let channel = "a".to_string();
 
     let (mut socket, response) = connect("ws://localhost:3000/ws").expect("Can't connect");
-    // let _ = socket.send(Message::Pong(vec![1, 2, 3]));
-    // sleep(Duration::from_secs(10));
+    let _ = socket.send(Message::Pong(vec![1, 2, 3]));
+    sleep(Duration::from_secs(2));
 
     let res = socket.send(Message::Text(
         json!(Connect {

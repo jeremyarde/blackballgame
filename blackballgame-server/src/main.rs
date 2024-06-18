@@ -134,6 +134,8 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                 let player_role: PlayerRole;
 
                 // Check if there is a game already ongoing, and connect to the channel if yes
+                let mut connected = false;
+
                 let game = match rooms.get_mut(&connect.channel) {
                     Some(gameserver) => {
                         info!("Game already ongoing, joining");
@@ -179,7 +181,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                                     Some(channels.get(&connect.channel).unwrap().clone());
 
                                 username = connect.username.clone();
-                                break;
+                                connected = true;
                             }
                             (true, false) => {
                                 info!("Username taken or secrets don't match");
@@ -192,7 +194,8 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                                         .to_string(),
                                     ))
                                     .await;
-                                continue;
+
+                                connected = false;
                             }
                             (false, _) => {
                                 println!("Username available in lobby, connecting");
@@ -231,7 +234,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                                     .await;
 
                                 username = connect.username.clone();
-                                break;
+                                connected = true;
                             }
                             (_, _) => {
                                 info!("Username is already taken, asking user to choose new one");
@@ -245,7 +248,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                                     ))
                                     .await;
 
-                                continue;
+                                connected = false;
                             }
                         }
 
@@ -306,13 +309,17 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                             ))
                             .await;
 
+                        connected = true;
+
                         gameserver
                     }
                 };
 
                 info!("room users: {:?}", game.players);
-                info!("Connection completed or possible not?");
-                // break;
+                info!("Connected? {}", connected);
+                if connected {
+                    break;
+                }
             }
         } else {
             info!("Message from user was not in Text format");
@@ -332,8 +339,9 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
         }
     }
 
+    info!("Subscribing to game messages...");
     let mut rx = tx_from_game_to_client.as_ref().unwrap().subscribe();
-
+    info!("Subscribed to game messages - SUCCESS");
     // Recieve messages from client
     let username_for_recv = username.clone();
     let lobby_sender;
