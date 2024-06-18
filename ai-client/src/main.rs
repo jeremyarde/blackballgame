@@ -48,6 +48,7 @@ fn main() {
     ));
 
     loop {
+        // while()
         sleep(Duration::from_secs(1));
         let msg = match socket.read() {
             Ok(x) => {

@@ -160,43 +160,43 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                                 && saved_secret.unwrap().eq(&connect.secret.unwrap())),
                         ) {
                             // Username taken, secrets match
-                            (true, true) => {
-                                info!("Secrets match, attempting to reconnect");
+                            // (true, true) => {
+                            //     info!("Secrets match, attempting to reconnect");
 
-                                let _ = sender
-                                    .send(Message::Text(
-                                        json!(ServerMessage {
-                                            message: format!(
-                                                "{} joined the game.",
-                                                connect.username
-                                            ),
-                                            from: "System".to_string(),
-                                        })
-                                        .to_string(),
-                                    ))
-                                    .await;
+                            //     let _ = sender
+                            //         .send(Message::Text(
+                            //             json!(ServerMessage {
+                            //                 message: format!(
+                            //                     "{} joined the game.",
+                            //                     connect.username
+                            //                 ),
+                            //                 from: "System".to_string(),
+                            //             })
+                            //             .to_string(),
+                            //         ))
+                            //         .await;
 
-                                let channels = state.room_broadcast_channel.lock().await;
-                                tx_from_game_to_client =
-                                    Some(channels.get(&connect.channel).unwrap().clone());
+                            //     let channels = state.room_broadcast_channel.lock().await;
+                            //     tx_from_game_to_client =
+                            //         Some(channels.get(&connect.channel).unwrap().clone());
 
-                                username = connect.username.clone();
-                                connected = true;
-                            }
-                            (true, false) => {
-                                info!("Username taken or secrets don't match");
-                                let _ = sender
-                                    .send(Message::Text(
-                                        json!(ServerMessage {
-                                            message: format!("Username taken, attempted to reconnect or secrets did not match."),
-                                            from: "System".to_string(),
-                                        })
-                                        .to_string(),
-                                    ))
-                                    .await;
+                            //     username = connect.username.clone();
+                            //     connected = true;
+                            // }
+                            // (true, false) => {
+                            //     info!("Username taken or secrets don't match");
+                            //     let _ = sender
+                            //         .send(Message::Text(
+                            //             json!(ServerMessage {
+                            //                 message: format!("Username taken, attempted to reconnect or secrets did not match."),
+                            //                 from: "System".to_string(),
+                            //             })
+                            //             .to_string(),
+                            //         ))
+                            //         .await;
 
-                                connected = false;
-                            }
+                            //     connected = false;
+                            // }
                             (false, _) => {
                                 println!("Username available in lobby, connecting");
                                 let _ = sender
@@ -340,6 +340,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
     }
 
     info!("Subscribing to game messages...");
+
     let mut rx = tx_from_game_to_client.as_ref().unwrap().subscribe();
     info!("Subscribed to game messages - SUCCESS");
     // Recieve messages from client
@@ -362,7 +363,11 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
             "Reciever for user={} is now ready to accept messages.",
             username_for_recv
         );
-        while let Some(Ok(Message::Text(msg))) = receiver.next().await {
+        loop {
+            let Some(Ok(Message::Text(msg))) = receiver.next().await else {
+                continue;
+            };
+
             info!("Attempt to deserialize GameMessage: {}", msg);
             let gamemessage: GameMessage = match serde_json::from_str(&msg) {
                 Ok(x) => x,
@@ -374,11 +379,12 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
 
             let _ = lobby_sender.clone().unwrap().send(gamemessage).await;
         }
+        // info!("Exiting reciever thread for user={}", username_for_recv);
     });
 
     let username_for_send = username.clone();
 
-    //
+    // sending messages to client
     let mut send_messages_to_client = {
         tokio::spawn(async move {
             info!(
@@ -390,6 +396,8 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                 // send message back to original client
                 let _ = sender.send(Message::Text(json!(text).to_string())).await;
             }
+
+            info!("Exiting sender thread for user={}", username_for_send);
         })
     };
 
