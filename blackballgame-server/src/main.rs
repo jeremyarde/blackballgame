@@ -14,13 +14,13 @@ use axum_extra::headers;
 use axum_extra::TypedHeader;
 use chrono::DateTime;
 use chrono::Utc;
-use client::GameClient;
+use common::GameClient;
 use common::GameMessage;
+use common::GameServer;
 use futures_util::stream::SplitSink;
 use futures_util::stream::SplitStream;
 use futures_util::SinkExt;
 use futures_util::StreamExt;
-use game::GameServer;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::json;
@@ -39,8 +39,8 @@ use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::EnvFilter;
 
-use crate::client::PlayerRole;
 use common::GameEvent;
+use common::PlayerRole;
 
 mod client;
 mod game;

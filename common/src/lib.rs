@@ -2,8 +2,131 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt};
 
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+pub enum GameState {
+    // Deal,
+    Bid,
+    Play,
+    Pregame,
+    // PostRound,
+    // PreRound,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum PlayerRole {
+    Leader,
+    Player,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GameClient {
+    pub id: String,
+    pub hand: Vec<Card>,
+    pub order: i32,
+    pub trump: Suit,
+    pub round: i32,
+    // pub state: PlayerState,
+    pub role: PlayerRole,
+    // pub sender: SplitSink<WebSocket, Message>, // don't need if we are using JS
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GameServer {
+    pub players: HashMap<String, GameClient>,
+    pub players_secrets: HashMap<String, String>,
+    pub deck: Vec<Card>,
+    pub curr_round: i32,
+    pub trump: Suit,
+    pub player_order: Vec<String>,
+    pub curr_played_cards: Vec<Card>,
+    pub curr_player_turn: Option<String>,
+    pub curr_winning_card: Option<Card>,
+    pub curr_dealer: String,
+    // play_order: Vec<String>,
+    // dealer_id: i32,
+    pub bids: HashMap<String, i32>,
+    pub bid_order: Vec<(String, i32)>,
+    // bid_order: Vec<
+    pub wins: HashMap<String, i32>,
+    pub score: HashMap<String, i32>,
+    pub state: GameState,
+    // pub tx: broadcast::Sender<FullGameState>,
+    pub event_log: Vec<GameMessage>,
+    pub system_status: Vec<String>,
+    // pub event_queue: Vec<GameEvent>,
+    // rx: broadcast::Receiver<String>,
+    //     tx: broadcast::Sender<String>,
+    //     rx: SplitStream<Message>,
+}
+
+pub fn create_deck() -> Vec<Card> {
+    let mut cards = vec![];
+
+    // 14 = Ace
+    let mut cardid = 0;
+    for value in 2..=14 {
+        cards.push(Card {
+            id: cardid,
+            suit: Suit::Heart,
+            value,
+            played_by: None,
+        });
+        cards.push(Card {
+            id: cardid + 1,
+            suit: Suit::Diamond,
+            value,
+            played_by: None,
+        });
+        cards.push(Card {
+            id: cardid + 2,
+            suit: Suit::Club,
+            played_by: None,
+
+            value,
+        });
+        cards.push(Card {
+            id: cardid + 3,
+            suit: Suit::Spade,
+            value,
+            played_by: None,
+        });
+        cardid += 4;
+    }
+
+    cards
+}
+
+impl GameServer {
+    pub fn new() -> Self {
+        // let (tx, rx) = broadcast::channel(10);
+
+        GameServer {
+            players: HashMap::new(),
+            deck: create_deck(),
+            curr_round: 1,
+            trump: Suit::Heart,
+            player_order: vec![],
+            // play_order: vec![],
+            bids: HashMap::new(),
+            bid_order: Vec::new(),
+            wins: HashMap::new(),
+            score: HashMap::new(),
+            state: GameState::Pregame,
+
+            // send and recieve here
+            // tx: broadcast::channel(10).0,
+            event_log: vec![],
+            // event_queue: vec![],
+            curr_played_cards: vec![],
+            curr_player_turn: None,
+            curr_winning_card: None,
+            curr_dealer: String::new(),
+            system_status: vec![],
+            players_secrets: HashMap::new(),
+            // tx,
+            // rx,
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -93,10 +216,4 @@ pub enum Actioner {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
 }

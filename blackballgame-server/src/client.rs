@@ -1,28 +1,22 @@
 use std::{fmt, io};
 
-use common::{Card, Suit};
+use common::{Card, GameClient, Suit};
 use serde::Serialize;
 use tracing::info;
 
 use crate::game::PlayerState;
 
-#[derive(Debug, Clone, Serialize)]
-pub enum PlayerRole {
-    Leader,
-    Player,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct GameClient {
-    pub id: String,
-    pub hand: Vec<Card>,
-    pub order: i32,
-    pub trump: Suit,
-    pub round: i32,
-    pub state: PlayerState,
-    pub role: PlayerRole,
-    // pub sender: SplitSink<WebSocket, Message>, // don't need if we are using JS
-}
+// #[derive(Debug, Clone, Serialize)]
+// pub struct GameClient {
+//     pub id: String,
+//     pub hand: Vec<Card>,
+//     pub order: i32,
+//     pub trump: Suit,
+//     pub round: i32,
+//     pub state: PlayerState,
+//     pub role: PlayerRole,
+//     // pub sender: SplitSink<WebSocket, Message>, // don't need if we are using JS
+// }
 
 impl fmt::Display for GameClient {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

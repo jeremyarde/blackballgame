@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 use common::{Actioner, Connect, GameAction, GameEvent, GameMessage};
 
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Map, Value};
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{
@@ -47,6 +47,8 @@ fn main() {
         .to_string(),
     ));
 
+    let mut gamestate: Value;
+
     loop {
         // while()
         sleep(Duration::from_secs(1));
@@ -61,6 +63,8 @@ fn main() {
             }
         };
         println!("Got message: {}", msg);
+
+        let message_data: Value = serde_json::from_str(msg.into_text().unwrap().as_str()).unwrap();
 
         println!("Waiting for user input...");
         let mut user_input = String::new();
