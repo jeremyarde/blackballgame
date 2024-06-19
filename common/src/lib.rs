@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt};
 
+mod client;
 mod game;
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq)]
@@ -107,7 +108,6 @@ pub fn create_deck() -> Vec<Card> {
 
     cards
 }
-
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Connect {

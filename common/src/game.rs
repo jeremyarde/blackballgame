@@ -8,7 +8,10 @@ use serde::{Deserialize, Serialize};
 // use tokio::sync::broadcast::Sender;
 use tracing::info;
 
-use crate::{GameAction, GameError, GameMessage, GameServer, GameState};
+use crate::{
+    create_deck, Card, GameAction, GameClient, GameError, GameMessage, GameServer, GameState,
+    PlayerRole, Suit,
+};
 
 /*
 THINGS TO FIX
@@ -162,6 +165,7 @@ impl GameServer {
     ) -> GameServer {
         info!("[TODO] Processing an event");
         self.event_log.extend(events.clone());
+
         for event in events {
             if event.message.action == GameAction::CurrentState {
                 // let _ = sender.send(self.get_state());
@@ -200,9 +204,9 @@ impl GameServer {
                 // Find winner after
                 // GameState::PostRound => self.process_postround(event),
             };
-
-            return self.get_state();
         }
+
+        return self.get_state();
     }
 
     pub fn get_state(&self) -> Self {
@@ -215,8 +219,8 @@ impl GameServer {
     fn add_player(
         &mut self,
         player_id: String,
-        rx: SplitStream<WebSocket>,
-        sender: SplitSink<WebSocket, Message>,
+        // rx: SplitStream<WebSocket>,
+        // sender: SplitSink<WebSocket, Message>,
         role: PlayerRole,
     ) {
         self.players
@@ -230,13 +234,7 @@ impl GameServer {
             .iter()
             .for_each(|c| tracing::info!("{}", c));
 
-        let winner = self
-            .server
-            .curr_winning_card
-            .clone()
-            .unwrap()
-            .played_by
-            .unwrap();
+        let winner = self.curr_winning_card.clone().unwrap().played_by.unwrap();
 
         if let Some(x) = self.wins.get_mut(&winner) {
             *x += 1;
@@ -293,12 +291,8 @@ impl GameServer {
             self.broadcast_message("Not enough players".to_string());
             return;
         }
-        let mut deal_play_order: Vec<String> = self
-            .server
-            .players
-            .iter()
-            .map(|(id, player)| id.clone())
-            .collect();
+        let mut deal_play_order: Vec<String> =
+            self.players.iter().map(|(id, player)| id.clone()).collect();
         fastrand::shuffle(&mut deal_play_order);
 
         self.player_order = deal_play_order;
@@ -457,10 +451,10 @@ impl GameServer {
 }
 
 fn update_curr_player_from_bids(bid_order: &Vec<(String, i32)>) -> String {
-    info(format!(
-        "Finding first player based on bid. Bids: {:?}",
-        bid_order
-    ));
+    info!(
+        "{}",
+        format!("Finding first player based on bid. Bids: {:?}", bid_order)
+    );
     let mut curr_highest_bid = bid_order[0].clone();
     for (player, bid) in bid_order.iter() {
         if bid > &curr_highest_bid.1 {
@@ -660,9 +654,11 @@ pub enum EventType {
 // }
 
 mod tests {
-    use common::{Card, Suit};
 
-    use crate::game::{advance_player_turn, find_winning_card, update_curr_player_from_bids};
+    use crate::{
+        game::{advance_player_turn, find_winning_card, update_curr_player_from_bids},
+        Card, Suit,
+    };
 
     #[test]
     fn test_finding_winning_card() {

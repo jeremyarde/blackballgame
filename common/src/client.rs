@@ -1,14 +1,11 @@
 use std::{fmt, io};
 
-use common::{Card, GameClient, PlayerRole, Suit};
 use serde::Serialize;
 use tracing::info;
 
-struct ServerGameClient {
-    client: GameClient,
-}
+use crate::{Card, GameClient, PlayerRole, Suit};
 
-impl ServerGameClient {
+impl GameClient {
     pub fn new(
         id: String,
         // sender: SplitSink<WebSocket, Message>,
@@ -16,34 +13,29 @@ impl ServerGameClient {
     ) -> Self {
         // let (tx, rx) = mpsc::unbounded_channel();
 
-        ServerGameClient {
-            client: GameClient {
-                id,
-                // state: PlayerState::Idle,
-                hand: vec![],
-                order: 0,
-                round: 0,
-                trump: Suit::Heart,
-                role: PlayerRole::Player,
-                // rx: rx,
-                // tx: tx,
-                // sender,
-            },
+        GameClient {
+            id,
+            // state: PlayerState::Idle,
+            hand: vec![],
+            order: 0,
+            round: 0,
+            trump: Suit::Heart,
+            role: PlayerRole::Player,
+            // rx: rx,
+            // tx: tx,
+            // sender,
         }
     }
 
     pub fn clear_hand(&mut self) {
-        self.client.hand = vec![];
+        self.hand = vec![];
     }
 
     pub fn play_card(&mut self, valid_choices: &Vec<Card>) -> (usize, Card) {
         let mut input = String::new();
-        info!(
-            "Player {}, Select the card you want to play",
-            self.client.id
-        );
+        info!("Player {}, Select the card you want to play", self.id);
 
-        for (i, card) in self.client.hand.iter().enumerate() {
+        for (i, card) in self.hand.iter().enumerate() {
             info!("{}: {}", i, card);
         }
 
@@ -59,7 +51,7 @@ impl ServerGameClient {
 
         let mut parse_result = input.trim().parse::<i32>();
         while parse_result.is_err()
-            || !(0..self.client.hand.len()).contains(&(parse_result.clone().unwrap() as usize))
+            || !(0..self.hand.len()).contains(&(parse_result.clone().unwrap() as usize))
         {
             info!(
                 "{:?} is invalid, please enter a valid card position.",
@@ -71,17 +63,17 @@ impl ServerGameClient {
                 .expect("error: unable to read user input");
             parse_result = input.trim().parse::<i32>();
         }
-        info!("range: {:?}, selected: {}", (0..self.client.hand.len() - 1), input);
+        info!("range: {:?}, selected: {}", (0..self.hand.len() - 1), input);
 
         (
             parse_result.clone().unwrap() as usize,
-            self.client.hand[(parse_result.unwrap()) as usize].clone(),
+            self.hand[(parse_result.unwrap()) as usize].clone(),
         )
     }
 
     pub fn get_client_bids(&mut self, allowed_bids: &Vec<i32>) -> i32 {
         info!("Your hand:");
-        self.client.hand.iter().for_each(|card| info!("{}", card));
+        self.hand.iter().for_each(|card| info!("{}", card));
 
         let mut input = String::new();
         // let mut valid = 0;

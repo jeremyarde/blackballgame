@@ -42,9 +42,6 @@ use tracing_subscriber::EnvFilter;
 use common::GameEvent;
 use common::PlayerRole;
 
-mod client;
-mod game;
-
 /// Shorthand for the transmit half of the message channel.
 type Tx = SplitSink<WebSocket, Message>;
 
@@ -429,10 +426,9 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                         let mut rooms = state.rooms.lock().await;
                         let game = rooms.get_mut(&lobby_code).unwrap();
 
-                        game.process_event(game_messages, &internal_broadcast_clone);
-                        // if let Some(state) = state {
-                        //     let _ = internal_broadcast_clone.send(state);
-                        // }
+                        let gamestate = game.process_event(game_messages);
+
+                        let _ = internal_broadcast_clone.send(gamestate);
                     }
 
                     sleep(Duration::from_millis(500)).await;
