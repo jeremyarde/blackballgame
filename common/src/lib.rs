@@ -2,6 +2,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt};
 
+mod game;
+
 #[derive(Debug, Clone, Copy, Serialize, PartialEq)]
 pub enum GameState {
     // Deal,
@@ -16,6 +18,10 @@ pub enum GameState {
 pub enum PlayerRole {
     Leader,
     Player,
+}
+
+enum GameError {
+    InternalIssue(String),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -102,38 +108,6 @@ pub fn create_deck() -> Vec<Card> {
     cards
 }
 
-impl GameServer {
-    pub fn new() -> Self {
-        // let (tx, rx) = broadcast::channel(10);
-
-        GameServer {
-            players: HashMap::new(),
-            deck: create_deck(),
-            curr_round: 1,
-            trump: Suit::Heart,
-            player_order: vec![],
-            // play_order: vec![],
-            bids: HashMap::new(),
-            bid_order: Vec::new(),
-            wins: HashMap::new(),
-            score: HashMap::new(),
-            state: GameState::Pregame,
-
-            // send and recieve here
-            // tx: broadcast::channel(10).0,
-            event_log: vec![],
-            // event_queue: vec![],
-            curr_played_cards: vec![],
-            curr_player_turn: None,
-            curr_winning_card: None,
-            curr_dealer: String::new(),
-            system_status: vec![],
-            players_secrets: HashMap::new(),
-            // tx,
-            // rx,
-        }
-    }
-}
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Connect {

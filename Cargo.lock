@@ -1309,7 +1309,6 @@ dependencies = [
  "bevy",
  "chrono",
  "common",
- "fastrand",
  "futures-util",
  "serde",
  "serde_json",
@@ -1668,8 +1667,10 @@ name = "common"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "fastrand",
  "serde",
  "serde_json",
+ "tracing",
 ]
 
 [[package]]
