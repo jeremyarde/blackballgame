@@ -5,7 +5,7 @@ use std::{collections::HashMap, fmt};
 mod client;
 mod game;
 
-#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Deserialize)]
 pub enum GameState {
     // Deal,
     Bid,
@@ -15,7 +15,7 @@ pub enum GameState {
     // PreRound,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PlayerRole {
     Leader,
     Player,
@@ -25,7 +25,7 @@ enum GameError {
     InternalIssue(String),
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameClient {
     pub id: String,
     pub hand: Vec<Card>,
@@ -43,7 +43,7 @@ impl fmt::Display for GameClient {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameServer {
     pub players: HashMap<String, GameClient>,
     pub players_secrets: HashMap<String, String>,

@@ -5,7 +5,7 @@ use std::{
 };
 
 use chrono::{DateTime, Utc};
-use common::{Actioner, Connect, GameAction, GameEvent, GameMessage};
+use common::{Actioner, Connect, GameAction, GameEvent, GameMessage, GameServer};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -19,6 +19,45 @@ use tokio_tungstenite::{
 };
 use tracing::{error, info};
 use tracing_subscriber::{fmt::format::FmtSpan, util::SubscriberInitExt, EnvFilter};
+
+struct AI {
+    username: String,
+    lobby: String,
+}
+
+impl AI {
+    fn handle_event(&self, username: String, gamestate: GameServer) -> Option<GameMessage> {
+        let action = self.decide_action(gamestate);
+
+        if let Some(chosen) = action {
+            return Some(GameMessage {
+                username: username,
+                message: GameEvent {
+                    action: chosen,
+                    origin: Actioner::Player(self.username.clone()),
+                },
+                timestamp: Utc::now(),
+            });
+        }
+        return None;
+    }
+
+    fn decide_action(&self, gamestate: GameServer) -> Option<GameAction> {
+        if gamestate.curr_player_turn.unwrap_or("".to_string()) == self.username {
+            return None;
+        }
+
+        let action = match gamestate.state {
+            common::GameState::Bid => GameAction::Bid(0),
+            common::GameState::Pregame => return None,
+            common::GameState::Play => {
+                let player = gamestate.players.get(&self.username).unwrap();
+                GameAction::PlayCard(player.hand.get(0).unwrap().clone())
+            }
+        };
+        Some(action)
+    }
+}
 
 fn main() {
     tracing_subscriber::fmt()
@@ -34,6 +73,11 @@ fn main() {
     let username = "ai".to_string();
     let channel = "a".to_string();
 
+    let ai = AI {
+        username: username.clone(),
+        lobby: channel.clone(),
+    };
+
     let (mut socket, response) = connect("ws://localhost:3000/ws").expect("Can't connect");
     let _ = socket.send(Message::Pong(vec![1, 2, 3]));
     sleep(Duration::from_secs(2));
@@ -47,24 +91,21 @@ fn main() {
         .to_string(),
     ));
 
-    let mut gamestate: Value;
+    let mut gamestate: GameServer;
 
     loop {
         // while()
         sleep(Duration::from_secs(1));
-        let msg = match socket.read() {
-            Ok(x) => {
-                println!("Message recieved: {}", x);
-                x
-            }
-            Err(err) => {
-                println!("Error message recieved: {:?}", err);
-                return;
-            }
-        };
-        println!("Got message: {}", msg);
+        while let Ok(message) = socket.read() {
+            println!("Message recieved: {}", message);
 
-        let message_data: Value = serde_json::from_str(msg.into_text().unwrap().as_str()).unwrap();
+            match serde_json::from_str(message.into_text().unwrap().as_str()) {
+                Ok(gamestate) => gamestate,
+                Err(err) => {
+                    // info!("Error deserializing gamestate: {}", err);
+                }
+            };
+        }
 
         println!("Waiting for user input...");
         let mut user_input = String::new();
