@@ -30,6 +30,12 @@ pub struct GameClient {
     // pub sender: SplitSink<WebSocket, Message>, // don't need if we are using JS
 }
 
+impl fmt::Display for GameClient {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "GameClient: id={}", self.id)
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct GameServer {
     pub players: HashMap<String, GameClient>,
