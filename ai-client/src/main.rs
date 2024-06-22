@@ -42,8 +42,13 @@ impl AI {
         return None;
     }
 
-    fn decide_action(&self, gamestate: GameServer) -> Option<GameAction> {
-        if gamestate.curr_player_turn.unwrap_or("".to_string()) == self.username {
+    fn decide_action(&self, gamestate: &GameServer) -> Option<GameAction> {
+        if gamestate
+            .curr_player_turn
+            .clone()
+            .unwrap_or("".to_string())
+            .eq(&self.username)
+        {
             return None;
         }
 
@@ -91,20 +96,54 @@ fn main() {
         .to_string(),
     ));
 
-    let mut gamestate: GameServer;
+    let mut gamestate: Option<GameServer> = None;
 
     loop {
         // while()
         sleep(Duration::from_secs(1));
-        while let Ok(message) = socket.read() {
+
+        // Read until we exhaust all messages, then try to
+        while let Ok(Message::Text(message)) = socket.read() {
             println!("Message recieved: {}", message);
 
-            match serde_json::from_str(message.into_text().unwrap().as_str()) {
-                Ok(gamestate) => gamestate,
+            // match serde_json::from_str(message.into_text().unwrap().as_str()) {
+            //     Ok(gamestate) => gamestate,
+            //     Err(err) => {
+            //         break;
+            //     }
+            // };
+            let value = match serde_json::from_str::<GameServer>(&message) {
+                Ok(val) => {
+                    info!("connect value: {:?}", val);
+                    gamestate = Some(val.clone());
+                    val
+                }
                 Err(err) => {
-                    // info!("Error deserializing gamestate: {}", err);
+                    info!("{} had error: {}", &message, err);
+                    break;
                 }
             };
+
+            // let state = serde_json::from_value(value);
+        }
+
+        info!("After socket read, AI making a move...");
+        if let Some(ref game) = gamestate {
+            let action = ai.decide_action(&game);
+            info!("AI is doing: {:?}", action);
+            if let Some(todo) = action {
+                _ = socket.send(Message::Text(
+                    json!(GameMessage {
+                        username: username.clone(),
+                        message: GameEvent {
+                            action: todo,
+                            origin: Actioner::Player(username.clone())
+                        },
+                        timestamp: Utc::now()
+                    })
+                    .to_string(),
+                ));
+            }
         }
 
         println!("Waiting for user input...");
