@@ -163,7 +163,7 @@ fn main() {
                     } else {
                         info!("Its our turn now, deciding on an action");
                         let mut action = ai.decide_action(&val);
-                        info!("AI chose an action, send it? {:?}", action);
+                        info!("AI chose an action, send it? (y, n) {:?}", action);
 
                         let mut user_input = String::new();
                         std::io::stdin().read_line(&mut user_input).unwrap();
