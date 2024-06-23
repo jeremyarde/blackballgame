@@ -1,24 +1,21 @@
 use std::{
-    io::{self, stdin, Read},
+    io::{Read},
     thread::sleep,
     time::Duration,
 };
 
-use chrono::{DateTime, Utc};
+use chrono::{Utc};
 use common::{Actioner, Connect, GameAction, GameEvent, GameMessage, GameServer};
 
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
+use serde_json::{json};
 use tokio_tungstenite::{
-    connect_async,
     tungstenite::{
-        accept, connect,
-        protocol::{frame::coding::CloseCode, CloseFrame},
+        connect,
         Message,
     },
 };
-use tracing::{error, info};
-use tracing_subscriber::{fmt::format::FmtSpan, util::SubscriberInitExt, EnvFilter};
+use tracing::{info};
+use tracing_subscriber::{fmt::format::FmtSpan, util::SubscriberInitExt};
 
 struct AI {
     username: String,
