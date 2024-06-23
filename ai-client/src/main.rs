@@ -27,7 +27,7 @@ struct AI {
 
 impl AI {
     fn handle_event(&self, username: String, gamestate: GameServer) -> Option<GameMessage> {
-        let action = self.decide_action(gamestate);
+        let action = self.decide_action(&gamestate);
 
         if let Some(chosen) = action {
             return Some(GameMessage {
@@ -119,7 +119,7 @@ fn main() {
                     val
                 }
                 Err(err) => {
-                    info!("{} had error: {}", &message, err);
+                    info!("Message was not game state: {}", err);
                     break;
                 }
             };
@@ -127,10 +127,20 @@ fn main() {
             // let state = serde_json::from_value(value);
         }
 
-        info!("After socket read, AI making a move...");
         if let Some(ref game) = gamestate {
+            info!("After socket read, AI making a move...");
             let action = ai.decide_action(&game);
-            info!("AI is doing: {:?}", action);
+
+            info!("AI chose an action, send it? {:?}", action);
+
+            let mut user_input = String::new();
+            std::io::stdin().read_line(&mut user_input).unwrap();
+            let inputaction = user_input.trim();
+
+            if inputaction.eq("n") {
+                continue;
+            }
+
             if let Some(todo) = action {
                 _ = socket.send(Message::Text(
                     json!(GameMessage {
