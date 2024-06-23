@@ -157,43 +157,43 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                                 && saved_secret.unwrap().eq(&connect.secret.unwrap())),
                         ) {
                             // Username taken, secrets match
-                            // (true, true) => {
-                            //     info!("Secrets match, attempting to reconnect");
+                            (true, true) => {
+                                info!("Secrets match, attempting to reconnect");
 
-                            //     let _ = sender
-                            //         .send(Message::Text(
-                            //             json!(ServerMessage {
-                            //                 message: format!(
-                            //                     "{} joined the game.",
-                            //                     connect.username
-                            //                 ),
-                            //                 from: "System".to_string(),
-                            //             })
-                            //             .to_string(),
-                            //         ))
-                            //         .await;
+                                let _ = sender
+                                    .send(Message::Text(
+                                        json!(ServerMessage {
+                                            message: format!(
+                                                "{} joined the game.",
+                                                connect.username
+                                            ),
+                                            from: "System".to_string(),
+                                        })
+                                        .to_string(),
+                                    ))
+                                    .await;
 
-                            //     let channels = state.room_broadcast_channel.lock().await;
-                            //     tx_from_game_to_client =
-                            //         Some(channels.get(&connect.channel).unwrap().clone());
+                                let channels = state.room_broadcast_channel.lock().await;
+                                tx_from_game_to_client =
+                                    Some(channels.get(&connect.channel).unwrap().clone());
 
-                            //     username = connect.username.clone();
-                            //     connected = true;
-                            // }
-                            // (true, false) => {
-                            //     info!("Username taken or secrets don't match");
-                            //     let _ = sender
-                            //         .send(Message::Text(
-                            //             json!(ServerMessage {
-                            //                 message: format!("Username taken, attempted to reconnect or secrets did not match."),
-                            //                 from: "System".to_string(),
-                            //             })
-                            //             .to_string(),
-                            //         ))
-                            //         .await;
+                                username = connect.username.clone();
+                                connected = true;
+                            }
+                            (true, false) => {
+                                info!("Username taken or secrets don't match");
+                                let _ = sender
+                                    .send(Message::Text(
+                                        json!(ServerMessage {
+                                            message: format!("Username taken, attempted to reconnect or secrets did not match."),
+                                            from: "System".to_string(),
+                                        })
+                                        .to_string(),
+                                    ))
+                                    .await;
 
-                            //     connected = false;
-                            // }
+                                connected = false;
+                            }
                             (false, _) => {
                                 println!("Username available in lobby, connecting");
                                 let _ = sender

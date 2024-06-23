@@ -87,14 +87,13 @@ fn main() {
     let _ = socket.send(Message::Pong(vec![1, 2, 3]));
     sleep(Duration::from_secs(2));
 
-    let res = socket.send(Message::Text(
-        json!(Connect {
-            username: username.clone(),
-            channel: channel,
-            secret: Some("sky_ai".to_string()) // secret: None
-        })
-        .to_string(),
-    ));
+    let connect_action = Connect {
+        username: username.clone(),
+        channel: channel,
+        secret: Some("sky_ai".to_string()), // secret: None
+    };
+
+    let res = socket.send(Message::Text(json!(connect_action).to_string()));
 
     let mut gamestate: Option<GameServer> = None;
 
@@ -112,125 +111,154 @@ fn main() {
             //         break;
             //     }
             // };
-            let value = match serde_json::from_str::<GameServer>(&message) {
+            match serde_json::from_str::<GameServer>(&message) {
                 Ok(val) => {
-                    info!("connect value: {:?}", val);
-                    gamestate = Some(val.clone());
-                    val
+                    info!("Setting gamestate");
+                    // gamestate = Some(val.clone());
+                    let currplayer = val.curr_player_turn.clone().unwrap_or("".to_string());
+                    if currplayer.ne(&connect_action.username) {
+                        // update gamestate with new values
+                        gamestate = Some(val);
+                    } else {
+                        info!("Its our turn now, deciding on an action");
+                        let action = ai.decide_action(&val);
+                        info!("AI chose an action, send it? {:?}", action);
+
+                        let mut user_input = String::new();
+                        std::io::stdin().read_line(&mut user_input).unwrap();
+                        let inputaction = user_input.trim();
+
+                        if inputaction.eq("n") {
+                            continue;
+                        }
+
+                        if let Some(todo) = action {
+                            _ = socket.send(Message::Text(
+                                json!(GameMessage {
+                                    username: username.clone(),
+                                    message: GameEvent {
+                                        action: todo,
+                                        origin: Actioner::Player(username.clone())
+                                    },
+                                    timestamp: Utc::now()
+                                })
+                                .to_string(),
+                            ));
+                        }
+                    }
                 }
                 Err(err) => {
                     info!("Message was not game state: {}", err);
-                    break;
                 }
             };
 
             // let state = serde_json::from_value(value);
         }
 
-        if let Some(ref game) = gamestate {
-            info!("After socket read, AI making a move...");
-            let action = ai.decide_action(&game);
+        // if let Some(ref game) = gamestate {
+        //     info!("After socket read, AI making a move...");
+        //     let action: Option<GameAction> = ai.decide_action(&game);
 
-            info!("AI chose an action, send it? {:?}", action);
+        //     info!("AI chose an action, send it? {:?}", action);
 
-            let mut user_input = String::new();
-            std::io::stdin().read_line(&mut user_input).unwrap();
-            let inputaction = user_input.trim();
+        //     let mut user_input = String::new();
+        //     std::io::stdin().read_line(&mut user_input).unwrap();
+        //     let inputaction = user_input.trim();
 
-            if inputaction.eq("n") {
-                continue;
-            }
+        //     if inputaction.eq("n") {
+        //         continue;
+        //     }
 
-            if let Some(todo) = action {
-                _ = socket.send(Message::Text(
-                    json!(GameMessage {
-                        username: username.clone(),
-                        message: GameEvent {
-                            action: todo,
-                            origin: Actioner::Player(username.clone())
-                        },
-                        timestamp: Utc::now()
-                    })
-                    .to_string(),
-                ));
-            }
-        }
+        //     if let Some(todo) = action {
+        //         _ = socket.send(Message::Text(
+        //             json!(GameMessage {
+        //                 username: username.clone(),
+        //                 message: GameEvent {
+        //                     action: todo,
+        //                     origin: Actioner::Player(username.clone())
+        //                 },
+        //                 timestamp: Utc::now()
+        //             })
+        //             .to_string(),
+        //         ));
+        //     }
+        // }
 
-        println!("Waiting for user input...");
-        let mut user_input = String::new();
-        std::io::stdin().read_line(&mut user_input).unwrap();
-        let mut input_chars = user_input.trim().chars().collect::<Vec<char>>();
+    //     println!("Waiting for user input...");
+    //     let mut user_input = String::new();
+    //     std::io::stdin().read_line(&mut user_input).unwrap();
+    //     let mut input_chars = user_input.trim().chars().collect::<Vec<char>>();
 
-        // let mut input_chars = user_input.chars().collect::<Vec<char>>();
-        info!("Chars: {:?}", input_chars);
+    //     // let mut input_chars = user_input.chars().collect::<Vec<char>>();
+    //     info!("Chars: {:?}", input_chars);
 
-        if input_chars.is_empty() {
-            continue;
-        }
+    //     if input_chars.is_empty() {
+    //         continue;
+    //     }
 
-        match input_chars[0] {
-            'b' => {
-                info!("Requesting Bid");
-                _ = socket.send(Message::Text(
-                    json!(GameMessage {
-                        username: username.clone(),
-                        message: GameEvent {
-                            action: GameAction::Bid(input_chars[1].to_digit(10).unwrap() as i32),
-                            origin: Actioner::Player(username.clone())
-                        },
-                        timestamp: Utc::now()
-                    })
-                    .to_string(),
-                ));
-            }
+    //     match input_chars[0] {
+    //         'b' => {
+    //             info!("Requesting Bid");
+    //             _ = socket.send(Message::Text(
+    //                 json!(GameMessage {
+    //                     username: username.clone(),
+    //                     message: GameEvent {
+    //                         action: GameAction::Bid(input_chars[1].to_digit(10).unwrap() as i32),
+    //                         origin: Actioner::Player(username.clone())
+    //                     },
+    //                     timestamp: Utc::now()
+    //                 })
+    //                 .to_string(),
+    //             ));
+    //         }
 
-            'p' => {
-                // _ = socket.send(Message::Text(
-                //     json!(GameMessage {
-                //         username: username.clone(),
-                //         message: GameEvent {
-                //             action: GameAction::PlayCard(
-                //                 input_chars[1].to_digit(10).unwrap() as i32
-                //             ),
-                //             origin: Actioner::Player(username.clone())
-                //         },
-                //         timestamp: Utc::now()
-                //     })
-                //     .to_string(),
-                // ));
-                info!("'p' not implemented yet")
-            }
-            's' => {
-                info!("Requesting StartGame");
-                _ = socket.send(Message::Text(
-                    json!(GameMessage {
-                        username: username.clone(),
-                        message: GameEvent {
-                            action: GameAction::StartGame,
-                            origin: Actioner::Player(username.clone())
-                        },
-                        timestamp: Utc::now()
-                    })
-                    .to_string(),
-                ));
-            }
-            'c' => {
-                info!("Requesting CurrentState");
-                _ = socket.send(Message::Text(
-                    json!(GameMessage {
-                        username: username.clone(),
-                        message: GameEvent {
-                            action: GameAction::CurrentState,
-                            origin: Actioner::Player(username.clone())
-                        },
-                        timestamp: Utc::now()
-                    })
-                    .to_string(),
-                ))
-            }
-            _ => {}
-        }
-    }
+    //         'p' => {
+    //             // _ = socket.send(Message::Text(
+    //             //     json!(GameMessage {
+    //             //         username: username.clone(),
+    //             //         message: GameEvent {
+    //             //             action: GameAction::PlayCard(
+    //             //                 input_chars[1].to_digit(10).unwrap() as i32
+    //             //             ),
+    //             //             origin: Actioner::Player(username.clone())
+    //             //         },
+    //             //         timestamp: Utc::now()
+    //             //     })
+    //             //     .to_string(),
+    //             // ));
+    //             info!("'p' not implemented yet")
+    //         }
+    //         's' => {
+    //             info!("Requesting StartGame");
+    //             _ = socket.send(Message::Text(
+    //                 json!(GameMessage {
+    //                     username: username.clone(),
+    //                     message: GameEvent {
+    //                         action: GameAction::StartGame,
+    //                         origin: Actioner::Player(username.clone())
+    //                     },
+    //                     timestamp: Utc::now()
+    //                 })
+    //                 .to_string(),
+    //             ));
+    //         }
+    //         'c' => {
+    //             info!("Requesting CurrentState");
+    //             _ = socket.send(Message::Text(
+    //                 json!(GameMessage {
+    //                     username: username.clone(),
+    //                     message: GameEvent {
+    //                         action: GameAction::CurrentState,
+    //                         origin: Actioner::Player(username.clone())
+    //                     },
+    //                     timestamp: Utc::now()
+    //                 })
+    //                 .to_string(),
+    //             ))
+    //         }
+    //         _ => {}
+    //     }
+    // }
 
     // loop {
     //     info!("Attempting to read from socket");
