@@ -1,20 +1,11 @@
-use std::{
-    io::{Read},
-    thread::sleep,
-    time::Duration,
-};
+use std::{thread::sleep, time::Duration};
 
-use chrono::{Utc};
+use chrono::Utc;
 use common::{Actioner, Connect, GameAction, GameEvent, GameMessage, GameServer};
 
-use serde_json::{json};
-use tokio_tungstenite::{
-    tungstenite::{
-        connect,
-        Message,
-    },
-};
-use tracing::{info};
+use serde_json::json;
+use tokio_tungstenite::tungstenite::{connect, Message};
+use tracing::info;
 use tracing_subscriber::{fmt::format::FmtSpan, util::SubscriberInitExt};
 
 struct AI {
@@ -22,7 +13,73 @@ struct AI {
     lobby: String,
 }
 
+fn get_bid(gamestate: &GameServer) -> GameAction {
+    let round_num = gamestate.curr_round;
+    let bid_total: i32 = gamestate.bids.values().sum();
+    let total_players = gamestate.players.len();
+    let bid_order = gamestate.bid_order.clone();
+
+    let mut my_bid = 0;
+
+    if round_num == bid_total {
+        my_bid = 1;
+    }
+
+    return GameAction::Bid(my_bid);
+}
+
 impl AI {
+    fn create_action_from_user_input(&self, gamestate: &GameServer) -> GameAction {
+        let mut user_input = String::new();
+        std::io::stdin().read_line(&mut user_input).unwrap();
+        let mut input_chars = user_input.trim().chars().collect::<Vec<char>>();
+
+        // let mut input_chars = user_input.chars().collect::<Vec<char>>();
+        info!("Chars: {:?}", input_chars);
+
+        let action = match input_chars[0] {
+            'b' => {
+                info!("Requesting Bid");
+                // _ = socket.send(Message::Text(
+                //     json!(GameMessage {
+                //         username: username.clone(),
+                //         message: GameEvent {
+                //             action: GameAction::Bid(input_chars[1].to_digit(10).unwrap() as i32),
+                //             origin: Actioner::Player(username.clone())
+                //         },
+                //         timestamp: Utc::now()
+                //     })
+                //     .to_string(),
+                // ));
+                GameAction::Bid(input_chars[1].to_digit(10).unwrap() as i32)
+            }
+            'p' => {
+                info!("Requesting to play a card");
+                let cards = &gamestate.players.get(&self.username).unwrap().hand;
+                let cardindex = input_chars[1].to_digit(10).unwrap() as usize;
+
+                if cardindex > cards.len() {
+                    info!("Chosen card location is not valid, try again");
+                }
+                let card = cards.get(cardindex).unwrap();
+
+                info!("Playing card: {}", card);
+                GameAction::PlayCard(card.clone())
+            }
+            's' => {
+                info!("Requesting StartGame");
+                GameAction::StartGame
+            }
+            'c' => {
+                info!("Requesting CurrentState");
+                GameAction::CurrentState
+            }
+            _ => GameAction::CurrentState,
+        };
+
+        return action;
+    }
+
     fn handle_event(&self, username: String, gamestate: GameServer) -> Option<GameMessage> {
         let action = self.decide_action(&gamestate);
 
@@ -40,17 +97,8 @@ impl AI {
     }
 
     fn decide_action(&self, gamestate: &GameServer) -> Option<GameAction> {
-        // if gamestate
-        //     .curr_player_turn
-        //     .clone()
-        //     .unwrap_or("".to_string())
-        //     .eq(&self.username)
-        // {
-        //     return None;
-        // }
-
         let action = match gamestate.state {
-            common::GameState::Bid => GameAction::Bid(0),
+            common::GameState::Bid => get_bid(&gamestate),
             common::GameState::Pregame => return None,
             common::GameState::Play => {
                 let player = gamestate.players.get(&self.username).unwrap();
@@ -96,6 +144,7 @@ fn main() {
 
     loop {
         // while()
+        info!("Sleeping while waiting for messages");
         sleep(Duration::from_secs(1));
 
         // Read until we exhaust all messages, then try to
@@ -113,7 +162,7 @@ fn main() {
                         gamestate = Some(val);
                     } else {
                         info!("Its our turn now, deciding on an action");
-                        let action = ai.decide_action(&val);
+                        let mut action = ai.decide_action(&val);
                         info!("AI chose an action, send it? {:?}", action);
 
                         let mut user_input = String::new();
@@ -121,7 +170,9 @@ fn main() {
                         let inputaction = user_input.trim();
 
                         if inputaction.eq("n") {
-                            continue;
+                            info!("Create alternate action:");
+                            action = Some(ai.create_action_from_user_input(&val));
+                            // continue;
                         }
 
                         if let Some(todo) = action {
@@ -145,109 +196,4 @@ fn main() {
             };
         }
     }
-
-    // if let Some(ref game) = gamestate {
-    //     info!("After socket read, AI making a move...");
-    //     let action: Option<GameAction> = ai.decide_action(&game);
-
-    //     info!("AI chose an action, send it? {:?}", action);
-
-    //     let mut user_input = String::new();
-    //     std::io::stdin().read_line(&mut user_input).unwrap();
-    //     let inputaction = user_input.trim();
-
-    //     if inputaction.eq("n") {
-    //         continue;
-    //     }
-
-    //     if let Some(todo) = action {
-    //         _ = socket.send(Message::Text(
-    //             json!(GameMessage {
-    //                 username: username.clone(),
-    //                 message: GameEvent {
-    //                     action: todo,
-    //                     origin: Actioner::Player(username.clone())
-    //                 },
-    //                 timestamp: Utc::now()
-    //             })
-    //             .to_string(),
-    //         ));
-    //     }
-    // }
-
-    //     println!("Waiting for user input...");
-    //     let mut user_input = String::new();
-    //     std::io::stdin().read_line(&mut user_input).unwrap();
-    //     let mut input_chars = user_input.trim().chars().collect::<Vec<char>>();
-
-    //     // let mut input_chars = user_input.chars().collect::<Vec<char>>();
-    //     info!("Chars: {:?}", input_chars);
-
-    //     if input_chars.is_empty() {
-    //         continue;
-    //     }
-
-    //     match input_chars[0] {
-    //         'b' => {
-    //             info!("Requesting Bid");
-    //             _ = socket.send(Message::Text(
-    //                 json!(GameMessage {
-    //                     username: username.clone(),
-    //                     message: GameEvent {
-    //                         action: GameAction::Bid(input_chars[1].to_digit(10).unwrap() as i32),
-    //                         origin: Actioner::Player(username.clone())
-    //                     },
-    //                     timestamp: Utc::now()
-    //                 })
-    //                 .to_string(),
-    //             ));
-    //         }
-
-    //         'p' => {
-    //             // _ = socket.send(Message::Text(
-    //             //     json!(GameMessage {
-    //             //         username: username.clone(),
-    //             //         message: GameEvent {
-    //             //             action: GameAction::PlayCard(
-    //             //                 input_chars[1].to_digit(10).unwrap() as i32
-    //             //             ),
-    //             //             origin: Actioner::Player(username.clone())
-    //             //         },
-    //             //         timestamp: Utc::now()
-    //             //     })
-    //             //     .to_string(),
-    //             // ));
-    //             info!("'p' not implemented yet")
-    //         }
-    //         's' => {
-    //             info!("Requesting StartGame");
-    //             _ = socket.send(Message::Text(
-    //                 json!(GameMessage {
-    //                     username: username.clone(),
-    //                     message: GameEvent {
-    //                         action: GameAction::StartGame,
-    //                         origin: Actioner::Player(username.clone())
-    //                     },
-    //                     timestamp: Utc::now()
-    //                 })
-    //                 .to_string(),
-    //             ));
-    //         }
-    //         'c' => {
-    //             info!("Requesting CurrentState");
-    //             _ = socket.send(Message::Text(
-    //                 json!(GameMessage {
-    //                     username: username.clone(),
-    //                     message: GameEvent {
-    //                         action: GameAction::CurrentState,
-    //                         origin: Actioner::Player(username.clone())
-    //                     },
-    //                     timestamp: Utc::now()
-    //                 })
-    //                 .to_string(),
-    //             ))
-    //         }
-    //         _ => {}
-    //     }
-    // }
 }
