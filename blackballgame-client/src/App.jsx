@@ -19,6 +19,8 @@ function App() {
 
   // const [bid, setBid] = useState();
   const [connected, setConnected] = useState(false);
+  const [debug, setDebug] = useState(false);
+
   // const [handCards, setHandCards] = useState([]);
   // const [playAreaCards, setPlayAreaCards] = useState([]);
 
@@ -394,11 +396,59 @@ function App() {
             </div>
           )}
         </div>
-        {hideState && (
+        {/* {hideState && (
           <div style={{ justifyContent: "left", textAlign: "left" }}>
             <div>{displayObject(gamestate)}</div>
           </div>
-        )}
+        )} */}
+        <button
+          className="bg-red-500"
+          onClick={() => {
+            console.log(debug);
+            debug ? setDebug(false) : setDebug(true);
+          }}
+        >
+          Enable debug mode
+        </button>
+        {debug
+          ? Object.entries(gamestate.players).map(
+              ([playername, playerdetails]) => {
+                console.log(
+                  "jere/ playername, details",
+                  playername,
+                  playerdetails
+                );
+
+                return (
+                  <>
+                    <label>{playername}</label>
+                    <div className="flex flex-row">
+                      {playerdetails.hand.map((card) => {
+                        return (
+                          <>
+                            <div
+                              key={card.id}
+                              className="flex h-[140px] w-[100px] items-center justify-center rounded-lg bg-white shadow-lg "
+                              onMouseDown={() => playCard(card)}
+                            >
+                              <div className="flex flex-col items-center gap-2">
+                                <span className="text-xl font-bold">
+                                  {card.value}
+                                </span>
+                                <span className="font-medium text-md">
+                                  {card.suit}
+                                </span>
+                              </div>
+                            </div>
+                          </>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              }
+            )
+          : ""}
       </div>
     </>
   );
