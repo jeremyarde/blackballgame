@@ -137,9 +137,11 @@ fn main() {
         io::stdin().read_line(&mut buffer).unwrap();
 
         if buffer.trim().eq("d") {
+            info!("Debug ON");
             let mut inner = debug_mode_clone.lock().unwrap();
             *inner = true;
         } else {
+            info!("Debug OFF");
             let mut inner = debug_mode_clone.lock().unwrap();
             *inner = false;
         }
@@ -167,6 +169,7 @@ fn main() {
     let res = socket.send(Message::Text(json!(connect_action).to_string()));
 
     let mut gamestate: Option<GameServer> = None;
+    let mut num_error_status_messages = 0;
 
     loop {
         info!("Sleeping while waiting for messages");
@@ -189,6 +192,14 @@ fn main() {
                         info!("Its our turn now, deciding on an action");
                         let mut action = ai.decide_action(&val);
 
+                        // our turn + errors increased = we caused an issue
+                        if val.system_status.len() > num_error_status_messages {
+                            info!("Error messages increased, setting debug mode ON.");
+                            *debug_mode.lock().unwrap() = true;
+                        }
+
+                        num_error_status_messages = val.system_status.len();
+
                         if *debug_mode.lock().unwrap() == true {
                             info!("AI chose an action, send it? (y, n) {:?}", action);
                             let mut user_input = String::new();
@@ -199,6 +210,10 @@ fn main() {
                                 action = Some(ai.create_action_from_user_input(&val));
                                 // continue;
                             }
+
+                            info!("debug is currently on");
+                        } else {
+                            info!("debug is currently off");
                         }
 
                         if let Some(todo) = action {
