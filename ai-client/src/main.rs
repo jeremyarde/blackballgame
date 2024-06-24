@@ -1,4 +1,12 @@
-use std::{thread::sleep, time::Duration};
+use std::{
+    io,
+    sync::{
+        mpsc::{self, Receiver},
+        Arc, Mutex,
+    },
+    thread::{self, sleep},
+    time::Duration,
+};
 
 use chrono::Utc;
 use common::{Actioner, Connect, GameAction, GameEvent, GameMessage, GameServer};
@@ -120,6 +128,24 @@ fn main() {
         .finish()
         .init();
 
+    let debug_mode = Arc::new(Mutex::new(false));
+    let debug_mode_clone = Arc::clone(&debug_mode);
+    // let stdin_channel = spawn_stdin_channel();
+    // let (tx, rx) = mpsc::channel::<String>();
+    thread::spawn(move || loop {
+        let mut buffer = String::new();
+        io::stdin().read_line(&mut buffer).unwrap();
+
+        if buffer.trim().eq("d") {
+            let mut inner = debug_mode_clone.lock().unwrap();
+            *inner = true;
+        } else {
+            let mut inner = debug_mode_clone.lock().unwrap();
+            *inner = false;
+        }
+        sleep(Duration::from_secs(5));
+    });
+
     let username = "ai".to_string();
     let channel = "a".to_string();
 
@@ -143,7 +169,6 @@ fn main() {
     let mut gamestate: Option<GameServer> = None;
 
     loop {
-        // while()
         info!("Sleeping while waiting for messages");
         sleep(Duration::from_secs(1));
 
@@ -163,16 +188,17 @@ fn main() {
                     } else {
                         info!("Its our turn now, deciding on an action");
                         let mut action = ai.decide_action(&val);
-                        info!("AI chose an action, send it? (y, n) {:?}", action);
 
-                        let mut user_input = String::new();
-                        std::io::stdin().read_line(&mut user_input).unwrap();
-                        let inputaction = user_input.trim();
+                        if *debug_mode.lock().unwrap() == true {
+                            info!("AI chose an action, send it? (y, n) {:?}", action);
+                            let mut user_input = String::new();
+                            std::io::stdin().read_line(&mut user_input).unwrap();
+                            let inputaction = user_input.trim();
 
-                        if inputaction.eq("n") {
-                            info!("Create alternate action:");
-                            action = Some(ai.create_action_from_user_input(&val));
-                            // continue;
+                            if inputaction.eq("n") {
+                                action = Some(ai.create_action_from_user_input(&val));
+                                // continue;
+                            }
                         }
 
                         if let Some(todo) = action {
@@ -196,4 +222,14 @@ fn main() {
             };
         }
     }
+}
+
+fn spawn_stdin_channel() -> Receiver<String> {
+    let (tx, rx) = mpsc::channel::<String>();
+    thread::spawn(move || loop {
+        let mut buffer = String::new();
+        io::stdin().read_line(&mut buffer).unwrap();
+        tx.send(buffer).unwrap();
+    });
+    rx
 }
