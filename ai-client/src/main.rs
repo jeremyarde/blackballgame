@@ -136,15 +136,20 @@ fn main() {
         let mut buffer = String::new();
         io::stdin().read_line(&mut buffer).unwrap();
 
-        if buffer.trim().eq("d") {
-            info!("Debug ON");
-            let mut inner = debug_mode_clone.lock().unwrap();
-            *inner = true;
-        } else {
-            info!("Debug OFF");
-            let mut inner = debug_mode_clone.lock().unwrap();
-            *inner = false;
+        match buffer.trim() {
+            "d" => {
+                info!("Debug ON");
+                let mut inner = debug_mode_clone.lock().unwrap();
+                *inner = true;
+            }
+            "off" => {
+                info!("Debug OFF");
+                let mut inner = debug_mode_clone.lock().unwrap();
+                *inner = false;
+            }
+            _ => {}
         }
+
         sleep(Duration::from_secs(5));
     });
 

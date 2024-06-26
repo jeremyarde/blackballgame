@@ -496,72 +496,6 @@ fn get_random_card(deck: &mut Vec<Card>) -> Option<Card> {
     deck.pop()
 }
 
-// fn create_deck() -> Vec<Card> {
-//     let mut cards = vec![];
-
-//     // 14 = Ace
-//     let mut cardid = 0;
-//     for value in 2..=14 {
-//         cards.push(Card {
-//             id: cardid,
-//             suit: Suit::Heart,
-//             value,
-//             played_by: None,
-//         });
-//         cards.push(Card {
-//             id: cardid + 1,
-//             suit: Suit::Diamond,
-//             value,
-//             played_by: None,
-//         });
-//         cards.push(Card {
-//             id: cardid + 2,
-//             suit: Suit::Club,
-//             played_by: None,
-
-//             value,
-//         });
-//         cards.push(Card {
-//             id: cardid + 3,
-//             suit: Suit::Spade,
-//             value,
-//             played_by: None,
-//         });
-//         cardid += 4;
-//     }
-
-//     cards
-// }
-
-// #[derive(Debug, Clone, Serialize)]
-// pub struct GameServer {
-//     pub players: HashMap<String, GameClient>,
-//     pub players_secrets: HashMap<String, String>,
-//     deck: Vec<Card>,
-//     curr_round: i32,
-//     trump: Suit,
-//     player_order: Vec<String>,
-//     curr_played_cards: Vec<Card>,
-//     curr_player_turn: Option<String>,
-//     curr_winning_card: Option<Card>,
-//     curr_dealer: String,
-//     // play_order: Vec<String>,
-//     // dealer_id: i32,
-//     bids: HashMap<String, i32>,
-//     bid_order: Vec<(String, i32)>,
-//     // bid_order: Vec<
-//     wins: HashMap<String, i32>,
-//     score: HashMap<String, i32>,
-//     state: GameState,
-//     // pub tx: broadcast::Sender<FullGameState>,
-//     pub event_log: Vec<GameMessage>,
-//     pub system_status: Vec<String>,
-//     // pub event_queue: Vec<GameEvent>,
-//     // rx: broadcast::Receiver<String>,
-//     //     tx: broadcast::Sender<String>,
-//     //     rx: SplitStream<Message>,
-// }
-
 #[derive(Debug)]
 pub enum BidError {
     High,
@@ -654,10 +588,11 @@ pub enum EventType {
 // }
 
 mod tests {
+    use chrono::Utc;
 
     use crate::{
         game::{advance_player_turn, find_winning_card, update_curr_player_from_bids},
-        Card, Suit,
+        Card, GameMessage, GameServer, GameState, PlayerRole, Suit,
     };
 
     #[test]
@@ -801,5 +736,94 @@ mod tests {
         let res = advance_player_turn(&curr, &players);
 
         assert!(res == "P1".to_string());
+    }
+
+    #[test]
+    fn test_game_setup_and_round_end() {
+        let PLAYER_ONE = "p1".to_string();
+        let PLAYER_TWO = "p2".to_string();
+
+        let mut game = GameServer::new();
+        game.add_player(PLAYER_ONE.clone(), PlayerRole::Leader);
+        game.add_player(PLAYER_TWO.clone(), PlayerRole::Player);
+
+        game.process_event(vec![GameMessage {
+            username: PLAYER_ONE.clone(),
+            message: crate::GameEvent {
+                action: crate::GameAction::StartGame,
+                origin: crate::Actioner::Player(PLAYER_ONE.clone()),
+            },
+            timestamp: Utc::now(),
+        }]);
+
+        let first_dealer = game.curr_dealer.clone();
+        let has_first_turn = game.curr_player_turn.clone().unwrap();
+        let has_second_turn = game.curr_dealer.clone();
+
+        println!("Game details @StartGame: {:#?}", game.get_state());
+
+        assert_ne!(has_first_turn, has_second_turn);
+        assert_eq!(first_dealer, has_second_turn); // first dealer goes second
+        assert_eq!(game.curr_player_turn.clone().unwrap(), has_first_turn);
+
+        game.process_event(vec![
+            GameMessage {
+                username: has_first_turn.clone(),
+                message: crate::GameEvent {
+                    action: crate::GameAction::Bid(0),
+                    origin: crate::Actioner::Player(has_first_turn.clone()),
+                },
+                timestamp: Utc::now(),
+            },
+            GameMessage {
+                username: has_second_turn.clone(),
+                message: crate::GameEvent {
+                    action: crate::GameAction::Bid(0),
+                    origin: crate::Actioner::Player(has_second_turn.clone()),
+                },
+                timestamp: Utc::now(),
+            },
+        ]);
+
+        // Time to play
+        let p1_card = game
+            .players
+            .get(&has_first_turn)
+            .unwrap()
+            .hand
+            .first()
+            .unwrap();
+        let p2_card = game
+            .players
+            .get(&has_second_turn)
+            .unwrap()
+            .hand
+            .first()
+            .unwrap();
+
+        game.process_event(vec![
+            GameMessage {
+                username: has_first_turn.clone(),
+                message: crate::GameEvent {
+                    action: crate::GameAction::PlayCard(p1_card.clone()),
+                    origin: crate::Actioner::Player(has_first_turn.clone()),
+                },
+                timestamp: Utc::now(),
+            },
+            GameMessage {
+                username: has_second_turn.clone(),
+                message: crate::GameEvent {
+                    action: crate::GameAction::PlayCard(p2_card.clone()),
+                    origin: crate::Actioner::Player(has_second_turn.clone()),
+                },
+                timestamp: Utc::now(),
+            },
+        ]);
+
+        println!("Game details @Bid - Round 2: {:#?}", game.get_state());
+
+        assert_eq!(game.state, GameState::Bid);
+        assert_eq!(first_dealer, game.curr_player_turn.clone().unwrap()); // round 1 dealer goes first in round 2
+        assert_eq!(has_second_turn, game.curr_dealer.clone()); // round 1 first player is now dealer
     }
 }
