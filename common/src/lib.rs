@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt};
+use std::{collections::HashMap, fmt, iter::Cycle};
 
 mod client;
 mod game;
@@ -53,6 +53,8 @@ pub struct GameServer {
     pub player_order: Vec<String>,
     pub curr_played_cards: Vec<Card>,
     pub curr_player_turn: Option<String>,
+    #[serde(skip)]
+    pub curr_player_cycle: Cycle<String>,
     pub curr_winning_card: Option<Card>,
     pub curr_dealer: String,
     // play_order: Vec<String>,

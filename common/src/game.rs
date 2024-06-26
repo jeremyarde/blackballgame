@@ -20,12 +20,6 @@ THINGS TO FIX
 3. Errors for game related things should be an enum
 */
 
-struct MyGameServer {
-    server: GameServer,
-}
-
-impl MyGameServer {}
-
 fn advance_player_turn(curr: &String, players: &Vec<String>) -> String {
     let mut loc = 0;
     for (i, p) in players.iter().enumerate() {
@@ -410,12 +404,22 @@ impl GameServer {
             "Could not advance dealer",
         )));
     }
-    // fn process_postround(&mut self, event: GameMessage) -> Option<GameServer> {
-    //     self.curr_played_cards = vec![];
-    //     self.curr_winning_card = None;
-    //     self.update_to_next_state();
+    // fn advance_dealer_v2(player_order: Vec<String>, curr_player: String) -> String {
+    //     let idx = player_order.iter().
 
-    //     return Some(self.get_state());
+    //     for (i, player) in self.player_order.iter().enumerate() {
+    //         if player.eq(&self.curr_dealer) {
+    //             let nextdealer = match self.player_order.get(i + 1) {
+    //                 Some(x) => x,
+    //                 None => &self.player_order[0],
+    //             };
+    //             self.curr_dealer = nextdealer.clone();
+    //             return Ok(self.curr_dealer.clone());
+    //         }
+    //     }
+    //     return Err(GameError::InternalIssue(String::from(
+    //         "Could not advance dealer",
+    //     )));
     // }
 
     pub fn new() -> Self {
