@@ -258,7 +258,8 @@ impl GameServer {
         self.bids.clear();
         self.deck = create_deck();
         self.advance_trump();
-        self.advance_dealer();
+        // self.advance_dealer();
+        self.curr_dealer = Self::advance_dealer_v2(&self.player_order, &self.curr_dealer);
         self.curr_player_turn = Some(advance_player_turn(
             &self.curr_player_turn.clone().unwrap(),
             &self.player_order,
@@ -404,23 +405,24 @@ impl GameServer {
             "Could not advance dealer",
         )));
     }
-    // fn advance_dealer_v2(player_order: Vec<String>, curr_player: String) -> String {
-    //     let idx = player_order.iter().
+    fn advance_dealer_v2(player_order: &Vec<String>, curr_dealer: &String) -> String {
+        for (i, player) in player_order.iter().enumerate() {
+            if player.eq(curr_dealer) {
+                // next dealer is person after this
+                let nextdealer = match player_order.get(i + 1) {
+                    Some(x) => x,
+                    None => &player_order[0],
+                };
+                // curr_dealer = nextdealer.clone();
+                return nextdealer.clone();
+            }
+        }
 
-    //     for (i, player) in self.player_order.iter().enumerate() {
-    //         if player.eq(&self.curr_dealer) {
-    //             let nextdealer = match self.player_order.get(i + 1) {
-    //                 Some(x) => x,
-    //                 None => &self.player_order[0],
-    //             };
-    //             self.curr_dealer = nextdealer.clone();
-    //             return Ok(self.curr_dealer.clone());
-    //         }
-    //     }
-    //     return Err(GameError::InternalIssue(String::from(
-    //         "Could not advance dealer",
-    //     )));
-    // }
+        return curr_dealer.clone();
+        // return Err(GameError::InternalIssue(String::from(
+        //     "Could not advance dealer",
+        // )));
+    }
 
     pub fn new() -> Self {
         // let (tx, rx) = broadcast::channel(10);
