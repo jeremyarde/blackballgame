@@ -259,11 +259,25 @@ impl GameServer {
         self.deck = create_deck();
         self.advance_trump();
         // self.advance_dealer();
-        self.curr_dealer = Self::advance_dealer_v2(&self.player_order, &self.curr_dealer);
-        self.curr_player_turn = Some(advance_player_turn(
-            &self.curr_player_turn.clone().unwrap(),
-            &self.player_order,
-        ));
+
+        if self.curr_dealer_idx == self.player_order.len() - 1 {
+            self.curr_dealer_idx = 0;
+        } else {
+            self.curr_dealer_idx += 1;
+        }
+        if self.curr_dealer_idx == self.player_order.len() - 1 {
+            self.curr_player_turn_idx = 0;
+        } else {
+            self.curr_player_turn_idx += 1;
+        }
+
+        self.curr_dealer = self.player_order.get(self.curr_dealer_idx).unwrap().clone();
+        self.curr_player_turn = Some(
+            self.player_order
+                .get(self.curr_player_turn_idx)
+                .unwrap()
+                .clone(),
+        );
         self.curr_round += 1;
 
         self.curr_played_cards = vec![];
@@ -291,9 +305,17 @@ impl GameServer {
         fastrand::shuffle(&mut deal_play_order);
 
         self.player_order = deal_play_order;
-        self.curr_dealer = self.player_order[0].clone();
+        self.curr_dealer_idx = 0;
+        self.curr_player_turn_idx = 1;
+
+        self.curr_dealer = self.player_order.get(self.curr_dealer_idx).unwrap().clone();
         // person after dealer
-        self.curr_player_turn = Some(self.player_order.get(1).unwrap().clone());
+        self.curr_player_turn = Some(
+            self.player_order
+                .get(self.curr_player_turn_idx)
+                .unwrap()
+                .clone(),
+        );
 
         self.players.iter().for_each(|(id, player)| {
             // self.bids.insert(id.clone(), 0);
@@ -405,24 +427,32 @@ impl GameServer {
             "Could not advance dealer",
         )));
     }
-    fn advance_dealer_v2(player_order: &Vec<String>, curr_dealer: &String) -> String {
-        for (i, player) in player_order.iter().enumerate() {
-            if player.eq(curr_dealer) {
-                // next dealer is person after this
-                let nextdealer = match player_order.get(i + 1) {
-                    Some(x) => x,
-                    None => &player_order[0],
-                };
-                // curr_dealer = nextdealer.clone();
-                return nextdealer.clone();
-            }
-        }
+    // fn advance_dealer_v2(
+    //     curr_dealer_idx: usize,
+    //     player_order: &Vec<String>,
+    //     curr_dealer: &String,
+    // ) -> usize {
+    //     if curr_dealer_idx - 1 == player_order.len() {
+    //         return 0;
+    //     }
 
-        return curr_dealer.clone();
-        // return Err(GameError::InternalIssue(String::from(
-        //     "Could not advance dealer",
-        // )));
-    }
+    //     for (i, player) in player_order.iter().enumerate() {
+    //         if player.eq(curr_dealer) {
+    //             // next dealer is person after this
+    //             let nextdealer = match player_order.get(i + 1) {
+    //                 Some(x) => x,
+    //                 None => &player_order[0],
+    //             };
+    //             // curr_dealer = nextdealer.clone();
+    //             return nextdealer.clone();
+    //         }
+    //     }
+
+    //     return curr_dealer.clone();
+    //     // return Err(GameError::InternalIssue(String::from(
+    //     //     "Could not advance dealer",
+    //     // )));
+    // }
 
     pub fn new() -> Self {
         // let (tx, rx) = broadcast::channel(10);
@@ -450,8 +480,9 @@ impl GameServer {
             curr_dealer: String::new(),
             system_status: vec![],
             players_secrets: HashMap::new(),
-            // tx,
-            // rx,
+            curr_player_turn_idx: 0,
+            curr_dealer_idx: 0, // tx,
+                                // rx,
         }
     }
 }
@@ -763,8 +794,8 @@ mod tests {
         }]);
 
         let first_dealer = game.curr_dealer.clone();
-        let has_first_turn = game.curr_player_turn.clone().unwrap();
-        let has_second_turn = game.curr_dealer.clone();
+        let has_first_turn = game.player_order[1].clone(); // person after dealer
+        let has_second_turn = game.player_order[0].clone(); // dealer goes second
 
         println!("Game details @StartGame: {:#?}", game.get_state());
 
@@ -829,7 +860,8 @@ mod tests {
         println!("Game details @Bid - Round 2: {:#?}", game.get_state());
 
         assert_eq!(game.state, GameState::Bid);
+        assert_eq!(has_first_turn, game.curr_dealer); // round 1 first player is now dealer
+        assert_eq!(has_second_turn, game.curr_player_turn.clone().unwrap()); // round 1 second player is now going first
         assert_eq!(first_dealer, game.curr_player_turn.clone().unwrap()); // round 1 dealer goes first in round 2
-        assert_eq!(has_second_turn, game.curr_dealer.clone()); // round 1 first player is now dealer
     }
 }

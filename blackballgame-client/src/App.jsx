@@ -3,6 +3,11 @@ import "./App.css";
 import React from "react";
 import { EXAMPLE, LOBBYCODE_KEY, SECRET_KEY, USERNAME_KEY } from "./constant";
 
+const urlMap = {
+  local: "ws://127.0.0.1:3000/ws",
+  localNetwork: `ws://${window.location.href.split("http://")[1]}ws`,
+};
+
 function App() {
   // connection to server state
   const [username, setUsername] = useState("");
@@ -12,7 +17,7 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [hideState, setHideState] = useState(true);
 
-  const [url, setUrl] = useState("ws://127.0.0.1:3000/ws");
+  const [url, setUrl] = useState(urlMap.local);
   const [ws, setWs] = useState(undefined);
   // const [gamestate, setGamestate] = useState(EXAMPLE);
   const [gamestate, setGamestate] = useState();
@@ -252,20 +257,7 @@ function App() {
                 {gamestate?.curr_played_cards
                   ? gamestate.curr_played_cards.map((card) => {
                       return (
-                        <div
-                          key={card.id}
-                          className="flex h-[140px] w-[100px] items-center justify-center rounded-lg bg-white shadow-lg "
-                          onMouseDown={() => playCard(card)}
-                        >
-                          <div className="flex flex-col items-center gap-2">
-                            <span className="text-xl font-bold">
-                              {card.value}
-                            </span>
-                            <span className="font-medium text-md">
-                              {card.suit}
-                            </span>
-                          </div>
-                        </div>
+                        <Card key={card.id} card={card} playCard={playCard} />
                       );
                     })
                   : ""}
@@ -285,20 +277,11 @@ function App() {
                     gamestate?.players[username].hand
                       ? gamestate.players[username].hand.map((card) => {
                           return (
-                            <div
+                            <Card
                               key={card.id}
-                              className="flex h-[140px] w-[100px] items-center justify-center rounded-lg bg-white shadow-lg "
-                              onMouseDown={() => playCard(card)}
-                            >
-                              <div className="flex flex-col items-center gap-2">
-                                <span className="text-xl font-bold">
-                                  {card.value}
-                                </span>
-                                <span className="font-medium text-md">
-                                  {card.suit}
-                                </span>
-                              </div>
-                            </div>
+                              card={card}
+                              playCard={playCard}
+                            />
                           );
                         })
                       : ""}
@@ -425,22 +408,7 @@ function App() {
                     <div className="flex flex-row">
                       {playerdetails.hand.map((card) => {
                         return (
-                          <>
-                            <div
-                              key={card.id}
-                              className="flex h-[140px] w-[100px] items-center justify-center rounded-lg bg-white shadow-lg "
-                              onMouseDown={() => playCard(card)}
-                            >
-                              <div className="flex flex-col items-center gap-2">
-                                <span className="text-xl font-bold">
-                                  {card.value}
-                                </span>
-                                <span className="font-medium text-md">
-                                  {card.suit}
-                                </span>
-                              </div>
-                            </div>
-                          </>
+                          <Card key={card.id} card={card} playCard={playCard} />
                         );
                       })}
                     </div>
@@ -455,3 +423,26 @@ function App() {
 }
 
 export default App;
+function Card(card, playCard) {
+  let suitDisplay = {
+    spade: "&#9824",
+    diamond: "&#9829",
+    club: "&clubs",
+    heart: "&hearts",
+  };
+
+  return (
+    <>
+      <div
+        key={card.id}
+        className="flex h-[140px] w-[100px] items-center justify-center rounded-lg bg-white shadow-lg "
+        onMouseDown={() => playCard(card)}
+      >
+        <div className="flex flex-col items-center gap-2">
+          <span className="text-xl font-bold">{card.value}</span>
+          <span className="font-medium text-md">{suitDisplay[card.suit]}</span>
+        </div>
+      </div>
+    </>
+  );
+}

@@ -53,11 +53,11 @@ pub struct GameServer {
     pub player_order: Vec<String>,
     pub curr_played_cards: Vec<Card>,
     pub curr_player_turn: Option<String>,
-    pub curr_player_turn_idx: usize,
+    curr_player_turn_idx: usize,
     // #[serde(skip)]
     // pub curr_player_cycle: Cycle<String>,
     pub curr_winning_card: Option<Card>,
-    pub curr_dealer: String,
+    curr_dealer: String,
     pub curr_dealer_idx: usize,
 
     // play_order: Vec<String>,
