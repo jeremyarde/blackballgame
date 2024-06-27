@@ -13,6 +13,7 @@ function App() {
   const [username, setUsername] = useState("");
   const [lobbyCode, setLobbyCode] = useState("");
   const [secret, setSecret] = useState("");
+  const [inGame, setInGame] = useState(false);
 
   const [messages, setMessages] = useState([]);
   const [hideState, setHideState] = useState(true);
@@ -149,6 +150,8 @@ function App() {
       currLobbyCode: lobbyCode,
       currSecret: secret,
     });
+
+    setInGame(true);
   }
 
   const startGame = () => {
@@ -219,35 +222,37 @@ function App() {
   return (
     <>
       <div className="flex flex-col w-full h-full">
-        <div className="flex flex-col items-center justify-center align-middle border rounded-md bg-fuchsia-200 border-input bg-background ring-offset-background">
-          <div>
-            <label>Lobby code: </label>
-            <input
-              className="w-24 h-10 border rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              type="text"
-              onChange={(evt) => setLobbyCode(evt.target.value)}
-              value={lobbyCode}
-            ></input>
+        {!inGame && (
+          <div className="flex flex-col items-center justify-center align-middle border rounded-md bg-fuchsia-200 border-input bg-background ring-offset-background">
+            <div>
+              <label>Lobby code: </label>
+              <input
+                className="w-24 h-10 border rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                type="text"
+                onChange={(evt) => setLobbyCode(evt.target.value)}
+                value={lobbyCode}
+              ></input>
+            </div>
+            <div>
+              <label>Name: </label>
+              <input
+                type="text"
+                className="w-24 h-10 border rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                onChange={(evt) => setUsername(evt.target.value)}
+                value={username}
+              ></input>
+            </div>
+            <button
+              className="w-24 h-10 border border-solid rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={connectToLobby}
+            >
+              Connect
+            </button>
+            <button className="p-2 m-1 outline" onClick={startGame}>
+              Start game
+            </button>
           </div>
-          <div>
-            <label>Name: </label>
-            <input
-              type="text"
-              className="w-24 h-10 border rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              onChange={(evt) => setUsername(evt.target.value)}
-              value={username}
-            ></input>
-          </div>
-          <button
-            className="w-24 h-10 border border-solid rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            onClick={connectToLobby}
-          >
-            Connect
-          </button>
-          <button className="p-2 m-1 outline" onClick={startGame}>
-            Start game
-          </button>
-        </div>
+        )}
         <div className="flex w-full bg-green-300 ">
           {/* <div className="bg-green-300 "> */}
           <div className="flex flex-col w-full p-4">
