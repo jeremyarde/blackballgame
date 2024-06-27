@@ -253,15 +253,12 @@ function App() {
           <div className="flex flex-col w-full p-4">
             <div>
               <h3>Played Cards</h3>
-              <div className="flex flex-row justify-center space-x-2">
-                {gamestate?.curr_played_cards
-                  ? gamestate.curr_played_cards.map((card) => {
-                      return (
-                        <Card key={card.id} card={card} playCard={playCard} />
-                      );
-                    })
-                  : ""}
-              </div>
+
+              <CardArea
+                cards={gamestate.curr_played_cards}
+                playCard={playCard}
+              />
+
               <div className="flex">
                 <div
                   className={`outline-4 m-2 w-full outline bg-slate-400 flex flex-col ${
@@ -271,21 +268,16 @@ function App() {
                   }`}
                 >
                   <h3>Your hand</h3>
-                  <div className="flex flex-row justify-center">
-                    {gamestate?.players &&
-                    gamestate.players[username] &&
-                    gamestate?.players[username].hand
-                      ? gamestate.players[username].hand.map((card) => {
-                          return (
-                            <Card
-                              key={card.id}
-                              card={card}
-                              playCard={playCard}
-                            />
-                          );
-                        })
-                      : ""}
-                  </div>
+                  <CardArea
+                    cards={
+                      gamestate?.players &&
+                      gamestate.players[username] &&
+                      gamestate?.players[username].hand
+                        ? gamestate?.players[username].hand
+                        : []
+                    }
+                    playCard={playCard}
+                  />
                   {gamestate && gamestate.state == "Bid" && (
                     <div className="flex justify-center m-4">
                       <>
@@ -379,11 +371,6 @@ function App() {
             </div>
           )}
         </div>
-        {/* {hideState && (
-          <div style={{ justifyContent: "left", textAlign: "left" }}>
-            <div>{displayObject(gamestate)}</div>
-          </div>
-        )} */}
         <button
           className="bg-red-500"
           onClick={() => {
@@ -427,6 +414,18 @@ import Club from "./assets/club.svg";
 import Diamond from "./assets/diamond.svg";
 import Heart from "./assets/heart.svg";
 import Spade from "./assets/spade.svg";
+
+function CardArea({ cards, playCard }) {
+  return (
+    <div className="flex flex-row justify-center space-x-2">
+      {cards
+        ? cards.map((card) => {
+            return <Card key={card.id} card={card} playCard={playCard} />;
+          })
+        : ""}
+    </div>
+  );
+}
 
 function Card({ card, playCard }) {
   console.log("jere/ card: ", card);
