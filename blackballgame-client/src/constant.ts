@@ -3,8 +3,8 @@ export const EXAMPLE = {
   curr_played_cards: [
     { id: 18, played_by: null, suit: "club", value: 6 },
     { id: 15, played_by: null, suit: "spade", value: 5 },
-    { id: 43, played_by: null, suit: "spade", value: 12 },
-    { id: 2, played_by: null, suit: "club", value: 2 },
+    { id: 43, played_by: null, suit: "heart", value: 12 },
+    { id: 2, played_by: null, suit: "diamond", value: 2 },
   ],
   curr_player_turn: "a",
   curr_round: 2,

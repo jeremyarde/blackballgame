@@ -19,8 +19,8 @@ function App() {
 
   const [url, setUrl] = useState(urlMap.local);
   const [ws, setWs] = useState(undefined);
-  // const [gamestate, setGamestate] = useState(EXAMPLE);
-  const [gamestate, setGamestate] = useState();
+  const [gamestate, setGamestate] = useState(EXAMPLE);
+  // const [gamestate, setGamestate] = useState();
 
   // const [bid, setBid] = useState();
   const [connected, setConnected] = useState(false);
@@ -253,7 +253,7 @@ function App() {
           <div className="flex flex-col w-full p-4">
             <div>
               <h3>Played Cards</h3>
-              <div className="flex flex-row justify-center">
+              <div className="flex flex-row justify-center space-x-2">
                 {gamestate?.curr_played_cards
                   ? gamestate.curr_played_cards.map((card) => {
                       return (
@@ -405,7 +405,7 @@ function App() {
                 return (
                   <>
                     <label>{playername}</label>
-                    <div className="flex flex-row">
+                    <div className="flex flex-row p-2">
                       {playerdetails.hand.map((card) => {
                         return (
                           <Card key={card.id} card={card} playCard={playCard} />
@@ -422,13 +422,35 @@ function App() {
   );
 }
 
-export default App;
-function Card(card, playCard) {
+// import Club from "./assets/club.svg";
+import Club from "./assets/club.svg";
+import Diamond from "./assets/diamond.svg";
+import Heart from "./assets/heart.svg";
+import Spade from "./assets/spade.svg";
+
+function Card({ card, playCard }) {
+  console.log("jere/ card: ", card);
   let suitDisplay = {
-    spade: "&#9824",
-    diamond: "&#9829",
-    club: "&clubs",
-    heart: "&hearts",
+    spade: { src: Spade },
+    diamond: { src: Diamond },
+    club: { src: Club },
+    heart: { src: Heart },
+  };
+
+  let cardValue = {
+    14: "A",
+    13: "K",
+    12: "Q",
+    11: "J",
+    10: 10,
+    9: 9,
+    8: 8,
+    7: 7,
+    6: 6,
+    5: 5,
+    4: 4,
+    3: 3,
+    2: 2,
   };
 
   return (
@@ -439,10 +461,14 @@ function Card(card, playCard) {
         onMouseDown={() => playCard(card)}
       >
         <div className="flex flex-col items-center gap-2">
-          <span className="text-xl font-bold">{card.value}</span>
-          <span className="font-medium text-md">{suitDisplay[card.suit]}</span>
+          <span className="text-xl font-bold">{cardValue[card.value]}</span>
+          <span className="font-medium text-md">
+            <img className={`size-14`} src={suitDisplay[card.suit].src}></img>
+          </span>
         </div>
       </div>
     </>
   );
 }
+
+export default App;
