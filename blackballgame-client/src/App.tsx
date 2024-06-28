@@ -276,24 +276,26 @@ function App() {
         )}
         {appState === GAME_STATE.GAME && (
           <div className="flex w-full bg-green-300">
-            <div className="flex flex-col w-full p-4">
-              {gamestate?.players &&
-                Object.entries(gamestate.players).map(([player, details]) => {
-                  if (player != username) {
-                    return (
-                      <div className="flex flex-col w-full">
-                        <label className="bg-orange-300 border border-solid">
-                          <b>{player}</b>
-                        </label>
-                        <ul>
-                          <li>Cards: {details.hand.length}</li>
-                          <li>Wins: {gamestate.wins[player]}</li>
-                          <li>Bids: {gamestate.bids[player]}</li>
-                        </ul>
-                      </div>
-                    );
-                  }
-                })}
+            <div className="flex flex-col w-full p-4 ">
+              <div className="w-1/4 border border-solid bg-cyan-200">
+                {gamestate?.players &&
+                  Object.entries(gamestate.players).map(([player, details]) => {
+                    if (player != username) {
+                      return (
+                        <div className="flex flex-col w-full">
+                          <label className="">
+                            <b>{player}</b>
+                          </label>
+                          <ul>
+                            <li>Cards: {details.hand.length}</li>
+                            <li>Wins: {gamestate.wins[player]}</li>
+                            <li>Bids: {gamestate.bids[player]}</li>
+                          </ul>
+                        </div>
+                      );
+                    }
+                  })}
+              </div>
               <div className="bg-green-500">
                 <h3>Played Cards</h3>
                 <CardArea
