@@ -628,6 +628,7 @@ mod tests {
     use chrono::Utc;
 
     use crate::{
+        create_deck,
         game::{advance_player_turn, find_winning_card, update_curr_player_from_bids},
         Card, GameMessage, GameServer, GameState, PlayerRole, Suit,
     };
@@ -863,5 +864,10 @@ mod tests {
         assert_eq!(has_first_turn, game.curr_dealer); // round 1 first player is now dealer
         assert_eq!(has_second_turn, game.curr_player_turn.clone().unwrap()); // round 1 second player is now going first
         assert_eq!(first_dealer, game.curr_player_turn.clone().unwrap()); // round 1 dealer goes first in round 2
+    }
+
+    #[test]
+    fn test_deck_creation() {
+        println!("{}", serde_json::json!(create_deck()));
     }
 }

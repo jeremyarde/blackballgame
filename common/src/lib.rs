@@ -90,25 +90,25 @@ pub fn create_deck() -> Vec<Card> {
             played_by: None,
         });
         cards.push(Card {
-            id: cardid + 1,
+            id: cardid + 13,
             suit: Suit::Diamond,
             value,
             played_by: None,
         });
         cards.push(Card {
-            id: cardid + 2,
+            id: cardid + 26,
             suit: Suit::Club,
             played_by: None,
 
             value,
         });
         cards.push(Card {
-            id: cardid + 3,
+            id: cardid + 39,
             suit: Suit::Spade,
             value,
             played_by: None,
         });
-        cardid += 4;
+        cardid += 1;
     }
 
     cards

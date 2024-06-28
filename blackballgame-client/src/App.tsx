@@ -8,19 +8,28 @@ const urlMap = {
   localNetwork: `ws://${window.location.href.split("http://")[1]}ws`,
 };
 
+const TEST = false;
+const EXAMPLE_USERNAME = "a";
+
+const enum GAME_STATE {
+  LOBBY,
+  GAME,
+  START,
+}
+
 function App() {
   // connection to server state
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(TEST ? EXAMPLE_USERNAME : "");
   const [lobbyCode, setLobbyCode] = useState("");
   const [secret, setSecret] = useState("");
-  const [inGame, setInGame] = useState(false);
+  const [appState, setAppState] = useState(GAME_STATE.START);
 
   const [messages, setMessages] = useState([]);
   const [hideState, setHideState] = useState(true);
 
   const [url, setUrl] = useState(urlMap.local);
-  const [ws, setWs] = useState(undefined);
-  const [gamestate, setGamestate] = useState(EXAMPLE);
+  const [ws, setWs] = useState<WebSocket | undefined>(undefined);
+  const [gamestate, setGamestate] = useState(TEST ? EXAMPLE : undefined);
   // const [gamestate, setGamestate] = useState();
 
   // const [bid, setBid] = useState();
@@ -76,6 +85,12 @@ function App() {
 
       setMessages((prevMessages) => [...prevMessages, parseddata]);
 
+      if (gamestate && parseddata.state != gamestate.state) {
+        setTimeout(() => {
+          console.log("sleeping right now");
+        }, 1000);
+      }
+      // setAppState(GAME_STATE.GAME);
       setGamestate(parseddata);
 
       console.log("all messages");
@@ -151,7 +166,7 @@ function App() {
       currSecret: secret,
     });
 
-    setInGame(true);
+    setAppState(GAME_STATE.LOBBY);
   }
 
   const startGame = () => {
@@ -163,6 +178,7 @@ function App() {
       },
       timestamp: new Date().toISOString(),
     };
+    setAppState(GAME_STATE.GAME);
     sendMessage(message);
   };
 
@@ -222,7 +238,7 @@ function App() {
   return (
     <>
       <div className="flex flex-col w-full h-full">
-        {!inGame && (
+        {appState === GAME_STATE.START && (
           <div className="flex flex-col items-center justify-center align-middle border rounded-md bg-fuchsia-200 border-input bg-background ring-offset-background">
             <div>
               <label>Lobby code: </label>
@@ -248,22 +264,43 @@ function App() {
             >
               Connect
             </button>
+          </div>
+        )}
+        {appState === GAME_STATE.LOBBY && (
+          <div>
+            {"current players listed here"}
             <button className="p-2 m-1 outline" onClick={startGame}>
               Start game
             </button>
           </div>
         )}
-        <div className="flex w-full bg-green-300 ">
-          {/* <div className="bg-green-300 "> */}
-          <div className="flex flex-col w-full p-4">
-            <div>
-              <h3>Played Cards</h3>
-
-              <CardArea
-                cards={gamestate.curr_played_cards}
-                playCard={playCard}
-              />
-
+        {appState === GAME_STATE.GAME && (
+          <div className="flex w-full bg-green-300">
+            <div className="flex flex-col w-full p-4">
+              {gamestate?.players &&
+                Object.entries(gamestate.players).map(([player, details]) => {
+                  if (player != username) {
+                    return (
+                      <div className="flex flex-col w-full">
+                        <label className="bg-orange-300 border border-solid">
+                          <b>{player}</b>
+                        </label>
+                        <ul>
+                          <li>Cards: {details.hand.length}</li>
+                          <li>Wins: {gamestate.wins[player]}</li>
+                          <li>Bids: {gamestate.bids[player]}</li>
+                        </ul>
+                      </div>
+                    );
+                  }
+                })}
+              <div className="bg-green-500">
+                <h3>Played Cards</h3>
+                <CardArea
+                  cards={gamestate ? gamestate.curr_played_cards : []}
+                  playCard={playCard}
+                />
+              </div>
               <div className="flex">
                 <div
                   className={`outline-4 m-2 w-full outline bg-slate-400 flex flex-col ${
@@ -311,71 +348,75 @@ function App() {
                 </div>
               </div>
             </div>
-          </div>
-          {/* </div> */}
-          {gamestate && gamestate.players && (
-            <div className="flex flex-col bg-orange-200 border border-solid rounded-md bg-background">
-              <div className="flex flex-col">
-                <h2>Game details</h2>
-                <label>TRUMP: {gamestate.trump}</label>
-                <label>Round: {gamestate.curr_round}</label>
-                <label>Player Turn: {gamestate.curr_player_turn}</label>
-                <ul className="flex flex-row space-x-2">
-                  <label>Player order:</label>
-                  {gamestate &&
-                    gamestate.player_order &&
-                    gamestate.player_order.map((playername) => {
-                      return (
-                        <li className="flex flex-row" key={playername}>
-                          <label
-                            className={
-                              playername === gamestate.curr_player_turn
-                                ? "bg-green-400"
-                                : ""
-                            }
-                          >
-                            {playername}
-                            {playername === gamestate.curr_player_turn
-                              ? "<-- "
-                              : ""}
-                          </label>
-                        </li>
-                      );
-                    })}
-                </ul>
-                <div>Dealer: {gamestate.curr_dealer}</div>
-                <div>
-                  Hands won: {gamestate.wins[username]}/
-                  {gamestate.bids[username] ?? "0"}
+            {/* </div> */}
+            {gamestate && gamestate.players && (
+              <div className="flex flex-col bg-orange-200 border border-solid rounded-md bg-background">
+                <div className="flex flex-col">
+                  <h2>Game details</h2>
+                  <label>TRUMP: {gamestate.trump}</label>
+                  <label>Round: {gamestate.curr_round}</label>
+                  <label>Player Turn: {gamestate.curr_player_turn}</label>
+                  <ul className="flex flex-row space-x-2">
+                    <label>Player order:</label>
+                    {gamestate &&
+                      gamestate.player_order &&
+                      gamestate.player_order.map((playername) => {
+                        return (
+                          <li className="flex flex-row" key={playername}>
+                            <label
+                              className={
+                                playername === gamestate.curr_player_turn
+                                  ? "bg-green-400"
+                                  : ""
+                              }
+                            >
+                              {playername}
+                              {playername === gamestate.curr_player_turn
+                                ? "<-- "
+                                : ""}
+                            </label>
+                          </li>
+                        );
+                      })}
+                  </ul>
+                  <div>Dealer: {gamestate.curr_dealer}</div>
+                  <div>
+                    Hands won: {gamestate.wins[username]}/
+                    {gamestate.bids[username] ?? "0"}
+                  </div>
+                  <label>
+                    Current hand #:{" "}
+                    {gamestate.wins[username]
+                      ? gamestate.wins[username] + 1
+                      : 0}
+                  </label>
+                  <label>
+                    Player bids:
+                    {gamestate.bids ? displayObject(gamestate.bids) : "No bids"}
+                  </label>
+                  <label>
+                    Player scores:
+                    {gamestate.bids
+                      ? displayObject(gamestate.score)
+                      : "No bids"}
+                  </label>
                 </div>
-                <label>
-                  Current hand #:{" "}
-                  {gamestate.wins[username] ? gamestate.wins[username] + 1 : 0}
-                </label>
-                <label>
-                  Player bids:
-                  {gamestate.bids ? displayObject(gamestate.bids) : "No bids"}
-                </label>
-                <label>
-                  Player scores:
-                  {gamestate.bids ? displayObject(gamestate.score) : "No bids"}
-                </label>
-              </div>
 
-              <div className="flex flex-col bg-cyan-200">
-                <h2>Hand details</h2>
-                <div>{displayObject(gamestate.trump)}</div>
-                <div>{displayObject(gamestate.system_status)}</div>
-                <div>
-                  wins:{" "}
-                  {gamestate.wins && gamestate.wins[username]
-                    ? displayObject(gamestate.wins[username])
-                    : "N/A"}
+                <div className="flex flex-col bg-cyan-200">
+                  <h2>Hand details</h2>
+                  <div>{displayObject(gamestate.trump)}</div>
+                  <div>{displayObject(gamestate.system_status)}</div>
+                  <div>
+                    wins:{" "}
+                    {gamestate.wins && gamestate.wins[username]
+                      ? displayObject(gamestate.wins[username])
+                      : "N/A"}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
         <button
           className="bg-red-500"
           onClick={() => {
@@ -385,7 +426,7 @@ function App() {
         >
           Enable debug mode
         </button>
-        {debug
+        {debug && gamestate
           ? Object.entries(gamestate.players).map(
               ([playername, playerdetails]) => {
                 console.log(
@@ -420,11 +461,14 @@ import Diamond from "./assets/diamond.svg";
 import Heart from "./assets/heart.svg";
 import Spade from "./assets/spade.svg";
 
-function CardArea({ cards, playCard }) {
+function CardArea({ cards = [], playCard }) {
+  console.log("jere/ cards", cards);
+  let sortedCards = cards.sort((a, b) => a.id - b.id);
+  console.log("jere/ sortedCards", sortedCards);
   return (
     <div className="flex flex-row justify-center space-x-2">
-      {cards
-        ? cards.map((card) => {
+      {sortedCards
+        ? sortedCards.map((card) => {
             return <Card key={card.id} card={card} playCard={playCard} />;
           })
         : ""}
@@ -434,6 +478,7 @@ function CardArea({ cards, playCard }) {
 
 function Card({ card, playCard }) {
   console.log("jere/ card: ", card);
+
   let suitDisplay = {
     spade: { src: Spade },
     diamond: { src: Diamond },
@@ -473,6 +518,89 @@ function Card({ card, playCard }) {
       </div>
     </>
   );
+}
+
+export interface Root {
+  bids: Bids;
+  curr_played_cards: CurrPlayedCard[];
+  curr_player_turn: string;
+  curr_round: number;
+  curr_winning_card: any;
+  dealing_order: string[];
+  deck: Deck[];
+  event_log: any[];
+  play_order: string[];
+  players: Players;
+  score: Score;
+  state: string;
+  system_status: any[];
+  trump: string;
+  wins: Wins;
+}
+
+export interface Bids {}
+
+export interface CurrPlayedCard {
+  id: number;
+  played_by: any;
+  suit: string;
+  value: number;
+}
+
+export interface Deck {
+  id: number;
+  played_by: any;
+  suit: string;
+  value: number;
+}
+
+export interface Players {
+  a: A;
+  q: Q;
+}
+
+export interface A {
+  hand: Hand[];
+  id: string;
+  order: number;
+  role: string;
+  round: number;
+  state: string;
+  trump: string;
+}
+
+export interface Hand {
+  id: number;
+  played_by: any;
+  suit: string;
+  value: number;
+}
+
+export interface Q {
+  hand: Hand2[];
+  id: string;
+  order: number;
+  role: string;
+  round: number;
+  state: string;
+  trump: string;
+}
+
+export interface Hand2 {
+  id: number;
+  played_by?: string;
+  suit: string;
+  value: number;
+}
+
+export interface Score {
+  a: number;
+  q: number;
+}
+
+export interface Wins {
+  a: number;
+  q: number;
 }
 
 export default App;
