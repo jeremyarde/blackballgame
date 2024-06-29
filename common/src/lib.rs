@@ -7,7 +7,6 @@ mod game;
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Deserialize)]
 pub enum GameplayState {
-    // Deal,
     Bid,
     Play,
     Pregame,
@@ -29,12 +28,7 @@ enum GameError {
 pub struct GameClient {
     pub id: String,
     pub hand: Vec<Card>,
-    pub order: i32,
-    pub trump: Suit,
-    pub round: i32,
-    // pub state: PlayerState,
     pub role: PlayerRole,
-    // pub sender: SplitSink<WebSocket, Message>, // don't need if we are using JS
 }
 
 impl fmt::Display for GameClient {
