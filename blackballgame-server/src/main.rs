@@ -21,6 +21,7 @@ use futures_util::stream::SplitSink;
 use futures_util::stream::SplitStream;
 use futures_util::SinkExt;
 use futures_util::StreamExt;
+use nanoid::nanoid_gen;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::json;
@@ -138,15 +139,6 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                         info!("Game already ongoing, joining");
                         created_new_game = false;
                         player_role = PlayerRole::Player;
-                        // tx_from_game_to_client = Some(
-                        //     state
-                        //         .room_broadcast_channel
-                        //         .lock()
-                        //         .await
-                        //         .get(&connect.channel)
-                        //         .unwrap()
-                        //         .clone(),
-                        // );
 
                         // if player name is chosen and secret
                         let saved_secret = gameserver.players_secrets.get(&connect.username);
@@ -218,7 +210,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                                     GameClient::new(connect.username.clone(), player_role),
                                 );
 
-                                let client_secret = format!("sky_{}", connect.username.clone());
+                                let client_secret = format!("sky_{}", nanoid_gen(8));
 
                                 gameserver
                                     .players_secrets
@@ -294,7 +286,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                             GameClient::new(connect.username.clone(), player_role),
                         );
                         // insert secret for reconnects
-                        let client_secret = format!("sky_{}", connect.username.clone());
+                        let client_secret = format!("sky_{}", nanoid_gen(8));
                         gameserver
                             .players_secrets
                             .insert(connect.username.clone(), client_secret.clone());
