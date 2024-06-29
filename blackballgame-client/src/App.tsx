@@ -8,7 +8,7 @@ const urlMap = {
   localNetwork: `ws://${window.location.href.split("http://")[1]}ws`,
 };
 
-const TEST = true;
+const TEST = false;
 const EXAMPLE_USERNAME = "a";
 
 const enum GAME_STATE {
@@ -23,6 +23,7 @@ function App() {
   const [lobbyCode, setLobbyCode] = useState("");
   const [secret, setSecret] = useState("");
   const [appState, setAppState] = useState(GAME_STATE.START);
+  const [playerHand, setPlayerHand] = useState([]);
 
   const [messages, setMessages] = useState([]);
   // const [hideState, setHideState] = useState(true);
@@ -51,6 +52,38 @@ function App() {
       ws.close();
     };
   }, [url]);
+
+  function xorEncryptDecrypt(data, key) {
+    console.log("xor function: ", data, key);
+    return data.map((byte, index) => byte ^ key.charCodeAt(index % key.length));
+  }
+
+  // when gamestate updates
+  useEffect(() => {
+    function decryptHand(ciphertext) {
+      console.log("Attempting to decrypt: ", ciphertext);
+      let encoder = new TextEncoder();
+
+      let base64_decoded = atob(ciphertext);
+
+      let secret_data = xorEncryptDecrypt(
+        encoder.encode(base64_decoded),
+        secret
+      );
+      const secretDataString = new TextDecoder().decode(secret_data);
+
+      return JSON.parse(secretDataString);
+    }
+
+    if (gamestate?.players && gamestate.players[username]) {
+      let playerdetails = gamestate.players[username];
+      console.log("jere/ playerdetails: ", playerdetails);
+      let hand = decryptHand(playerdetails.encrypted_hand);
+      console.log("set playing hand");
+      setPlayerHand(hand);
+      console.log("result of decrypt: ", hand);
+    }
+  }, [gamestate]);
 
   useEffect(() => {
     if (!ws) {
@@ -86,8 +119,18 @@ function App() {
       setMessages((prevMessages) => [...prevMessages, parseddata]);
 
       if (parseddata.players) {
-        let playerdetails = parseddata.players[username];
+        // let playerdetails = parseddata.players[username];
+        // console.log("jere/ playerdetails: ", playerdetails);
 
+        // // await decryptHand();
+        // let decryptedHand = decryptHand(
+        //   playerdetails.encrypted_hand,
+        //   playerdetails.nonce
+        // ).then((res) => {
+        //   console.log("jere/ decrypt result: ", res);
+        // });
+
+        // console.log("jere/ decrypted hand: ", decryptedHand);
         setGamestate(parseddata);
       }
 
@@ -312,11 +355,11 @@ function App() {
                   <h3>Your hand</h3>
                   <CardArea
                     cards={
-                      gamestate?.players &&
-                      gamestate.players[username] &&
-                      gamestate?.players[username].hand
-                        ? gamestate?.players[username].hand
-                        : []
+                      // gamestate?.players &&
+                      // gamestate.players[username] &&
+                      // gamestate?.players[username].hand
+                      //   ? gamestate?.players[username].hand
+                      playerHand ? playerHand : []
                     }
                     playCard={playCard}
                   />
@@ -325,22 +368,18 @@ function App() {
                       <>
                         <label>Bid</label>
                         <ol className="flex flex-row">
-                          {gamestate?.players &&
-                          gamestate.players[username] &&
-                          gamestate?.players[username].hand
-                            ? bids.map((i) => {
-                                return (
-                                  <li key={i}>
-                                    <button
-                                      className="w-24 h-10 border border-solid rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                      onClick={() => sendBid(i)}
-                                    >
-                                      {i}
-                                    </button>
-                                  </li>
-                                );
-                              })
-                            : "Failed"}
+                          {bids.map((i) => {
+                            return (
+                              <li key={i}>
+                                <button
+                                  className="w-24 h-10 border border-solid rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                  onClick={() => sendBid(i)}
+                                >
+                                  {i}
+                                </button>
+                              </li>
+                            );
+                          })}
                         </ol>
                       </>
                     </div>
@@ -426,6 +465,7 @@ function App() {
         >
           Enable debug mode
         </button>
+        {debug && gamestate && <div>{displayObject(gamestate)}</div>}
         {debug && gamestate
           ? Object.entries(gamestate.players).map(
               ([playername, playerdetails]) => {
@@ -462,6 +502,7 @@ import Heart from "./assets/heart.svg";
 import Spade from "./assets/spade.svg";
 
 function CardArea({ cards = [], playCard }) {
+  console.log("jere/ cards", cards);
   let sortedCards = cards.sort((a, b) => a.id - b.id);
   return (
     <div className="flex flex-row justify-center space-x-2">

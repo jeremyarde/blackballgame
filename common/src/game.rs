@@ -1,11 +1,9 @@
-use std::{collections::HashMap, fmt};
+use std::collections::HashMap;
 
-// use axum::extract::ws::{Message, WebSocket};
-// use bevy::utils::info;
+use data_encoding::BASE64;
 
-// use futures_util::stream::{SplitSink, SplitStream};
-use serde::{Deserialize, Serialize};
-// use tokio::sync::broadcast::Sender;
+use nanoid::nanoid_gen;
+use serde_json::json;
 use tracing::info;
 
 use crate::{
@@ -207,20 +205,52 @@ impl GameState {
         return self.get_state();
     }
 
-    pub fn get_state(&self) -> Self {
+    pub fn get_state(&mut self) -> Self {
+        for (key, player) in self.players.iter_mut() {
+            // let combined_key = format!(
+            //     "{}{}",
+            //     self.secret_key,
+            //     self.players_secrets.get(key).unwrap()
+            // );
+            // let key =
+            //     Key::<Aes256Gcm>::from_slice(self.players_secrets.get(key).unwrap().as_bytes());
+            let hand = player.hand.clone();
+            let plaintext_hand = json!(hand).to_string();
+            let player_secret = self.players_secrets.get(key).unwrap();
+            // let cipher = Aes256Gcm::new(&key);
+            // let nonce = Aes256Gcm::generate_nonce(&mut OsRng); // 96-bits; unique per message
+            // let ciphertext = cipher.encrypt(&nonce, plaintext_hand.as_bytes()).unwrap();
+            let encoded = xor_encrypt_decrypt(&plaintext_hand, player_secret);
+            // let secret_data = Engine::encode(encoded);
+            let secret_data = BASE64.encode(&encoded);
+
+            player.encrypted_hand = secret_data;
+            // player.nonce = nonce.to_vec();
+        }
+
         let mut cloned = self.clone();
-        cloned.deck = vec![];
+        // cloned.deck = vec![];
         // cloned.players = HashMap::new();
         cloned
     }
 
-    fn add_player(
+    pub fn add_player(
         &mut self,
         player_id: String,
         // rx: SplitStream<WebSocket>,
         // sender: SplitSink<WebSocket, Message>,
         role: PlayerRole,
     ) {
+        // self.players.insert(
+        //     connect.username.to_owned(),
+        //     GameClient::new(connect.username.clone(), player_role),
+        // );
+
+        let client_secret = format!("sky_{}", nanoid_gen(12));
+
+        self.players_secrets
+            .insert(player_id.clone(), client_secret.clone());
+
         self.players
             .insert(player_id.clone(), GameClient::new(player_id, role));
     }
@@ -485,8 +515,9 @@ impl GameState {
             system_status: vec![],
             players_secrets: HashMap::new(),
             curr_player_turn_idx: 0,
-            curr_dealer_idx: 0, // tx,
-                                // rx,
+            curr_dealer_idx: 0,
+            secret_key: "mysecretkey".to_string(), // tx,
+                                                   // rx,
         }
     }
 }
@@ -627,6 +658,14 @@ pub enum EventType {
 //     // PostRound,
 //     // PreRound,
 // }
+
+fn xor_encrypt_decrypt(data: &str, key: &str) -> Vec<u8> {
+    data.as_bytes()
+        .iter()
+        .zip(key.as_bytes().iter().cycle())
+        .map(|(d, k)| d ^ k)
+        .collect()
+}
 
 mod tests {
     use chrono::Utc;

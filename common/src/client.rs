@@ -11,8 +11,10 @@ impl GameClient {
             id,
             hand: vec![],
             role: role,
+            // encrypted_hand: vec![],
             encrypted_hand: String::new(),
             num_cards: 0,
+            // nonce: vec![],
         }
     }
 

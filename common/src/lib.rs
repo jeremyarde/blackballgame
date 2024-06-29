@@ -28,7 +28,9 @@ enum GameError {
 pub struct GameClient {
     pub id: String,
     pub hand: Vec<Card>,
+    // pub encrypted_hand: Vec<u8>,
     pub encrypted_hand: String,
+    // pub nonce: Vec<u8>,
     pub num_cards: i32,
     pub role: PlayerRole,
 }
@@ -41,6 +43,7 @@ impl fmt::Display for GameClient {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameState {
+    secret_key: String,
     pub players: HashMap<String, GameClient>,
     #[serde(skip)]
     pub players_secrets: HashMap<String, String>,

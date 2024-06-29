@@ -15,8 +15,6 @@ use axum_extra::TypedHeader;
 use common::GameClient;
 use common::GameMessage;
 use common::GameState;
-use futures_util::stream::SplitSink;
-use futures_util::stream::SplitStream;
 use futures_util::SinkExt;
 use futures_util::StreamExt;
 use nanoid::nanoid_gen;
@@ -131,15 +129,15 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                 let mut connected = false;
 
                 let game = match rooms.get_mut(&connect.channel) {
-                    Some(gameserver) => {
+                    Some(gamestate) => {
                         info!("Game already ongoing, joining");
                         created_new_game = false;
                         player_role = PlayerRole::Player;
 
                         // if player name is chosen and secret
-                        let saved_secret = gameserver.players_secrets.get(&connect.username);
+                        let saved_secret = gamestate.players_secrets.get(&connect.username);
                         match (
-                            gameserver.players.contains_key(&connect.username),
+                            gamestate.players.contains_key(&connect.username),
                             (saved_secret.is_some()
                                 && connect.secret.is_some()
                                 && saved_secret.unwrap().eq(&connect.secret.unwrap())),
@@ -201,16 +199,17 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                                 tx_from_game_to_client =
                                     Some(channels.get(&connect.channel).unwrap().clone());
 
-                                gameserver.players.insert(
-                                    connect.username.to_owned(),
-                                    GameClient::new(connect.username.clone(), player_role),
-                                );
+                                gamestate.add_player(connect.username.clone(), player_role);
+                                // gamestate.players.insert(
+                                //     connect.username.to_owned(),
+                                //     GameClient::new(connect.username.clone(), player_role),
+                                // );
 
-                                let client_secret = format!("sky_{}", nanoid_gen(8));
+                                // let client_secret = format!("sky_{}", nanoid_gen(12));
 
-                                gameserver
-                                    .players_secrets
-                                    .insert(connect.username.clone(), client_secret.clone());
+                                // gamestate
+                                //     .players_secrets
+                                //     .insert(connect.username.clone(), client_secret.clone());
 
                                 let _ = sender
                                     .send(Message::Text(
@@ -237,7 +236,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                             }
                         }
 
-                        gameserver
+                        gamestate
                     }
                     None => {
                         // this is not pretty
@@ -275,18 +274,13 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                             recv_channel = Some(lobby_reciever);
                         }
 
-                        let gameserver = rooms.get_mut(&connect.channel).unwrap();
+                        let gamestate = rooms.get_mut(&connect.channel).unwrap();
+                        gamestate.add_player(connect.username.clone(), player_role);
 
-                        gameserver.players.insert(
-                            connect.username.to_owned(),
-                            GameClient::new(connect.username.clone(), player_role),
-                        );
-                        // insert secret for reconnects
-                        let client_secret = format!("sky_{}", nanoid_gen(8));
-                        gameserver
-                            .players_secrets
-                            .insert(connect.username.clone(), client_secret.clone());
                         username = connect.username.clone();
+
+                        let client_secret =
+                            gamestate.players_secrets.get(&connect.username).unwrap();
 
                         let _ = sender
                             .send(Message::Text(
@@ -296,7 +290,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
 
                         connected = true;
 
-                        gameserver
+                        gamestate
                     }
                 };
 
