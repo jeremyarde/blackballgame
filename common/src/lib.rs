@@ -6,7 +6,7 @@ mod client;
 mod game;
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Deserialize)]
-pub enum GameState {
+pub enum GameplayState {
     // Deal,
     Bid,
     Play,
@@ -44,7 +44,7 @@ impl fmt::Display for GameClient {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GameServer {
+pub struct GameState {
     pub players: HashMap<String, GameClient>,
     pub players_secrets: HashMap<String, String>,
     pub deck: Vec<Card>,
@@ -67,7 +67,7 @@ pub struct GameServer {
     // bid_order: Vec<
     pub wins: HashMap<String, i32>,
     pub score: HashMap<String, i32>,
-    pub state: GameState,
+    pub state: GameplayState,
     // pub tx: broadcast::Sender<FullGameState>,
     pub event_log: Vec<GameMessage>,
     pub system_status: Vec<String>,

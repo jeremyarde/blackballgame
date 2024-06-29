@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use tracing::info;
 
 use crate::{
-    create_deck, Card, GameAction, GameClient, GameError, GameMessage, GameServer, GameState,
-    PlayerRole, Suit,
+    create_deck, Card, GameAction, GameClient, GameError, GameMessage, GameplayState,
+    GameplayState, PlayerRole, Suit,
 };
 
 /*
@@ -36,13 +36,13 @@ fn advance_player_turn(curr: &String, players: &Vec<String>) -> String {
     players[loc + 1].clone()
 }
 
-impl GameServer {
-    pub fn update_to_next_state(&mut self) -> GameState {
+impl GameplayState {
+    pub fn update_to_next_state(&mut self) -> GameplayState {
         let newstate = match self.state {
-            GameState::Bid => GameState::Play,
+            GameplayState::Bid => GameplayState::Play,
             // GameState::Play => GameState::PostRound,
-            GameState::Pregame => GameState::Bid,
-            GameState::Play => GameState::Bid,
+            GameplayState::Pregame => GameplayState::Bid,
+            GameplayState::Play => GameplayState::Bid,
             // GameState::PostRound => GameState::Bid,
             // GameState::PreRound => GameState::Bid,
         };
@@ -52,7 +52,7 @@ impl GameServer {
         self.state
     }
 
-    pub fn process_event_pregame(&mut self, event: GameMessage) -> Option<GameServer> {
+    pub fn process_event_pregame(&mut self, event: GameMessage) -> Option<GameplayState> {
         match event.message.action {
             // GameAction::PlayCard(_) => todo!(),
             // GameAction::Bid(_) => todo!(),
@@ -64,7 +64,7 @@ impl GameServer {
         Some(self.get_state())
     }
 
-    pub fn process_event_bid(&mut self, event: GameMessage) -> Option<GameServer> {
+    pub fn process_event_bid(&mut self, event: GameMessage) -> Option<GameplayState> {
         match event.message.action {
             GameAction::Bid(bid) => {
                 let res = self.update_bid(event.username.clone(), &bid);
@@ -90,7 +90,7 @@ impl GameServer {
         Some(self.get_state())
     }
 
-    pub fn process_event_play(&mut self, event: GameMessage) -> Option<GameServer> {
+    pub fn process_event_play(&mut self, event: GameMessage) -> Option<GameplayState> {
         let player_id = event.username.clone();
 
         match &event.message.action {
@@ -156,7 +156,7 @@ impl GameServer {
         events: Vec<GameMessage>,
         // sender: &Sender<GameServer>,
         // player_id: String,
-    ) -> GameServer {
+    ) -> GameplayState {
         info!("[TODO] Processing an event");
         self.event_log.extend(events.clone());
 
@@ -168,7 +168,7 @@ impl GameServer {
             }
 
             // check if its the player's turn
-            if self.state == GameState::Play
+            if self.state == GameplayState::Play
                 && event
                     .username
                     .ne(&self.curr_player_turn.clone().unwrap_or("".into()))
@@ -189,12 +189,12 @@ impl GameServer {
 
             let state = match self.state {
                 // Allow new players to join
-                GameState::Pregame => self.process_event_pregame(event),
+                GameplayState::Pregame => self.process_event_pregame(event),
                 // Get bids from all players
-                GameState::Bid => self.process_event_bid(event),
+                GameplayState::Bid => self.process_event_bid(event),
                 // Play cards starting with after dealer
                 // Get winner once everyones played and start again with winner of round
-                GameState::Play => self.process_event_play(event),
+                GameplayState::Play => self.process_event_play(event),
                 // Find winner after
                 // GameState::PostRound => self.process_postround(event),
             };
@@ -457,7 +457,7 @@ impl GameServer {
     pub fn new() -> Self {
         // let (tx, rx) = broadcast::channel(10);
 
-        GameServer {
+        GameplayState {
             players: HashMap::new(),
             deck: create_deck(),
             curr_round: 1,
@@ -468,7 +468,7 @@ impl GameServer {
             bid_order: Vec::new(),
             wins: HashMap::new(),
             score: HashMap::new(),
-            state: GameState::Pregame,
+            state: GameplayState::Pregame,
 
             // send and recieve here
             // tx: broadcast::channel(10).0,
@@ -630,7 +630,7 @@ mod tests {
     use crate::{
         create_deck,
         game::{advance_player_turn, find_winning_card, update_curr_player_from_bids},
-        Card, GameMessage, GameServer, GameState, PlayerRole, Suit,
+        Card, GameMessage, GameplayState, GameplayState, PlayerRole, Suit,
     };
 
     #[test]
@@ -781,7 +781,7 @@ mod tests {
         let PLAYER_ONE = "p1".to_string();
         let PLAYER_TWO = "p2".to_string();
 
-        let mut game = GameServer::new();
+        let mut game = GameplayState::new();
         game.add_player(PLAYER_ONE.clone(), PlayerRole::Leader);
         game.add_player(PLAYER_TWO.clone(), PlayerRole::Player);
 
@@ -860,7 +860,7 @@ mod tests {
 
         println!("Game details @Bid - Round 2: {:#?}", game.get_state());
 
-        assert_eq!(game.state, GameState::Bid);
+        assert_eq!(game.state, GameplayState::Bid);
         assert_eq!(has_first_turn, game.curr_dealer); // round 1 first player is now dealer
         assert_eq!(has_second_turn, game.curr_player_turn.clone().unwrap()); // round 1 second player is now going first
         assert_eq!(first_dealer, game.curr_player_turn.clone().unwrap()); // round 1 dealer goes first in round 2

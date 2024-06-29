@@ -9,7 +9,7 @@ use std::{
 };
 
 use chrono::Utc;
-use common::{Actioner, Connect, GameAction, GameEvent, GameMessage, GameServer};
+use common::{Actioner, Connect, GameAction, GameEvent, GameMessage, GameplayState};
 
 use serde_json::json;
 use tokio_tungstenite::tungstenite::{connect, Message};
@@ -21,7 +21,7 @@ struct AI {
     lobby: String,
 }
 
-fn get_bid(gamestate: &GameServer) -> GameAction {
+fn get_bid(gamestate: &GameplayState) -> GameAction {
     let round_num = gamestate.curr_round;
     let bid_total: i32 = gamestate.bids.values().sum();
     let total_players = gamestate.players.len();
@@ -37,7 +37,7 @@ fn get_bid(gamestate: &GameServer) -> GameAction {
 }
 
 impl AI {
-    fn create_action_from_user_input(&self, gamestate: &GameServer) -> GameAction {
+    fn create_action_from_user_input(&self, gamestate: &GameplayState) -> GameAction {
         let mut user_input = String::new();
         std::io::stdin().read_line(&mut user_input).unwrap();
         let mut input_chars = user_input.trim().chars().collect::<Vec<char>>();
@@ -88,7 +88,7 @@ impl AI {
         return action;
     }
 
-    fn handle_event(&self, username: String, gamestate: GameServer) -> Option<GameMessage> {
+    fn handle_event(&self, username: String, gamestate: GameplayState) -> Option<GameMessage> {
         let action = self.decide_action(&gamestate);
 
         if let Some(chosen) = action {
@@ -104,11 +104,11 @@ impl AI {
         return None;
     }
 
-    fn decide_action(&self, gamestate: &GameServer) -> Option<GameAction> {
+    fn decide_action(&self, gamestate: &GameplayState) -> Option<GameAction> {
         let action = match gamestate.state {
-            common::GameState::Bid => get_bid(&gamestate),
-            common::GameState::Pregame => return None,
-            common::GameState::Play => {
+            common::GameplayState::Bid => get_bid(&gamestate),
+            common::GameplayState::Pregame => return None,
+            common::GameplayState::Play => {
                 let player = gamestate.players.get(&self.username).unwrap();
                 GameAction::PlayCard(player.hand.get(0).unwrap().clone())
             }
@@ -173,7 +173,7 @@ fn main() {
 
     let res = socket.send(Message::Text(json!(connect_action).to_string()));
 
-    let mut gamestate: Option<GameServer> = None;
+    let mut gamestate: Option<GameplayState> = None;
     let mut num_error_status_messages = 0;
 
     loop {
@@ -184,7 +184,7 @@ fn main() {
         while let Ok(Message::Text(message)) = socket.read() {
             println!("Message recieved: {}", message);
 
-            match serde_json::from_str::<GameServer>(&message) {
+            match serde_json::from_str::<GameplayState>(&message) {
                 Ok(val) => {
                     info!("Setting gamestate");
                     // gamestate = Some(val.clone());

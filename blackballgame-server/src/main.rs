@@ -16,7 +16,7 @@ use chrono::DateTime;
 use chrono::Utc;
 use common::GameClient;
 use common::GameMessage;
-use common::GameServer;
+use common::GameplayState;
 use futures_util::stream::SplitSink;
 use futures_util::stream::SplitStream;
 use futures_util::SinkExt;
@@ -71,7 +71,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
     let mut lobby_code = String::new();
     let mut created_new_game = false;
     // let mut tx = None::<Sender<String>>;
-    let mut tx_from_game_to_client = None::<tokio::sync::broadcast::Sender<GameServer>>;
+    let mut tx_from_game_to_client = None::<tokio::sync::broadcast::Sender<GameplayState>>;
     let mut recv_channel: Option<tokio::sync::mpsc::Receiver<GameMessage>> = None;
 
     if socket.send(Message::Ping(vec![1, 2, 3])).await.is_ok() {
@@ -257,7 +257,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                             .await;
                         created_new_game = true;
                         player_role = PlayerRole::Leader;
-                        let server = GameServer::new();
+                        let server = GameplayState::new();
                         rooms.insert(connect.channel.clone(), server);
 
                         // channel that exists to transmit game state to each player
@@ -464,9 +464,9 @@ async fn root() -> &'static str {
 
 #[derive(Debug)]
 struct AppState {
-    rooms: Mutex<HashMap<String, GameServer>>,
+    rooms: Mutex<HashMap<String, GameplayState>>,
     // players: Mutex<HashMap<(String, String), SplitSink<WebSocket, axum::extract::ws::Message>>>, // gameid, playerid
-    room_broadcast_channel: Mutex<HashMap<String, tokio::sync::broadcast::Sender<GameServer>>>,
+    room_broadcast_channel: Mutex<HashMap<String, tokio::sync::broadcast::Sender<GameplayState>>>,
     lobby_to_game_channel_send: Mutex<HashMap<String, tokio::sync::mpsc::Sender<GameMessage>>>,
     // lobby_to_game_channel_recv: Mutex<HashMap<String, tokio::sync::mpsc::Receiver<GameMessage>>>,
     // lobby_message_queue
