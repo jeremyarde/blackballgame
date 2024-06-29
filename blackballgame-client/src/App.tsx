@@ -25,19 +25,14 @@ function App() {
   const [appState, setAppState] = useState(GAME_STATE.START);
 
   const [messages, setMessages] = useState([]);
-  const [hideState, setHideState] = useState(true);
+  // const [hideState, setHideState] = useState(true);
 
   const [url, setUrl] = useState(urlMap.local);
   const [ws, setWs] = useState<WebSocket | undefined>(undefined);
   const [gamestate, setGamestate] = useState(TEST ? EXAMPLE : undefined);
-  // const [gamestate, setGamestate] = useState();
 
-  // const [bid, setBid] = useState();
   const [connected, setConnected] = useState(false);
   const [debug, setDebug] = useState(false);
-
-  // const [handCards, setHandCards] = useState([]);
-  // const [playAreaCards, setPlayAreaCards] = useState([]);
 
   useEffect(() => {
     if (localStorage.getItem(USERNAME_KEY)) {
@@ -84,12 +79,8 @@ function App() {
       }
 
       setMessages((prevMessages) => [...prevMessages, parseddata]);
+      // checkIfStateChanged(parseddata);
 
-      if (gamestate && parseddata.state != gamestate.state) {
-        setTimeout(() => {
-          console.log("sleeping right now");
-        }, 1000);
-      }
       // setAppState(GAME_STATE.GAME);
       setGamestate(parseddata);
 
@@ -322,7 +313,7 @@ function App() {
                     }
                     playCard={playCard}
                   />
-                  {gamestate && gamestate.state == "Bid" && (
+                  {gamestate && gamestate.gameplay_state == "Bid" && (
                     <div className="flex justify-center m-4">
                       <>
                         <label>Bid</label>
@@ -464,9 +455,7 @@ import Heart from "./assets/heart.svg";
 import Spade from "./assets/spade.svg";
 
 function CardArea({ cards = [], playCard }) {
-  console.log("jere/ cards", cards);
   let sortedCards = cards.sort((a, b) => a.id - b.id);
-  console.log("jere/ sortedCards", sortedCards);
   return (
     <div className="flex flex-row justify-center space-x-2">
       {sortedCards
@@ -479,8 +468,6 @@ function CardArea({ cards = [], playCard }) {
 }
 
 function Card({ card, playCard }) {
-  console.log("jere/ card: ", card);
-
   let suitDisplay = {
     spade: { src: Spade },
     diamond: { src: Diamond },
@@ -522,7 +509,7 @@ function Card({ card, playCard }) {
   );
 }
 
-export interface Root {
+export interface GameState {
   bids: Bids;
   curr_played_cards: CurrPlayedCard[];
   curr_player_turn: string;
@@ -534,7 +521,7 @@ export interface Root {
   play_order: string[];
   players: Players;
   score: Score;
-  state: string;
+  gameplay_state: string;
   system_status: any[];
   trump: string;
   wins: Wins;

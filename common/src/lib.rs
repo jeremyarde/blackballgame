@@ -40,18 +40,22 @@ impl fmt::Display for GameClient {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameState {
     pub players: HashMap<String, GameClient>,
+    #[serde(skip)]
     pub players_secrets: HashMap<String, String>,
+    #[serde(skip)]
     pub deck: Vec<Card>,
     pub curr_round: i32,
     pub trump: Suit,
     pub player_order: Vec<String>,
     pub curr_played_cards: Vec<Card>,
     pub curr_player_turn: Option<String>,
+    #[serde(skip)]
     curr_player_turn_idx: usize,
     // #[serde(skip)]
     // pub curr_player_cycle: Cycle<String>,
     pub curr_winning_card: Option<Card>,
     curr_dealer: String,
+    #[serde(skip)]
     pub curr_dealer_idx: usize,
 
     // play_order: Vec<String>,
@@ -64,11 +68,8 @@ pub struct GameState {
     pub gameplay_state: GameplayState,
     // pub tx: broadcast::Sender<FullGameState>,
     pub event_log: Vec<GameMessage>,
-    pub system_status: Vec<String>,
-    // pub event_queue: Vec<GameEvent>,
-    // rx: broadcast::Receiver<String>,
-    //     tx: broadcast::Sender<String>,
-    //     rx: SplitStream<Message>,
+    // #[serde(skip)]
+    pub system_status: Vec<String>, // useful to tell players what is going wrong
 }
 
 pub fn create_deck() -> Vec<Card> {
