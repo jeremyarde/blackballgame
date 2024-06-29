@@ -39,14 +39,14 @@ use tracing_subscriber::EnvFilter;
 
 use common::PlayerRole;
 
-/// Shorthand for the transmit half of the message channel.
-type Tx = SplitSink<WebSocket, Message>;
+// /// Shorthand for the transmit half of the message channel.
+// type Tx = SplitSink<WebSocket, Message>;
 
-/// Shorthand for the receive half of the message channel.
-// type Rx = SplitSink<WebSocket, Message>;
-type Rx = SplitStream<WebSocket>;
+// /// Shorthand for the receive half of the message channel.
+// // type Rx = SplitSink<WebSocket, Message>;
+// type Rx = SplitStream<WebSocket>;
 
-type PeerMap = Arc<Mutex<HashMap<SocketAddr, Tx>>>;
+// type PeerMap = Arc<Mutex<HashMap<SocketAddr, Tx>>>;
 
 #[derive(Serialize)]
 struct ServerMessage {

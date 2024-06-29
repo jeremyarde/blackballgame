@@ -8,7 +8,7 @@ const urlMap = {
   localNetwork: `ws://${window.location.href.split("http://")[1]}ws`,
 };
 
-const TEST = false;
+const TEST = true;
 const EXAMPLE_USERNAME = "a";
 
 const enum GAME_STATE {
@@ -36,13 +36,13 @@ function App() {
 
   useEffect(() => {
     if (localStorage.getItem(USERNAME_KEY)) {
-      setUsername(localStorage.getItem(USERNAME_KEY));
+      setUsername(localStorage.getItem(USERNAME_KEY) || "");
     }
     if (localStorage.getItem(LOBBYCODE_KEY)) {
-      setLobbyCode(localStorage.getItem(LOBBYCODE_KEY));
+      setLobbyCode(localStorage.getItem(LOBBYCODE_KEY) || "");
     }
     if (localStorage.getItem(SECRET_KEY)) {
-      setSecret(localStorage.getItem(SECRET_KEY));
+      setSecret(localStorage.getItem(SECRET_KEY) || "");
     }
 
     const ws = new WebSocket(url);
@@ -71,6 +71,11 @@ function App() {
         console.log("setting secret value", parseddata.client_secret);
         setSecret(parseddata.client_secret);
 
+        console.log("setting connection details in onmessage: ", {
+          currLobbyCode: lobbyCode,
+          currUsername: username,
+          currSecret: parseddata.client_secret,
+        });
         setConnectionDetails({
           currLobbyCode: lobbyCode,
           currUsername: username,
@@ -79,10 +84,12 @@ function App() {
       }
 
       setMessages((prevMessages) => [...prevMessages, parseddata]);
-      // checkIfStateChanged(parseddata);
 
-      // setAppState(GAME_STATE.GAME);
-      setGamestate(parseddata);
+      if (parseddata.players) {
+        let playerdetails = parseddata.players[username];
+
+        setGamestate(parseddata);
+      }
 
       console.log("all messages");
       console.log(messages);

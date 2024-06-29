@@ -6,24 +6,13 @@ use tracing::info;
 use crate::{Card, GameClient, PlayerRole, Suit};
 
 impl GameClient {
-    pub fn new(
-        id: String,
-        // sender: SplitSink<WebSocket, Message>,
-        role: PlayerRole,
-    ) -> Self {
-        // let (tx, rx) = mpsc::unbounded_channel();
-
+    pub fn new(id: String, role: PlayerRole) -> Self {
         GameClient {
             id,
-            // state: PlayerState::Idle,
             hand: vec![],
-            // order: 0,
-            // round: 0,
-            // trump: Suit::Heart,
-            role: PlayerRole::Player,
-            // rx: rx,
-            // tx: tx,
-            // sender,
+            role: role,
+            encrypted_hand: String::new(),
+            num_cards: 0,
         }
     }
 
@@ -43,11 +32,6 @@ impl GameClient {
         for (i, card) in valid_choices.iter().enumerate() {
             info!("{}: {}", i, card);
         }
-
-        // this should probably just grab an event from the queue and check if its the right player
-        // io::stdin()
-        //     .read_line(&mut input)
-        //     .expect("error: unable to read user input");
 
         let mut parse_result = input.trim().parse::<i32>();
         while parse_result.is_err()

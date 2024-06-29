@@ -28,6 +28,8 @@ enum GameError {
 pub struct GameClient {
     pub id: String,
     pub hand: Vec<Card>,
+    pub encrypted_hand: String,
+    pub num_cards: i32,
     pub role: PlayerRole,
 }
 
