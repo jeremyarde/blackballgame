@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use tracing::info;
 
 use crate::{
-    create_deck, Card, GameAction, GameClient, GameError, GameMessage, GameplayState,
-    GameplayState, PlayerRole, Suit,
+    create_deck, Card, GameAction, GameClient, GameError, GameMessage, GameState, GameplayState,
+    PlayerRole, Suit,
 };
 
 /*
@@ -36,9 +36,9 @@ fn advance_player_turn(curr: &String, players: &Vec<String>) -> String {
     players[loc + 1].clone()
 }
 
-impl GameplayState {
+impl GameState {
     pub fn update_to_next_state(&mut self) -> GameplayState {
-        let newstate = match self.state {
+        let newstate = match self.gameplay_state {
             GameplayState::Bid => GameplayState::Play,
             // GameState::Play => GameState::PostRound,
             GameplayState::Pregame => GameplayState::Bid,
@@ -47,12 +47,16 @@ impl GameplayState {
             // GameState::PreRound => GameState::Bid,
         };
 
-        tracing::info!("=== Transition: {:?} -> {:?} ===", self.state, newstate);
-        self.state = newstate;
-        self.state
+        tracing::info!(
+            "=== Transition: {:?} -> {:?} ===",
+            self.gameplay_state,
+            newstate
+        );
+        self.gameplay_state = newstate;
+        self.gameplay_state
     }
 
-    pub fn process_event_pregame(&mut self, event: GameMessage) -> Option<GameplayState> {
+    pub fn process_event_pregame(&mut self, event: GameMessage) -> Option<GameState> {
         match event.message.action {
             // GameAction::PlayCard(_) => todo!(),
             // GameAction::Bid(_) => todo!(),
@@ -64,7 +68,7 @@ impl GameplayState {
         Some(self.get_state())
     }
 
-    pub fn process_event_bid(&mut self, event: GameMessage) -> Option<GameplayState> {
+    pub fn process_event_bid(&mut self, event: GameMessage) -> Option<GameState> {
         match event.message.action {
             GameAction::Bid(bid) => {
                 let res = self.update_bid(event.username.clone(), &bid);
@@ -90,7 +94,7 @@ impl GameplayState {
         Some(self.get_state())
     }
 
-    pub fn process_event_play(&mut self, event: GameMessage) -> Option<GameplayState> {
+    pub fn process_event_play(&mut self, event: GameMessage) -> Option<GameState> {
         let player_id = event.username.clone();
 
         match &event.message.action {
@@ -156,7 +160,7 @@ impl GameplayState {
         events: Vec<GameMessage>,
         // sender: &Sender<GameServer>,
         // player_id: String,
-    ) -> GameplayState {
+    ) -> GameState {
         info!("[TODO] Processing an event");
         self.event_log.extend(events.clone());
 
@@ -168,7 +172,7 @@ impl GameplayState {
             }
 
             // check if its the player's turn
-            if self.state == GameplayState::Play
+            if self.gameplay_state == GameplayState::Play
                 && event
                     .username
                     .ne(&self.curr_player_turn.clone().unwrap_or("".into()))
@@ -187,7 +191,7 @@ impl GameplayState {
                 continue;
             }
 
-            let state = match self.state {
+            let state = match self.gameplay_state {
                 // Allow new players to join
                 GameplayState::Pregame => self.process_event_pregame(event),
                 // Get bids from all players
@@ -457,7 +461,7 @@ impl GameplayState {
     pub fn new() -> Self {
         // let (tx, rx) = broadcast::channel(10);
 
-        GameplayState {
+        GameState {
             players: HashMap::new(),
             deck: create_deck(),
             curr_round: 1,
@@ -468,7 +472,7 @@ impl GameplayState {
             bid_order: Vec::new(),
             wins: HashMap::new(),
             score: HashMap::new(),
-            state: GameplayState::Pregame,
+            gameplay_state: GameplayState::Pregame,
 
             // send and recieve here
             // tx: broadcast::channel(10).0,
@@ -630,7 +634,7 @@ mod tests {
     use crate::{
         create_deck,
         game::{advance_player_turn, find_winning_card, update_curr_player_from_bids},
-        Card, GameMessage, GameplayState, GameplayState, PlayerRole, Suit,
+        Card, GameMessage, GameState, GameplayState, PlayerRole, Suit,
     };
 
     #[test]
@@ -781,7 +785,7 @@ mod tests {
         let PLAYER_ONE = "p1".to_string();
         let PLAYER_TWO = "p2".to_string();
 
-        let mut game = GameplayState::new();
+        let mut game = GameState::new();
         game.add_player(PLAYER_ONE.clone(), PlayerRole::Leader);
         game.add_player(PLAYER_TWO.clone(), PlayerRole::Player);
 

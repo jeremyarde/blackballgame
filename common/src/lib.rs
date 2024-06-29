@@ -61,7 +61,7 @@ pub struct GameState {
     // bid_order: Vec<
     pub wins: HashMap<String, i32>,
     pub score: HashMap<String, i32>,
-    pub state: GameplayState,
+    pub gameplay_state: GameplayState,
     // pub tx: broadcast::Sender<FullGameState>,
     pub event_log: Vec<GameMessage>,
     pub system_status: Vec<String>,
