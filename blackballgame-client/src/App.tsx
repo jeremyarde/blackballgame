@@ -328,7 +328,7 @@ function App() {
                             <b>{player}</b>
                           </label>
                           <ul>
-                            <li>Cards: {details.hand.length}</li>
+                            <li>Cards: {details.num_cards}</li>
                             <li>Wins: {gamestate.wins[player]}</li>
                             <li>Bids: {gamestate.bids[player]}</li>
                           </ul>
@@ -456,7 +456,7 @@ function App() {
             )}
           </div>
         )}
-        <button
+        {/* <button
           className="bg-red-500"
           onClick={() => {
             console.log(debug);
@@ -489,7 +489,7 @@ function App() {
                 );
               }
             )
-          : ""}
+          : ""} */}
       </div>
     </>
   );

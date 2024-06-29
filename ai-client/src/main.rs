@@ -1,5 +1,5 @@
 use std::{
-    io,
+    env, io,
     sync::{
         mpsc::{self, Receiver},
         Arc, Mutex,
@@ -63,7 +63,8 @@ impl AI {
             }
             'p' => {
                 info!("Requesting to play a card");
-                let cards = &gamestate.players.get(&self.username).unwrap().hand;
+                let cards = &gamestate.get_hand(&self.username);
+
                 let cardindex = input_chars[1].to_digit(10).unwrap() as usize;
 
                 if cardindex > cards.len() {
@@ -110,7 +111,9 @@ impl AI {
             common::GameplayState::Pregame => return None,
             common::GameplayState::Play => {
                 let player = gamestate.players.get(&self.username).unwrap();
-                GameAction::PlayCard(player.hand.get(0).unwrap().clone())
+                let cards = gamestate.get_hand(&self.username);
+                info!("Cards: {:?}", cards);
+                GameAction::PlayCard(cards.get(0).unwrap().clone())
             }
         };
         Some(action)
@@ -118,6 +121,12 @@ impl AI {
 }
 
 fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    let secret = &args.get(1);
+
+    println!("Starting using secret {secret:?}");
+
     tracing_subscriber::fmt()
         // .with_env_filter(
         //     EnvFilter::from_default_env().add_directive("ai-client=debug".parse().unwrap()),
@@ -165,10 +174,21 @@ fn main() {
     let _ = socket.send(Message::Pong(vec![1, 2, 3]));
     sleep(Duration::from_secs(2));
 
-    let connect_action = Connect {
-        username: username.clone(),
-        channel: channel,
-        secret: Some("sky_ai".to_string()), // secret: None
+    // let connect_secret =  if secret.is_some() {Some()} else{None};
+
+    let connect_action = if secret.is_some() {
+        Connect {
+            username: username.clone(),
+            channel: channel,
+            // secret: Some("sky_ai".to_string()),
+            secret: Some(secret.unwrap().clone()),
+        }
+    } else {
+        Connect {
+            username: username.clone(),
+            channel: channel,
+            secret: None,
+        }
     };
 
     let res = socket.send(Message::Text(json!(connect_action).to_string()));

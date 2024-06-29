@@ -241,11 +241,6 @@ impl GameState {
         // sender: SplitSink<WebSocket, Message>,
         role: PlayerRole,
     ) {
-        // self.players.insert(
-        //     connect.username.to_owned(),
-        //     GameClient::new(connect.username.clone(), player_role),
-        // );
-
         let client_secret = format!("sky_{}", nanoid_gen(12));
 
         self.players_secrets
@@ -487,6 +482,17 @@ impl GameState {
     //     //     "Could not advance dealer",
     //     // )));
     // }
+
+    // pub fn decrypt_hand(&self, username: String) -> Vec<Card> {
+    //     let client = self.players.get(&username).unwrap();
+    //     client.h
+
+    //     return vec![];
+    // }
+
+    pub fn get_hand(&self, username: &String) -> Vec<Card> {
+        return self.players.get(username).unwrap().hand.clone();
+    }
 
     pub fn new() -> Self {
         // let (tx, rx) = broadcast::channel(10);
