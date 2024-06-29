@@ -864,7 +864,7 @@ mod tests {
 
         println!("Game details @Bid - Round 2: {:#?}", game.get_state());
 
-        assert_eq!(game.state, GameplayState::Bid);
+        assert_eq!(game.gameplay_state, GameplayState::Bid);
         assert_eq!(has_first_turn, game.curr_dealer); // round 1 first player is now dealer
         assert_eq!(has_second_turn, game.curr_player_turn.clone().unwrap()); // round 1 second player is now going first
         assert_eq!(first_dealer, game.curr_player_turn.clone().unwrap()); // round 1 dealer goes first in round 2
