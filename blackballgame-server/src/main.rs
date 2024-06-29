@@ -200,16 +200,8 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                                     Some(channels.get(&connect.channel).unwrap().clone());
 
                                 gamestate.add_player(connect.username.clone(), player_role);
-                                // gamestate.players.insert(
-                                //     connect.username.to_owned(),
-                                //     GameClient::new(connect.username.clone(), player_role),
-                                // );
-
-                                // let client_secret = format!("sky_{}", nanoid_gen(12));
-
-                                // gamestate
-                                //     .players_secrets
-                                //     .insert(connect.username.clone(), client_secret.clone());
+                                let client_secret =
+                                    gamestate.players_secrets.get(&connect.username).unwrap();
 
                                 let _ = sender
                                     .send(Message::Text(
