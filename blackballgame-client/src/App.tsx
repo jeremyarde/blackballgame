@@ -3,10 +3,12 @@ import "./App.css";
 import React from "react";
 import { EXAMPLE, LOBBYCODE_KEY, SECRET_KEY, USERNAME_KEY } from "./constant";
 
-const urlMap = {
-  local: "ws://127.0.0.1:8080/ws",
-  localNetwork: `ws://${window.location.href.split("http://")[1]}ws`,
-};
+// const urlMap = {
+//   local: "ws://127.0.0.1:8080/ws",
+//   localNetwork: `ws://${window.location.host}${
+//     import.meta.env.MODE === "development" ? ":8080" : ""
+//   }/ws`,
+// };
 
 const TEST = false;
 const EXAMPLE_USERNAME = "a";
@@ -17,7 +19,12 @@ const enum GAME_STATE {
   START,
 }
 
+const ws_url = `ws://${window.location.hostname}${
+  import.meta.env.MODE === "development" ? ":8080" : ""
+}/ws`;
+
 function App() {
+  console.log(`Mode: ${import.meta.env.MODE}`);
   // connection to server state
   const [username, setUsername] = useState(TEST ? EXAMPLE_USERNAME : "");
   const [lobbyCode, setLobbyCode] = useState("");
@@ -28,7 +35,7 @@ function App() {
   const [messages, setMessages] = useState([]);
   // const [hideState, setHideState] = useState(true);
 
-  const [url, setUrl] = useState(urlMap.local);
+  const [url, setUrl] = useState(ws_url);
   const [ws, setWs] = useState<WebSocket | undefined>(undefined);
   const [gamestate, setGamestate] = useState(TEST ? EXAMPLE : undefined);
 
@@ -46,6 +53,7 @@ function App() {
       setSecret(localStorage.getItem(SECRET_KEY) || "");
     }
 
+    console.log("Connecting to WS at ", url);
     const ws = new WebSocket(url);
     setWs(ws);
     return () => {

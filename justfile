@@ -13,6 +13,7 @@ lint:
     earthly --no-sat +lint
 
 docker:
+    just buildfe
     earthly --no-sat +docker
 
 push:
