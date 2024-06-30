@@ -19,6 +19,7 @@ use tracing_subscriber::{fmt::format::FmtSpan, util::SubscriberInitExt};
 struct AI {
     username: String,
     lobby: String,
+    secret_key: String,
 }
 
 fn get_bid(gamestate: &GameState) -> GameAction {
@@ -63,7 +64,15 @@ impl AI {
             }
             'p' => {
                 info!("Requesting to play a card");
-                let cards = &gamestate.get_hand(&self.username);
+                let cards = GameState::get_hand(
+                    gamestate
+                        .players
+                        .get(&self.username)
+                        .unwrap()
+                        .encrypted_hand
+                        .clone(),
+                    &self.username,
+                );
 
                 let cardindex = input_chars[1].to_digit(10).unwrap() as usize;
 
@@ -111,7 +120,15 @@ impl AI {
             common::GameplayState::Pregame => return None,
             common::GameplayState::Play => {
                 let player = gamestate.players.get(&self.username).unwrap();
-                let cards = gamestate.get_hand(&self.username);
+                let cards = GameState::get_hand(
+                    gamestate
+                        .players
+                        .get(&self.username)
+                        .unwrap()
+                        .encrypted_hand
+                        .clone(),
+                    &self.secret_key,
+                );
                 info!("Cards: {:?}", cards);
                 GameAction::PlayCard(cards.get(0).unwrap().clone())
             }
@@ -168,6 +185,7 @@ fn main() {
     let ai = AI {
         username: username.clone(),
         lobby: channel.clone(),
+        secret_key: String::new(),
     };
 
     let (mut socket, response) = connect("ws://localhost:3000/ws").expect("Can't connect");

@@ -456,42 +456,13 @@ impl GameState {
             "Could not advance dealer",
         )));
     }
-    // fn advance_dealer_v2(
-    //     curr_dealer_idx: usize,
-    //     player_order: &Vec<String>,
-    //     curr_dealer: &String,
-    // ) -> usize {
-    //     if curr_dealer_idx - 1 == player_order.len() {
-    //         return 0;
-    //     }
 
-    //     for (i, player) in player_order.iter().enumerate() {
-    //         if player.eq(curr_dealer) {
-    //             // next dealer is person after this
-    //             let nextdealer = match player_order.get(i + 1) {
-    //                 Some(x) => x,
-    //                 None => &player_order[0],
-    //             };
-    //             // curr_dealer = nextdealer.clone();
-    //             return nextdealer.clone();
-    //         }
-    //     }
-
-    //     return curr_dealer.clone();
-    //     // return Err(GameError::InternalIssue(String::from(
-    //     //     "Could not advance dealer",
-    //     // )));
-    // }
-
-    // pub fn decrypt_hand(&self, username: String) -> Vec<Card> {
-    //     let client = self.players.get(&username).unwrap();
-    //     client.h
-
-    //     return vec![];
-    // }
-
-    pub fn get_hand(&self, username: &String) -> Vec<Card> {
-        return self.players.get(username).unwrap().hand.clone();
+    pub fn get_hand(encrypted_hand: String, secret_key: &String) -> Vec<Card> {
+        let hand = BASE64.decode(encrypted_hand.as_bytes()).unwrap();
+        let str_hand = String::from_utf8(hand).unwrap();
+        let secret_data = xor_encrypt_decrypt(&str_hand, &secret_key);
+        let actual_hand: Vec<Card> = serde_json::from_slice(&secret_data).unwrap();
+        return actual_hand;
     }
 
     pub fn new() -> Self {

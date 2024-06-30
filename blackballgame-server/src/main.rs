@@ -440,8 +440,23 @@ async fn ws_handler(
     ws.on_upgrade(move |socket| handle_socket(socket, addr, state))
 }
 
-async fn root() -> &'static str {
-    "Hello, World"
+async fn admin_page(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let test = state
+        .rooms
+        .lock()
+        .await
+        .iter()
+        .map(|(roomid, gamestate)| {
+            return format!("{} has {} players", roomid, gamestate.players.len());
+        })
+        .collect::<Vec<String>>();
+
+    let rooms = if test.len() > 0 {
+        test.join("\n")
+    } else {
+        "No rooms".to_string()
+    };
+    return format!("Rooms:\n{}", rooms);
 }
 
 #[derive(Debug)]
@@ -490,6 +505,7 @@ async fn main() {
         // .fallback_service(ServeDir::new(assets_dir).append_index_html_on_directories(true))
         // .route("/", get(root))
         .route("/ws", get(ws_handler))
+        .route("/admin", get(admin_page))
         .nest_service(
             "/",
             ServeDir::new(assets_dir)
