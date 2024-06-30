@@ -4,10 +4,15 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+use axum::body::Body;
 use axum::extract::ConnectInfo;
+use axum::extract::Path;
 use axum::extract::State;
+use axum::http::header;
 use axum::http::Method;
+use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use axum::response::Response;
 use axum::routing::get;
 use axum::Router;
 use axum_extra::headers;
@@ -17,6 +22,10 @@ use common::GameMessage;
 use common::GameState;
 use futures_util::SinkExt;
 use futures_util::StreamExt;
+use include_dir::Dir;
+use include_dir::File;
+use mime_guess::mime;
+use mime_guess::Mime;
 use nanoid::nanoid_gen;
 use serde::Deserialize;
 use serde::Serialize;
@@ -45,6 +54,12 @@ use common::PlayerRole;
 // type Rx = SplitStream<WebSocket>;
 
 // type PeerMap = Arc<Mutex<HashMap<SocketAddr, Tx>>>;
+
+static FRONTEND_DIR: Dir = include_dir::include_dir!("$CARGO_MANIFEST_DIR/dist");
+
+const ROOT: &str = "";
+const DEFAULT_FILES: [&str; 1] = ["index.html"];
+const NOT_FOUND: &str = "404.html";
 
 #[derive(Serialize)]
 struct ServerMessage {
@@ -469,6 +484,78 @@ struct AppState {
     // lobby_message_queue
 }
 
+async fn serve_asset(path: Option<Path<String>>) -> impl IntoResponse {
+    info!("Attempting to serve file: {:?}", path);
+    let serve_file =
+        |file: &File, mime_type: Option<Mime>, cache: Duration, code: Option<StatusCode>| {
+            Response::builder()
+                .status(code.unwrap_or(StatusCode::OK))
+                .header(
+                    header::CONTENT_TYPE,
+                    mime_type.unwrap_or(mime::TEXT_HTML).to_string(),
+                )
+                .header(
+                    header::CACHE_CONTROL,
+                    format!("max-age={}", cache.as_secs_f32()),
+                )
+                .body(Body::from(file.contents().to_owned()))
+                .unwrap()
+        };
+
+    let serve_not_found = || match FRONTEND_DIR.get_file(NOT_FOUND) {
+        Some(file) => serve_file(file, None, Duration::ZERO, Some(StatusCode::NOT_FOUND)),
+        None => Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .body(Body::from("File Not Found"))
+            .unwrap(),
+    };
+
+    let serve_default = |path: &str| {
+        info!("Serving default: {}", path);
+        for default_file in DEFAULT_FILES.iter() {
+            let default_file_path = PathBuf::from(path).join(default_file);
+
+            if FRONTEND_DIR.get_file(default_file_path.clone()).is_some() {
+                return serve_file(
+                    FRONTEND_DIR.get_file(default_file_path).unwrap(),
+                    None,
+                    Duration::ZERO,
+                    None,
+                );
+            }
+        }
+
+        serve_not_found()
+    };
+
+    match path {
+        Some(Path(path)) => {
+            if path == ROOT {
+                return serve_default(&path);
+            }
+
+            FRONTEND_DIR.get_file(&path).map_or_else(
+                || match FRONTEND_DIR.get_dir(&path) {
+                    Some(_) => serve_default(&path),
+                    None => serve_not_found(),
+                },
+                |file| {
+                    let mime_type =
+                        mime_guess::from_path(PathBuf::from(path.clone())).first_or_octet_stream();
+                    let cache = if mime_type == mime::TEXT_HTML {
+                        Duration::ZERO
+                    } else {
+                        Duration::from_secs(60 * 60 * 24)
+                    };
+
+                    serve_file(file, Some(mime_type), cache, None)
+                },
+            )
+        }
+        None => serve_not_found(),
+    }
+}
+
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
@@ -501,15 +588,20 @@ async fn main() {
     });
 
     let app = Router::new()
-        // `GET /` goes to `root`
-        // .fallback_service(ServeDir::new(assets_dir).append_index_html_on_directories(true))
-        // .route("/", get(root))
         .route("/ws", get(ws_handler))
+        .route("/health", get(|| async { "ok" }))
         .route("/admin", get(admin_page))
-        .nest_service(
+        // .nest_service(
+        //     "/",
+        //     ServeDir::new(assets_dir)
+        //         .fallback(ServeFile::new("blackballgame-server/dist/index.html")),
+        .route(
+            "/*path",
+            get(|path| async { serve_asset(Some(path)).await }),
+        )
+        .route(
             "/",
-            ServeDir::new(assets_dir)
-                .fallback(ServeFile::new("blackballgame-server/assets/index.html")),
+            get(|| async { serve_asset(Some(Path("index.html".to_string()))).await }),
         )
         .layer(cors)
         // .route("/ui".get(ServeDir::new(assets_dir).append_index_html_on_directories(true)))
@@ -517,7 +609,9 @@ async fn main() {
         .with_state(serverstate);
 
     // run our app with hyper, listening globally on port 3000
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let port = "0.0.0.0:8080";
+    info!("Serving application on {}", port);
+    let listener = tokio::net::TcpListener::bind(port).await.unwrap();
     axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),

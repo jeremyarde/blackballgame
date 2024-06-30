@@ -4,7 +4,7 @@ import React from "react";
 import { EXAMPLE, LOBBYCODE_KEY, SECRET_KEY, USERNAME_KEY } from "./constant";
 
 const urlMap = {
-  local: "ws://127.0.0.1:3000/ws",
+  local: "ws://127.0.0.1:8080/ws",
   localNetwork: `ws://${window.location.href.split("http://")[1]}ws`,
 };
 

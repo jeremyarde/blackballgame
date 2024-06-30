@@ -29,23 +29,6 @@ struct AppProps {
 }
 
 fn main() {
-    // Init logger
-    // let setup_client = async {
-    //     info!("Creating new client");
-    //     let client = reqwest::Client::default()
-    //         .get("ws://127.0.0.1:3000/ws")
-    //         .upgrade()
-    //         .send()
-    //         .await
-    //         .unwrap()
-    //         .into_websocket()
-    //         .await
-    //         .unwrap();
-
-    //     let (mut tx, mut rx) = client.split();
-    //     return (tx, rx);
-    // };
-
     dioxus_logger::init(Level::INFO).expect("failed to init logger");
     // LaunchBuilder::with_context_provider(
     //     App,
@@ -104,10 +87,9 @@ fn App() -> Element {
         // return ws;
     });
 
-    rsx!(Game {
-        rx: recv_socket,
-        tx: send_socket
-    })
+    rsx!(
+        Game { rx: recv_socket, tx: send_socket }
+    )
 }
 
 #[component]
@@ -181,7 +163,7 @@ fn Game(
         if recv_socket.read().is_none() || send_socket.read().is_none() {
             info!("Creating new client");
             let client = reqwest::Client::default()
-                .get("ws://127.0.0.1:3000/ws")
+                .get("ws://127.0.0.1:8080/ws")
                 .upgrade()
                 .send()
                 .await

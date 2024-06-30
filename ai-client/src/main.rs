@@ -188,7 +188,7 @@ fn main() {
         secret_key: String::new(),
     };
 
-    let (mut socket, response) = connect("ws://localhost:3000/ws").expect("Can't connect");
+    let (mut socket, response) = connect("ws://0.0.0.0:8080/ws").expect("Can't connect");
     let _ = socket.send(Message::Pong(vec![1, 2, 3]));
     sleep(Duration::from_secs(2));
 

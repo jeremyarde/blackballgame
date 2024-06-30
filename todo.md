@@ -1,0 +1,4 @@
+- don't allow starting game with less than 2 people
+- show lobbies you can join
+- private/public lobbies
+- show players in your lobby
