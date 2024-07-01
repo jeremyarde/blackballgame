@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+use admin::app_endpoint;
 use axum::body::Body;
 use axum::extract::ConnectInfo;
 use axum::extract::Path;
@@ -20,6 +21,8 @@ use axum_extra::TypedHeader;
 use common::GameClient;
 use common::GameMessage;
 use common::GameState;
+use dioxus::prelude::DioxusRouterExt;
+use dioxus::prelude::ServeConfig;
 use futures_util::SinkExt;
 use futures_util::StreamExt;
 use include_dir::Dir;
@@ -46,14 +49,7 @@ use tracing_subscriber::EnvFilter;
 
 use common::PlayerRole;
 
-// /// Shorthand for the transmit half of the message channel.
-// type Tx = SplitSink<WebSocket, Message>;
-
-// /// Shorthand for the receive half of the message channel.
-// // type Rx = SplitSink<WebSocket, Message>;
-// type Rx = SplitStream<WebSocket>;
-
-// type PeerMap = Arc<Mutex<HashMap<SocketAddr, Tx>>>;
+mod admin;
 
 static FRONTEND_DIR: Dir = include_dir::include_dir!("$CARGO_MANIFEST_DIR/dist");
 
@@ -455,25 +451,6 @@ async fn ws_handler(
     ws.on_upgrade(move |socket| handle_socket(socket, addr, state))
 }
 
-async fn admin_page(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let test = state
-        .rooms
-        .lock()
-        .await
-        .iter()
-        .map(|(roomid, gamestate)| {
-            return format!("{} has {} players", roomid, gamestate.players.len());
-        })
-        .collect::<Vec<String>>();
-
-    let rooms = if test.len() > 0 {
-        test.join("\n")
-    } else {
-        "No rooms".to_string()
-    };
-    return format!("Rooms:\n{}", rooms);
-}
-
 #[derive(Debug)]
 struct AppState {
     rooms: Mutex<HashMap<String, GameState>>,
@@ -590,7 +567,9 @@ async fn main() {
     let app = Router::new()
         .route("/ws", get(ws_handler))
         .route("/health", get(|| async { "ok" }))
-        .route("/admin", get(admin_page))
+        .route("/admin", get(app_endpoint))
+        // .serve_dioxus_application(ServeConfig::builder().build(), app_endpoint)
+        .serve_dioxus_application(ServeConfig::builder().build(), app_endpoint)
         // .nest_service(
         //     "/",
         //     ServeDir::new(assets_dir)
