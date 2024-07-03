@@ -1,14 +1,22 @@
 use std::sync::Arc;
 
-use axum::{extract::State, response::Html};
+use axum::{
+    extract::{Path, State},
+    response::{Html, IntoResponse},
+};
 use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
-use crate::AppState;
+use crate::websocket::AppState;
 
 #[axum::debug_handler]
-pub async fn app_endpoint(State(state): State<Arc<AppState>>) -> Html<String> {
-    // let mut user_name = use_signal(|| "?".to_string());
+pub async fn app_endpoint(
+    Path(action): Path<String>,
+    State(state): State<Arc<AppState>>,
+) -> impl IntoResponse {
+    // let games = state.rooms.lock().await.clone();
+    // return Ok(json!({games: games} ));
 
     let test = state
         .rooms
@@ -27,24 +35,7 @@ pub async fn app_endpoint(State(state): State<Arc<AppState>>) -> Html<String> {
     };
     let text = format!("Rooms:\n{}", rooms);
 
-    // render the rsx! macro to HTML
-    Html(dioxus_ssr::render_element(rsx! {
-        div { "{text}" }
-        div {
-            input {
-                // onchange: move |evt| user_name.set(evt.value()),
-                // value: "{user_name}"
-            }
-            button {
-                onclick: move |_| {
-                    async move {
-                        post_server_data(String::from("Hi from client")).await.unwrap();
-                    }
-                },
-                "Login Test User"
-            }
-        }
-    }))
+    text
 }
 
 #[server]

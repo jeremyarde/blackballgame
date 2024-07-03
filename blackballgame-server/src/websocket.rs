@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::RwLock;
 use std::time::Duration;
 
 use axum::body::Body;
@@ -49,8 +50,20 @@ use tracing_subscriber::EnvFilter;
 
 use common::PlayerRole;
 
+pub type SharedState = Arc<RwLock<AppState>>;
+
+#[derive(Debug)]
+pub struct AppState {
+    pub rooms: Mutex<HashMap<String, GameState>>,
+    // players: Mutex<HashMap<(String, String), SplitSink<WebSocket, axum::extract::ws::Message>>>, // gameid, playerid
+    pub room_broadcast_channel: Mutex<HashMap<String, tokio::sync::broadcast::Sender<GameState>>>,
+    pub lobby_to_game_channel_send: Mutex<HashMap<String, tokio::sync::mpsc::Sender<GameMessage>>>,
+    // lobby_to_game_channel_recv: Mutex<HashMap<String, tokio::sync::mpsc::Receiver<GameMessage>>>,
+    // lobby_message_queue
+}
+
 #[derive(Serialize)]
-struct ServerMessage {
+pub struct ServerMessage {
     message: String,
     from: String,
 }
@@ -426,7 +439,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
     }
 }
 
-async fn ws_handler(
+pub async fn ws_handler(
     ws: WebSocketUpgrade,
     user_agent: Option<TypedHeader<headers::UserAgent>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
@@ -441,14 +454,4 @@ async fn ws_handler(
     // finalize the upgrade process by returning upgrade callback.
     // we can customize the callback by sending additional info such as address.
     ws.on_upgrade(move |socket| handle_socket(socket, addr, state))
-}
-
-#[derive(Debug)]
-struct AppState {
-    rooms: Mutex<HashMap<String, GameState>>,
-    // players: Mutex<HashMap<(String, String), SplitSink<WebSocket, axum::extract::ws::Message>>>, // gameid, playerid
-    room_broadcast_channel: Mutex<HashMap<String, tokio::sync::broadcast::Sender<GameState>>>,
-    lobby_to_game_channel_send: Mutex<HashMap<String, tokio::sync::mpsc::Sender<GameMessage>>>,
-    // lobby_to_game_channel_recv: Mutex<HashMap<String, tokio::sync::mpsc::Receiver<GameMessage>>>,
-    // lobby_message_queue
 }

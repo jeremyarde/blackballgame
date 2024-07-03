@@ -14,6 +14,7 @@ use axum::http::Method;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Response;
+use axum::routing::delete;
 use axum::routing::get;
 use axum::Router;
 use axum_extra::headers;
@@ -40,6 +41,7 @@ use tower_http::cors::Any;
 use tower_http::cors::CorsLayer;
 use tower_http::services::ServeDir;
 use tower_http::services::ServeFile;
+use tower_http::validate_request::ValidateRequestHeaderLayer;
 use tracing::info;
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
@@ -48,6 +50,9 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::EnvFilter;
 
 use common::PlayerRole;
+use websocket::ws_handler;
+use websocket::AppState;
+use websocket::SharedState;
 
 mod admin;
 mod websocket;
@@ -164,11 +169,12 @@ async fn main() {
     let app = Router::new()
         .route("/ws", get(ws_handler))
         .route("/health", get(|| async { "ok" }))
-        .route("/admin", get(app_endpoint))
+        .nest("/admin", admin_routes())
         // .nest_service(
         //     "/",
         //     ServeDir::new(assets_dir)
         //         .fallback(ServeFile::new("blackballgame-server/dist/index.html")),
+        // .serve_dioxus_application(ServeConfig::builder().build())
         .route(
             "/*path",
             get(|path| async { serve_asset(Some(path)).await }),
@@ -180,7 +186,8 @@ async fn main() {
         .layer(cors)
         // .route("/ui".get(ServeDir::new(assets_dir).append_index_html_on_directories(true)))
         // .route("/game", get(Game))
-        .with_state(serverstate);
+        .with_state(serverstate)
+        .with_state(state);
 
     // run our app with hyper, listening globally on port 3000
     let port = "0.0.0.0:8080";
@@ -192,4 +199,20 @@ async fn main() {
     )
     .await
     .unwrap();
+}
+
+fn admin_routes() -> Router<SharedState> {
+    // async fn delete_all_keys(State(state): State<AppState>) {
+    //     state.write().unwrap().db.clear();
+    // }
+
+    // async fn remove_key(Path(key): Path<String>, State(state): State<AppState>) {
+    //     state.write().unwrap().db.remove(&key);
+    // }
+
+    Router::new()
+        // .route("/keys", delete(delete_all_keys))
+        // .route("/key/:key", delete(remove_key))
+        // Require bearer auth for all admin routes
+        .layer(ValidateRequestHeaderLayer::bearer("secret-token"))
 }
