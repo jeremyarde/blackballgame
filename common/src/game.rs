@@ -84,15 +84,18 @@ impl GameState {
                 let res = self.update_bid(event.username.clone(), &bid);
 
                 if res.is_ok() {
-                    self.curr_player_turn = Some(advance_player_turn(
-                        &self.curr_player_turn.clone().unwrap(),
-                        &self.player_order,
-                    ));
+                    self.advance_player_turn(None);
                 }
 
                 if self.is_bidding_over() {
-                    // need to update who plays next based on the bids
-                    self.curr_player_turn = Some(update_curr_player_from_bids(&self.bid_order));
+                    let mut curr_highest_bid = self.bid_order[0].clone();
+                    for (player, bid) in self.bid_order.iter() {
+                        if bid > &curr_highest_bid.1 {
+                            curr_highest_bid = (player.to_string(), *bid);
+                        }
+                    }
+                    self.advance_player_turn(Some(curr_highest_bid.0));
+
                     self.update_to_next_state();
                 }
             }
@@ -149,6 +152,7 @@ impl GameState {
                             self.trump.clone(),
                         ));
 
+                        // self.curr_player_turn_idx = advance_player_turn(curr, players)
                         self.curr_player_turn = Some(advance_player_turn(
                             &self.curr_player_turn.clone().unwrap(),
                             &self.player_order,
@@ -193,13 +197,11 @@ impl GameState {
             }
 
             // check if its the player's turn
-            match (
-                &self.gameplay_state,
-                event
-                    .username
-                    .ne(&self.curr_player_turn.clone().unwrap_or("".into())),
-            ) {
-                (GameplayState::Play(ps), true) => {
+            match (event
+                .username
+                .ne(&self.curr_player_turn.clone().unwrap_or("".into())))
+            {
+                false => {
                     info!(
                         "{}'s turn, not {}'s turn.",
                         self.curr_player_turn.clone().unwrap(),
@@ -213,7 +215,7 @@ impl GameState {
                     // continue because we have multiple messages
                     continue;
                 }
-                (_, _) => (),
+                (_) => (),
             }
 
             match &self.gameplay_state {
@@ -275,12 +277,38 @@ impl GameState {
         if let Some(x) = self.wins.get_mut(&winner) {
             *x += 1;
         }
+
         self.curr_player_turn = Some(winner); // person who won the hand plays first next hand
     }
 
     pub fn start_next_hand(&mut self) {
         self.curr_played_cards = vec![];
         self.curr_winning_card = None;
+    }
+
+    pub fn advance_player_turn(&mut self, next_curr_player: Option<String>) {
+        if next_curr_player.is_none() {
+            self.curr_player_turn_idx += 1;
+
+            if self.curr_player_turn_idx >= self.player_order.len() {
+                self.curr_player_turn_idx = 0;
+            }
+            self.curr_player_turn = Some(
+                self.player_order
+                    .get(self.curr_player_turn_idx)
+                    .unwrap()
+                    .clone(),
+            );
+            return;
+        }
+
+        for (i, player) in self.player_order.iter().enumerate() {
+            if player.eq(&next_curr_player.clone().unwrap()) {
+                self.curr_player_turn = next_curr_player;
+                self.curr_player_turn_idx = i;
+                return;
+            }
+        }
     }
 
     pub fn start_next_round(&mut self) {
@@ -513,19 +541,19 @@ impl GameState {
     }
 }
 
-fn update_curr_player_from_bids(bid_order: &Vec<(String, i32)>) -> String {
-    info!(
-        "{}",
-        format!("Finding first player based on bid. Bids: {:?}", bid_order)
-    );
-    let mut curr_highest_bid = bid_order[0].clone();
-    for (player, bid) in bid_order.iter() {
-        if bid > &curr_highest_bid.1 {
-            curr_highest_bid = (player.to_string(), *bid);
-        }
-    }
-    curr_highest_bid.0
-}
+// fn update_curr_player_from_bids(bid_order: &Vec<(String, i32)>) -> String {
+//     info!(
+//         "{}",
+//         format!("Finding first player based on bid. Bids: {:?}", bid_order)
+//     );
+//     let mut curr_highest_bid = bid_order[0].clone();
+//     for (player, bid) in bid_order.iter() {
+//         if bid > &curr_highest_bid.1 {
+//             curr_highest_bid = (player.to_string(), *bid);
+//         }
+//     }
+//     curr_highest_bid.0
+// }
 
 fn find_winning_card(curr_played_cards: Vec<Card>, trump: Suit) -> Card {
     // scenarios for current played card
@@ -805,7 +833,7 @@ mod tests {
             username: PLAYER_ONE.clone(),
             message: crate::GameEvent {
                 action: crate::GameAction::StartGame,
-                origin: crate::Actioner::Player(PLAYER_ONE.clone()),
+                // origin: crate::Actioner::Player(PLAYER_ONE.clone()),
             },
             timestamp: Utc::now(),
         }]);
@@ -821,25 +849,27 @@ mod tests {
         assert_eq!(game.curr_player_turn.clone().unwrap(), has_first_turn);
         assert_eq!(game.gameplay_state, GameplayState::Bid);
 
-        game.process_event(vec![
-            GameMessage {
-                username: has_first_turn.clone(),
-                message: crate::GameEvent {
-                    action: crate::GameAction::Bid(0),
-                    origin: crate::Actioner::Player(has_first_turn.clone()),
-                },
-                timestamp: Utc::now(),
+        game.process_event(vec![GameMessage {
+            username: has_first_turn.clone(),
+            message: crate::GameEvent {
+                action: crate::GameAction::Bid(0),
+                // origin: crate::Actioner::Player(has_first_turn.clone()),
             },
-            GameMessage {
-                username: has_second_turn.clone(),
-                message: crate::GameEvent {
-                    action: crate::GameAction::Bid(0),
-                    origin: crate::Actioner::Player(has_second_turn.clone()),
-                },
-                timestamp: Utc::now(),
-            },
-        ]);
+            timestamp: Utc::now(),
+        }]);
+        assert_eq!(game.curr_player_turn.clone().unwrap(), has_second_turn);
 
+        game.process_event(vec![GameMessage {
+            username: has_second_turn.clone(),
+            message: crate::GameEvent {
+                action: crate::GameAction::Bid(0),
+                // origin: crate::Actioner::Player(has_second_turn.clone()),
+            },
+            timestamp: Utc::now(),
+        }]);
+
+        // first player that bid 0 goes first because both bid 0
+        assert_eq!(game.curr_player_turn.clone().unwrap(), has_first_turn);
         assert_eq!(
             game.gameplay_state,
             GameplayState::Play(crate::PlayState::new())
@@ -852,36 +882,43 @@ mod tests {
             .unwrap()
             .hand
             .first()
-            .unwrap();
+            .unwrap()
+            .clone();
         let p2_card = game
             .players
             .get(&has_second_turn)
             .unwrap()
             .hand
             .first()
-            .unwrap();
+            .unwrap()
+            .clone();
 
-        game.process_event(vec![
-            GameMessage {
-                username: has_first_turn.clone(),
-                message: crate::GameEvent {
-                    action: crate::GameAction::PlayCard(p1_card.clone()),
-                    origin: crate::Actioner::Player(has_first_turn.clone()),
-                },
-                timestamp: Utc::now(),
+        game.process_event(vec![GameMessage {
+            username: has_first_turn.clone(),
+            message: crate::GameEvent {
+                action: crate::GameAction::PlayCard(p1_card.clone()),
+                // origin: crate::Actioner::Player(has_first_turn.clone()),
             },
-            GameMessage {
-                username: has_second_turn.clone(),
-                message: crate::GameEvent {
-                    action: crate::GameAction::PlayCard(p2_card.clone()),
-                    origin: crate::Actioner::Player(has_second_turn.clone()),
-                },
-                timestamp: Utc::now(),
+            timestamp: Utc::now(),
+        }]);
+
+        assert_eq!(game.curr_player_turn.clone().unwrap(), has_second_turn);
+        assert_eq!(game.curr_played_cards.len(), 1);
+        assert_eq!(
+            *game.curr_played_cards.first().clone().unwrap(),
+            p1_card.clone()
+        );
+
+        game.process_event(vec![GameMessage {
+            username: has_second_turn.clone(),
+            message: crate::GameEvent {
+                action: crate::GameAction::PlayCard(p2_card.clone()),
+                // origin: crate::Actioner::Player(has_second_turn.clone()),
             },
-        ]);
+            timestamp: Utc::now(),
+        }]);
 
-        // println!("Game details @Bid - Round 2: {:#?}", game.get_state());
-
+        println!("Game details @Bid - Round 2: {:#?}", game.get_state());
         assert_eq!(game.gameplay_state, GameplayState::PostRound);
         assert_eq!(game.curr_played_cards.len(), 2);
 
@@ -890,7 +927,7 @@ mod tests {
             username: has_first_turn.clone(),
             message: crate::GameEvent {
                 action: crate::GameAction::Deal,
-                origin: crate::Actioner::Player(has_first_turn.clone()),
+                // origin: crate::Actioner::Player(has_first_turn.clone()),
             },
             timestamp: Utc::now(),
         }]);

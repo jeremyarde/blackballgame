@@ -132,7 +132,7 @@ pub struct Connect {
 #[serde(rename_all = "lowercase")]
 pub struct GameEvent {
     pub action: GameAction,
-    pub origin: Actioner,
+    // pub origin: Actioner,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
