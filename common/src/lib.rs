@@ -5,13 +5,28 @@ use std::{collections::HashMap, fmt, iter::Cycle};
 mod client;
 mod game;
 
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Deserialize)]
 pub enum GameplayState {
     Bid,
-    Play,
+    Play(PlayState),
     Pregame,
-    // PostRound,
-    // PreRound,
+    PostRound,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Deserialize)]
+pub struct PlayState {
+    hand_num: usize,
+}
+
+impl PlayState {
+    fn new() -> PlayState {
+        return PlayState { hand_num: 1 };
+    }
+    fn from(new_hand_num: usize) -> PlayState {
+        return PlayState {
+            hand_num: new_hand_num.try_into().unwrap(),
+        };
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,9 +44,7 @@ pub struct GameClient {
     pub id: String,
     #[serde(skip)]
     hand: Vec<Card>, // we don't want everyone getting this information
-    // pub encrypted_hand: Vec<u8>,
     pub encrypted_hand: String,
-    // pub nonce: Vec<u8>,
     pub num_cards: i32,
     pub role: PlayerRole,
 }
@@ -57,22 +70,15 @@ pub struct GameState {
     pub curr_player_turn: Option<String>,
     #[serde(skip)]
     curr_player_turn_idx: usize,
-    // #[serde(skip)]
-    // pub curr_player_cycle: Cycle<String>,
     pub curr_winning_card: Option<Card>,
     curr_dealer: String,
     #[serde(skip)]
     pub curr_dealer_idx: usize,
-
-    // play_order: Vec<String>,
-    // dealer_id: i32,
     pub bids: HashMap<String, i32>,
     pub bid_order: Vec<(String, i32)>,
-    // bid_order: Vec<
     pub wins: HashMap<String, i32>,
     pub score: HashMap<String, i32>,
     pub gameplay_state: GameplayState,
-    // pub tx: broadcast::Sender<FullGameState>,
     pub event_log: Vec<GameMessage>,
     // #[serde(skip)]
     pub system_status: Vec<String>, // useful to tell players what is going wrong

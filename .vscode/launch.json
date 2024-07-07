@@ -1,0 +1,138 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'blackballgame-server'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=blackballgame-server",
+                    "--package=blackballgame-server"
+                ],
+                "filter": {
+                    "name": "blackballgame-server",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'blackballgame-server'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=blackballgame-server",
+                    "--package=blackballgame-server"
+                ],
+                "filter": {
+                    "name": "blackballgame-server",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'common'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=common"
+                ],
+                "filter": {
+                    "name": "common",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'ai-client'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=ai-client",
+                    "--package=ai-client"
+                ],
+                "filter": {
+                    "name": "ai-client",
+                    "kind": "bin"
+                }
+            },
+            "args": ["sky_z65lyit51sm4"],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'ai-client'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=ai-client",
+                    "--package=ai-client"
+                ],
+                "filter": {
+                    "name": "ai-client",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'bb-admin'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=bb-admin",
+                    "--package=bb-admin"
+                ],
+                "filter": {
+                    "name": "bb-admin",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'bb-admin'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=bb-admin",
+                    "--package=bb-admin"
+                ],
+                "filter": {
+                    "name": "bb-admin",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

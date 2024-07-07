@@ -64,14 +64,14 @@ impl AI {
             }
             'p' => {
                 info!("Requesting to play a card");
-                let cards = GameState::get_hand(
+                let cards = GameState::get_hand_from_encrypted(
                     gamestate
                         .players
                         .get(&self.username)
                         .unwrap()
                         .encrypted_hand
                         .clone(),
-                    &self.username,
+                    &self.secret_key,
                 );
 
                 let cardindex = input_chars[1].to_digit(10).unwrap() as usize;
@@ -120,7 +120,7 @@ impl AI {
             common::GameplayState::Pregame => return None,
             common::GameplayState::Play => {
                 let player = gamestate.players.get(&self.username).unwrap();
-                let cards = GameState::get_hand(
+                let cards = GameState::get_hand_from_encrypted(
                     gamestate
                         .players
                         .get(&self.username)
@@ -185,7 +185,11 @@ fn main() {
     let ai = AI {
         username: username.clone(),
         lobby: channel.clone(),
-        secret_key: String::new(),
+        secret_key: if secret.is_some() {
+            secret.unwrap().clone()
+        } else {
+            String::new()
+        },
     };
 
     let (mut socket, response) = connect("ws://0.0.0.0:8080/ws").expect("Can't connect");

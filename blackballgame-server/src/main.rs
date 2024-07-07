@@ -169,12 +169,6 @@ async fn main() {
     let app = Router::new()
         .route("/ws", get(ws_handler))
         .route("/health", get(|| async { "ok" }))
-        .nest("/admin", admin_routes())
-        // .nest_service(
-        //     "/",
-        //     ServeDir::new(assets_dir)
-        //         .fallback(ServeFile::new("blackballgame-server/dist/index.html")),
-        // .serve_dioxus_application(ServeConfig::builder().build())
         .route(
             "/*path",
             get(|path| async { serve_asset(Some(path)).await }),
@@ -186,8 +180,7 @@ async fn main() {
         .layer(cors)
         // .route("/ui".get(ServeDir::new(assets_dir).append_index_html_on_directories(true)))
         // .route("/game", get(Game))
-        .with_state(serverstate)
-        .with_state(state);
+        .with_state(serverstate);
 
     // run our app with hyper, listening globally on port 3000
     let port = "0.0.0.0:8080";
@@ -199,20 +192,4 @@ async fn main() {
     )
     .await
     .unwrap();
-}
-
-fn admin_routes() -> Router<SharedState> {
-    // async fn delete_all_keys(State(state): State<AppState>) {
-    //     state.write().unwrap().db.clear();
-    // }
-
-    // async fn remove_key(Path(key): Path<String>, State(state): State<AppState>) {
-    //     state.write().unwrap().db.remove(&key);
-    // }
-
-    Router::new()
-        // .route("/keys", delete(delete_all_keys))
-        // .route("/key/:key", delete(remove_key))
-        // Require bearer auth for all admin routes
-        .layer(ValidateRequestHeaderLayer::bearer("secret-token"))
 }

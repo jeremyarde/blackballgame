@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{any, collections::HashMap};
 
 use data_encoding::BASE64;
 
@@ -8,15 +8,8 @@ use tracing::info;
 
 use crate::{
     create_deck, Card, GameAction, GameClient, GameError, GameMessage, GameState, GameplayState,
-    PlayerRole, Suit,
+    PlayState, PlayerRole, Suit,
 };
-
-/*
-THINGS TO FIX
-1. fix dealer not updating nicely
-2. Player who bid most not needing to go first
-3. Errors for game related things should be an enum
-*/
 
 fn advance_player_turn(curr: &String, players: &Vec<String>) -> String {
     let mut loc = 0;
@@ -36,13 +29,17 @@ fn advance_player_turn(curr: &String, players: &Vec<String>) -> String {
 
 impl GameState {
     pub fn update_to_next_state(&mut self) -> GameplayState {
-        let newstate = match self.gameplay_state {
-            GameplayState::Bid => GameplayState::Play,
-            // GameState::Play => GameState::PostRound,
+        let newstate = match &self.gameplay_state {
+            GameplayState::Bid => GameplayState::Play(PlayState::new()),
             GameplayState::Pregame => GameplayState::Bid,
-            GameplayState::Play => GameplayState::Bid,
-            // GameState::PostRound => GameState::Bid,
-            // GameState::PreRound => GameState::Bid,
+            GameplayState::Play(ps) => {
+                if ps.hand_num >= self.curr_round.try_into().unwrap() {
+                    return GameplayState::PostRound;
+                }
+                self.gameplay_state = GameplayState::Play(PlayState::from(ps.hand_num + 1));
+                return self.gameplay_state.clone();
+            }
+            GameplayState::PostRound => GameplayState::Bid,
         };
 
         tracing::info!(
@@ -50,8 +47,21 @@ impl GameState {
             self.gameplay_state,
             newstate
         );
-        self.gameplay_state = newstate;
-        self.gameplay_state
+        self.transition_state(newstate.clone());
+        self.gameplay_state = newstate.clone();
+        self.gameplay_state.clone()
+    }
+
+    fn transition_state(&mut self, newstate: GameplayState) {
+        match newstate {
+            GameplayState::Play(ps) => {
+                self.curr_played_cards = vec![];
+                self.curr_winning_card = None;
+            }
+            GameplayState::Bid => {}
+            GameplayState::Pregame => {}
+            GameplayState::PostRound => {}
+        }
     }
 
     pub fn process_event_pregame(&mut self, event: GameMessage) -> Option<GameState> {
@@ -83,6 +93,19 @@ impl GameState {
                     self.curr_player_turn = Some(update_curr_player_from_bids(&self.bid_order));
                     self.update_to_next_state();
                 }
+            }
+            _ => {
+                // None;
+            }
+        }
+
+        Some(self.get_state())
+    }
+
+    pub fn process_event_postround(&mut self, event: GameMessage) -> Option<GameState> {
+        match event.message.action {
+            GameAction::Deal => {
+                self.start_next_round();
             }
             _ => {
                 // None;
@@ -145,10 +168,12 @@ impl GameState {
             self.end_hand();
         }
 
-        // if all hands have been played, then we can end the round
-        if self.wins.values().sum::<i32>() == self.curr_round {
-            self.end_round();
-        }
+        // // if all hands have been played, then we can end the round
+        // if self.wins.values().sum::<i32>() == self.curr_round {
+        //     self.update_to_next_state();
+        // }
+
+        self.update_to_next_state();
 
         Some(self.get_state())
     }
@@ -170,35 +195,38 @@ impl GameState {
             }
 
             // check if its the player's turn
-            if self.gameplay_state == GameplayState::Play
-                && event
+            match (
+                &self.gameplay_state,
+                event
                     .username
-                    .ne(&self.curr_player_turn.clone().unwrap_or("".into()))
-            {
-                info!(
-                    "{}'s turn, not {}'s turn.",
-                    self.curr_player_turn.clone().unwrap(),
-                    event.username
-                );
-                self.broadcast_message(format!(
-                    "{}'s turn, not {}'s turn.",
-                    self.curr_player_turn.clone().unwrap(),
-                    event.username
-                ));
-                // continue because we have multiple messages
-                continue;
+                    .ne(&self.curr_player_turn.clone().unwrap_or("".into())),
+            ) {
+                (GameplayState::Play(ps), true) => {
+                    info!(
+                        "{}'s turn, not {}'s turn.",
+                        self.curr_player_turn.clone().unwrap(),
+                        event.username
+                    );
+                    self.broadcast_message(format!(
+                        "{}'s turn, not {}'s turn.",
+                        self.curr_player_turn.clone().unwrap(),
+                        event.username
+                    ));
+                    // continue because we have multiple messages
+                    continue;
+                }
+                (_, _) => (),
             }
 
-            let state = match self.gameplay_state {
+            match &self.gameplay_state {
                 // Allow new players to join
                 GameplayState::Pregame => self.process_event_pregame(event),
                 // Get bids from all players
                 GameplayState::Bid => self.process_event_bid(event),
                 // Play cards starting with after dealer
                 // Get winner once everyones played and start again with winner of round
-                GameplayState::Play => self.process_event_play(event),
-                // Find winner after
-                // GameState::PostRound => self.process_postround(event),
+                GameplayState::Play(ps) => self.process_event_play(event),
+                GameplayState::PostRound => self.process_event_postround(event),
             };
         }
 
@@ -207,21 +235,10 @@ impl GameState {
 
     pub fn get_state(&mut self) -> Self {
         for (key, player) in self.players.iter_mut() {
-            // let combined_key = format!(
-            //     "{}{}",
-            //     self.secret_key,
-            //     self.players_secrets.get(key).unwrap()
-            // );
-            // let key =
-            //     Key::<Aes256Gcm>::from_slice(self.players_secrets.get(key).unwrap().as_bytes());
             let hand = player.hand.clone();
             let plaintext_hand = json!(hand).to_string();
             let player_secret = self.players_secrets.get(key).unwrap();
-            // let cipher = Aes256Gcm::new(&key);
-            // let nonce = Aes256Gcm::generate_nonce(&mut OsRng); // 96-bits; unique per message
-            // let ciphertext = cipher.encrypt(&nonce, plaintext_hand.as_bytes()).unwrap();
             let encoded = xor_encrypt_decrypt(&plaintext_hand, player_secret);
-            // let secret_data = Engine::encode(encoded);
             let secret_data = BASE64.encode(&encoded);
 
             player.encrypted_hand = secret_data;
@@ -229,8 +246,6 @@ impl GameState {
         }
 
         let mut cloned = self.clone();
-        // cloned.deck = vec![];
-        // cloned.players = HashMap::new();
         cloned
     }
 
@@ -263,13 +278,18 @@ impl GameState {
             *x += 1;
         }
 
-        self.curr_played_cards = vec![];
-        self.curr_winning_card = None;
+        // self.curr_played_cards = vec![];
+        // self.curr_winning_card = None;
         // self.bid_order = vec![];
         self.curr_player_turn = Some(winner); // person who won the hand plays first next hand
     }
 
-    pub fn end_round(&mut self) {
+    pub fn start_next_hand(&mut self) {
+        self.curr_played_cards = vec![];
+        self.curr_winning_card = None;
+    }
+
+    pub fn start_next_round(&mut self) {
         tracing::info!("Bids won: {:#?}\nBids wanted: {:#?}", self.wins, self.bids);
         for (player_id, player) in self.players.iter_mut() {
             // let player = self.players.get_mut(player_id).unwrap();
@@ -457,7 +477,7 @@ impl GameState {
         )));
     }
 
-    pub fn get_hand(encrypted_hand: String, secret_key: &String) -> Vec<Card> {
+    pub fn get_hand_from_encrypted(encrypted_hand: String, secret_key: &String) -> Vec<Card> {
         let hand = BASE64.decode(encrypted_hand.as_bytes()).unwrap();
         let str_hand = String::from_utf8(hand).unwrap();
         let secret_data = xor_encrypt_decrypt(&str_hand, &secret_key);
@@ -545,14 +565,6 @@ fn get_random_card(deck: &mut Vec<Card>) -> Option<Card> {
     deck.pop()
 }
 
-#[derive(Debug)]
-pub enum BidError {
-    High,
-    Low,
-    Invalid,
-    EqualsRound,
-}
-
 fn validate_bid(
     bid: &i32,
     curr_round: i32,
@@ -574,6 +586,14 @@ fn validate_bid(
     }
 
     Ok(*bid)
+}
+
+#[derive(Debug)]
+pub enum BidError {
+    High,
+    Low,
+    Invalid,
+    EqualsRound,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -617,24 +637,6 @@ fn is_played_card_valid(
     }
     Ok(played_card.clone())
 }
-
-pub enum EventType {
-    PlayCard(Card),
-    DealCard(Card),
-    WinHand,
-    WinRound,
-    Bid(i32),
-}
-
-// #[derive(Debug, Clone, Copy, Serialize, PartialEq)]
-// pub enum GameState {
-//     // Deal,
-//     Bid,
-//     Play,
-//     Pregame,
-//     // PostRound,
-//     // PreRound,
-// }
 
 fn xor_encrypt_decrypt(data: &str, key: &str) -> Vec<u8> {
     data.as_bytes()
@@ -843,6 +845,11 @@ mod tests {
             },
         ]);
 
+        assert_eq!(
+            game.gameplay_state,
+            GameplayState::Play(crate::PlayState::new())
+        );
+
         // Time to play
         let p1_card = game
             .players
@@ -878,9 +885,23 @@ mod tests {
             },
         ]);
 
-        println!("Game details @Bid - Round 2: {:#?}", game.get_state());
+        // println!("Game details @Bid - Round 2: {:#?}", game.get_state());
+
+        assert_eq!(game.gameplay_state, GameplayState::PostRound);
+        assert_eq!(game.curr_played_cards.len(), 2);
+
+        // Send "start next round" message
+        game.process_event(vec![GameMessage {
+            username: has_first_turn.clone(),
+            message: crate::GameEvent {
+                action: crate::GameAction::Deal,
+                origin: crate::Actioner::Player(has_first_turn.clone()),
+            },
+            timestamp: Utc::now(),
+        }]);
 
         assert_eq!(game.gameplay_state, GameplayState::Bid);
+        assert_eq!(game.curr_played_cards.len(), 0);
         assert_eq!(has_first_turn, game.curr_dealer); // round 1 first player is now dealer
         assert_eq!(has_second_turn, game.curr_player_turn.clone().unwrap()); // round 1 second player is now going first
         assert_eq!(first_dealer, game.curr_player_turn.clone().unwrap()); // round 1 dealer goes first in round 2
@@ -889,5 +910,29 @@ mod tests {
     #[test]
     fn test_deck_creation() {
         println!("{}", serde_json::json!(create_deck()));
+    }
+
+    #[test]
+    fn test_get_hand_from_encrypted() {
+        let mut game = GameState::new();
+
+        let res = GameState::get_hand_from_encrypted(
+            "KBBbNg5WXlVATUQGGgZNVhc0GyZITkYGGUNKVAUSXUdRUVs7AxUJCB4FRFpUEVVfBg5bZVMJOQ=="
+                .to_string(),
+            &"sky_jtdgpafvvg43".to_string(),
+        );
+
+        assert!(res.len() == 1);
+        assert!(res.first().is_some());
+        assert_eq!(
+            *res.first().unwrap(),
+            Card {
+                id: 20,
+                suit: Suit::Diamond,
+                value: 9,
+                played_by: Some("ai".to_string())
+            }
+        );
+        println!("Cards: {:?}", res);
     }
 }

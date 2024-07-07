@@ -23,6 +23,9 @@ const ws_url = `ws://${window.location.hostname}${
   import.meta.env.MODE === "development" ? ":8080" : ""
 }/ws`;
 
+// const buttonStyle =
+//   "w-24 h-10 border border-solid rounded-md  bg-background  ";
+
 function App() {
   console.log(`Mode: ${import.meta.env.MODE}`);
   // connection to server state
@@ -288,11 +291,11 @@ function App() {
     <>
       <div className="flex flex-col w-full h-full">
         {appState === GAME_STATE.START && (
-          <div className="flex flex-col items-center justify-center align-middle border rounded-md bg-fuchsia-200 border-input bg-background ring-offset-background">
+          <div className="flex flex-col items-center justify-center align-middle border rounded-md bg-fuchsia-200 bg-background ring-offset-background">
             <div>
               <label>Lobby code: </label>
               <input
-                className="w-24 h-10 border rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-24 h-10 border rounded-md bg-background "
                 type="text"
                 onChange={(evt) => setLobbyCode(evt.target.value)}
                 value={lobbyCode}
@@ -302,13 +305,13 @@ function App() {
               <label>Name: </label>
               <input
                 type="text"
-                className="w-24 h-10 border rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-24 h-10 border rounded-md bg-background "
                 onChange={(evt) => setUsername(evt.target.value)}
                 value={username}
               ></input>
             </div>
             <button
-              className="w-24 h-10 border border-solid rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-24 h-10 border border-solid rounded-md bg-background "
               onClick={connectToLobby}
             >
               Connect
@@ -325,42 +328,59 @@ function App() {
         )}
         {appState === GAME_STATE.GAME && (
           <div className="flex w-full bg-green-300">
-            <div className="flex flex-col w-full p-4 ">
-              <div className="w-1/4 border border-solid bg-cyan-200">
+            <div className="flex flex-col w-full p-4">
+              <div className="w-1/4 bg-cyan-200">
                 {gamestate?.players &&
                   Object.entries(gamestate.players).map(([player, details]) => {
                     if (player != username) {
                       return (
-                        <div className="flex flex-col w-full">
-                          <label className="">
+                        <div className="flex flex-col w-full ">
+                          <label className="w-full text-center bg-cyan-400">
                             <b>{player}</b>
                           </label>
-                          <ul>
-                            <li>Cards: {details.num_cards}</li>
-                            <li>Wins: {gamestate.wins[player]}</li>
-                            <li>Bids: {gamestate.bids[player]}</li>
+                          <ul className="flex flex-col">
+                            <li className="flex flex-row justify-between">
+                              <div>Cards left</div>
+                              <div>{details.num_cards}</div>
+                            </li>
+                            <li className="flex flex-row justify-between">
+                              <div>Hands won</div>
+                              <div>{gamestate.wins[player]}</div>
+                            </li>
+                            <li className="flex flex-row justify-between">
+                              <div>Bid</div>
+                              <div>
+                                {gamestate.bids[player] ??
+                                  `${gamestate.curr_player_turn}'s turn to bid`}
+                              </div>
+                            </li>
+                            <li className="flex flex-row justify-between">
+                              <div>Score</div>
+                              <div>{gamestate.score[player]}</div>
+                            </li>
                           </ul>
                         </div>
                       );
                     }
                   })}
               </div>
-              <div className="bg-green-500">
-                <h3>Played Cards</h3>
-                <CardArea
-                  cards={gamestate ? gamestate.curr_played_cards : []}
-                  playCard={playCard}
-                />
-              </div>
+              {gamestate && gamestate.gameplay_state == "Play" && (
+                <div className="bg-green-500">
+                  <h3>Played Cards</h3>
+                  <CardArea
+                    cards={gamestate ? gamestate.curr_played_cards : []}
+                    playCard={playCard}
+                  />
+                </div>
+              )}
               <div className="flex">
                 <div
-                  className={`outline-4 m-2 w-full outline bg-slate-400 flex flex-col ${
+                  className={`outline-4 m-2 w-full outline flex flex-col ${
                     gamestate?.curr_player_turn === username
-                      ? "outline-yellow-300"
+                      ? "outline-red-500 bg-red-300"
                       : ""
                   }`}
                 >
-                  <h3>Your hand</h3>
                   <CardArea
                     cards={
                       // gamestate?.players &&
@@ -371,6 +391,9 @@ function App() {
                     }
                     playCard={playCard}
                   />
+                  {gamestate && gamestate.curr_player_turn == username && (
+                    <h3 className="self-center mt-3">Your turn</h3>
+                  )}
                   {gamestate && gamestate.gameplay_state == "Bid" && (
                     <div className="flex justify-center m-4">
                       <>
@@ -380,7 +403,7 @@ function App() {
                             return (
                               <li key={i}>
                                 <button
-                                  className="w-24 h-10 border border-solid rounded-md border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="w-24 h-10 border border-solid rounded-md bg-slate-100"
                                   onClick={() => sendBid(i)}
                                 >
                                   {i}
@@ -392,15 +415,28 @@ function App() {
                       </>
                     </div>
                   )}
+                  {gamestate && gamestate.gameplay_state === "PostRound" && (
+                    <div>
+                      <button
+                        className="w-24 h-10 border border-solid rounded-md bg-background "
+                        onClick={dealCard}
+                      >
+                        Start next round
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
             {/* </div> */}
             {gamestate && gamestate.players && (
-              <div className="flex flex-col bg-orange-200 border border-solid rounded-md bg-background">
+              <div className="flex flex-col bg-orange-200 border border-solid rounded-md shadow-lg drop-shadow-xlbg-background">
                 <div className="flex flex-col">
-                  <h2>Game details</h2>
-                  <label>TRUMP: {gamestate.trump}</label>
+                  <h2 className="outline">Game details</h2>
+                  <label>
+                    <b>State: {gamestate.gameplay_state}</b>
+                  </label>
+                  <label>Trump suit: {gamestate.trump}</label>
                   <label>Round: {gamestate.curr_round}</label>
                   <label>Player Turn: {gamestate.curr_player_turn}</label>
                   <ul className="flex flex-row space-x-2">
@@ -464,40 +500,6 @@ function App() {
             )}
           </div>
         )}
-        {/* <button
-          className="bg-red-500"
-          onClick={() => {
-            console.log(debug);
-            debug ? setDebug(false) : setDebug(true);
-          }}
-        >
-          Enable debug mode
-        </button>
-        {debug && gamestate && <div>{displayObject(gamestate)}</div>}
-        {debug && gamestate
-          ? Object.entries(gamestate.players).map(
-              ([playername, playerdetails]) => {
-                console.log(
-                  "jere/ playername, details",
-                  playername,
-                  playerdetails
-                );
-
-                return (
-                  <>
-                    <label>{playername}</label>
-                    <div className="flex flex-row p-2">
-                      {playerdetails.hand.map((card) => {
-                        return (
-                          <Card key={card.id} card={card} playCard={playCard} />
-                        );
-                      })}
-                    </div>
-                  </>
-                );
-              }
-            )
-          : ""} */}
       </div>
     </>
   );
@@ -551,7 +553,7 @@ function Card({ card, playCard }) {
     <>
       <div
         key={card.id}
-        className="flex h-[140px] w-[100px] items-center justify-center rounded-lg bg-white shadow-lg "
+        className="flex h-[140px] w-[100px] items-center justify-center rounded-lg bg-white shadow-lg"
         onMouseDown={() => playCard(card)}
       >
         <div className="flex flex-col items-center gap-2">
@@ -577,10 +579,14 @@ export interface GameState {
   play_order: string[];
   players: Players;
   score: Score;
-  gameplay_state: string;
+  gameplay_state: object | string;
   system_status: any[];
   trump: string;
   wins: Wins;
+}
+
+interface PlayState {
+  hand_num: number;
 }
 
 export interface Bids {}
