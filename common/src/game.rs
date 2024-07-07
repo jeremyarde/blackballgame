@@ -34,10 +34,10 @@ impl GameState {
             GameplayState::Pregame => GameplayState::Bid,
             GameplayState::Play(ps) => {
                 if ps.hand_num >= self.curr_round.try_into().unwrap() {
-                    return GameplayState::PostRound;
+                    GameplayState::PostRound
+                } else {
+                    GameplayState::Play(PlayState::from(ps.hand_num + 1))
                 }
-                self.gameplay_state = GameplayState::Play(PlayState::from(ps.hand_num + 1));
-                return self.gameplay_state.clone();
             }
             GameplayState::PostRound => GameplayState::Bid,
         };
@@ -52,6 +52,8 @@ impl GameState {
         self.gameplay_state.clone()
     }
 
+    // This handles setting up the initial state of the game once we get to the state
+    // not really used right now, but will be nice to consolidate this information here
     fn transition_state(&mut self, newstate: GameplayState) {
         match newstate {
             GameplayState::Play(ps) => {
@@ -94,9 +96,7 @@ impl GameState {
                     self.update_to_next_state();
                 }
             }
-            _ => {
-                // None;
-            }
+            _ => {}
         }
 
         Some(self.get_state())
@@ -189,8 +189,6 @@ impl GameState {
 
         for event in events {
             if event.message.action == GameAction::CurrentState {
-                // let _ = sender.send(self.get_state());
-
                 continue;
             }
 
@@ -277,10 +275,6 @@ impl GameState {
         if let Some(x) = self.wins.get_mut(&winner) {
             *x += 1;
         }
-
-        // self.curr_played_cards = vec![];
-        // self.curr_winning_card = None;
-        // self.bid_order = vec![];
         self.curr_player_turn = Some(winner); // person who won the hand plays first next hand
     }
 
@@ -825,6 +819,7 @@ mod tests {
         assert_ne!(has_first_turn, has_second_turn);
         assert_eq!(first_dealer, has_second_turn); // first dealer goes second
         assert_eq!(game.curr_player_turn.clone().unwrap(), has_first_turn);
+        assert_eq!(game.gameplay_state, GameplayState::Bid);
 
         game.process_event(vec![
             GameMessage {
