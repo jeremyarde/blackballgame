@@ -11,6 +11,7 @@ use std::{
 use chrono::Utc;
 use common::{Actioner, Connect, GameAction, GameEvent, GameMessage, GameState, GameplayState};
 
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tokio_tungstenite::tungstenite::{connect, Message};
 use tracing::info;
@@ -106,7 +107,7 @@ impl AI {
                 username: username,
                 message: GameEvent {
                     action: chosen,
-                    origin: Actioner::Player(self.username.clone()),
+                    // origin: Actioner::Player(self.username.clone()),
                 },
                 timestamp: Utc::now(),
             });
@@ -115,10 +116,10 @@ impl AI {
     }
 
     fn decide_action(&self, gamestate: &GameState) -> Option<GameAction> {
-        let action = match gamestate.gameplay_state {
+        let action = match &gamestate.gameplay_state {
             common::GameplayState::Bid => get_bid(gamestate),
             common::GameplayState::Pregame => return None,
-            common::GameplayState::Play => {
+            common::GameplayState::Play(ps) => {
                 let player = gamestate.players.get(&self.username).unwrap();
                 let cards = GameState::get_hand_from_encrypted(
                     gamestate
@@ -132,6 +133,7 @@ impl AI {
                 info!("Cards: {:?}", cards);
                 GameAction::PlayCard(cards.get(0).unwrap().clone())
             }
+            GameplayState::PostRound => GameAction::Deal,
         };
         Some(action)
     }
@@ -182,7 +184,7 @@ fn main() {
     let username = "ai".to_string();
     let channel = "a".to_string();
 
-    let ai = AI {
+    let mut ai = AI {
         username: username.clone(),
         lobby: channel.clone(),
         secret_key: if secret.is_some() {
@@ -226,6 +228,15 @@ fn main() {
         while let Ok(Message::Text(message)) = socket.read() {
             println!("Message recieved: {}", message);
 
+            #[derive(Deserialize)]
+            struct ClientSecret {
+                client_secret: String,
+            }
+            match serde_json::from_str::<ClientSecret>(&message) {
+                Ok(x) => ai.secret_key = x.client_secret,
+                Err(_) => {}
+            }
+
             match serde_json::from_str::<GameState>(&message) {
                 Ok(val) => {
                     info!("Setting gamestate");
@@ -266,10 +277,7 @@ fn main() {
                             _ = socket.send(Message::Text(
                                 json!(GameMessage {
                                     username: username.clone(),
-                                    message: GameEvent {
-                                        action: todo,
-                                        origin: Actioner::Player(username.clone())
-                                    },
+                                    message: GameEvent { action: todo },
                                     timestamp: Utc::now()
                                 })
                                 .to_string(),

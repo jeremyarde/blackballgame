@@ -509,21 +509,21 @@ impl GameState {
         return self.bids.keys().len() == self.players.len();
     }
 
-    fn advance_dealer(&mut self) -> Result<String, GameError> {
-        for (i, player) in self.player_order.iter().enumerate() {
-            if player.eq(&self.curr_dealer) {
-                let nextdealer = match self.player_order.get(i + 1) {
-                    Some(x) => x,
-                    None => &self.player_order[0],
-                };
-                self.curr_dealer = nextdealer.clone();
-                return Ok(self.curr_dealer.clone());
-            }
-        }
-        return Err(GameError::InternalIssue(String::from(
-            "Could not advance dealer",
-        )));
-    }
+    // fn advance_dealer(&mut self) -> Result<String, GameError> {
+    //     for (i, player) in self.player_order.iter().enumerate() {
+    //         if player.eq(&self.curr_dealer) {
+    //             let nextdealer = match self.player_order.get(i + 1) {
+    //                 Some(x) => x,
+    //                 None => &self.player_order[0],
+    //             };
+    //             self.curr_dealer = nextdealer.clone();
+    //             return Ok(self.curr_dealer.clone());
+    //         }
+    //     }
+    //     return Err(GameError::InternalIssue(String::from(
+    //         "Could not advance dealer",
+    //     )));
+    // }
 
     pub fn get_hand_from_encrypted(encrypted_hand: String, secret_key: &String) -> Vec<Card> {
         let hand = BASE64.decode(encrypted_hand.as_bytes()).unwrap();

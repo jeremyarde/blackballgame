@@ -40,7 +40,9 @@ function App() {
 
   const [url, setUrl] = useState(ws_url);
   const [ws, setWs] = useState<WebSocket | undefined>(undefined);
-  const [gamestate, setGamestate] = useState(TEST ? EXAMPLE : undefined);
+  const [gamestate, setGamestate] = useState<GameState | undefined>(
+    TEST ? EXAMPLE : undefined
+  );
 
   const [connected, setConnected] = useState(false);
   const [debug, setDebug] = useState(false);
@@ -287,6 +289,13 @@ function App() {
     }
   }
 
+  let suitDisplay = {
+    spade: { src: Spade },
+    diamond: { src: Diamond },
+    club: { src: Club },
+    heart: { src: Heart },
+  };
+
   return (
     <>
       <div className="flex flex-col w-full h-full">
@@ -364,7 +373,7 @@ function App() {
                     }
                   })}
               </div>
-              {gamestate && gamestate.gameplay_state == "Play" && (
+              {gamestate && gamestate.gameplay_state["Play"] && (
                 <div className="bg-green-500">
                   <h3>Played Cards</h3>
                   <CardArea
@@ -416,9 +425,9 @@ function App() {
                     </div>
                   )}
                   {gamestate && gamestate.gameplay_state === "PostRound" && (
-                    <div>
+                    <div className="w-full p-4 text-center bg-red-300">
                       <button
-                        className="w-24 h-10 border border-solid rounded-md bg-background "
+                        className="p-2 bg-red-400 border border-red-500 border-solid rounded-md"
                         onClick={dealCard}
                       >
                         Start next round
@@ -428,15 +437,20 @@ function App() {
                 </div>
               </div>
             </div>
-            {/* </div> */}
             {gamestate && gamestate.players && (
               <div className="flex flex-col bg-orange-200 border border-solid rounded-md shadow-lg drop-shadow-xlbg-background">
                 <div className="flex flex-col">
                   <h2 className="outline">Game details</h2>
                   <label>
-                    <b>State: {gamestate.gameplay_state}</b>
+                    <b>State: {displayObject(gamestate.gameplay_state)}</b>
                   </label>
-                  <label>Trump suit: {gamestate.trump}</label>
+                  <label>
+                    Trump suit:
+                    <img
+                      className={`size-14`}
+                      src={suitDisplay[gamestate.trump].src}
+                    ></img>
+                  </label>
                   <label>Round: {gamestate.curr_round}</label>
                   <label>Player Turn: {gamestate.curr_player_turn}</label>
                   <ul className="flex flex-row space-x-2">
