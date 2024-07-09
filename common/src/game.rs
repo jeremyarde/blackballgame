@@ -856,6 +856,8 @@ mod tests {
 
         println!("Game details @StartGame: {:#?}", game.get_state());
 
+        insta::assert_yaml_snapshot!(game);
+
         assert_ne!(has_first_turn, has_second_turn);
         assert_eq!(first_dealer, has_second_turn); // first dealer goes second
         assert_eq!(game.curr_player_turn.clone().unwrap(), has_first_turn);
@@ -869,7 +871,8 @@ mod tests {
             },
             timestamp: Utc::now(),
         }]);
-        println!("jere/ after bid: {:#?}", game.get_state());
+
+        insta::assert_yaml_snapshot!(game);
 
         assert_eq!(game.bids[&has_first_turn], 0);
         assert_eq!(game.curr_player_turn.clone().unwrap(), has_second_turn);
@@ -883,6 +886,8 @@ mod tests {
             timestamp: Utc::now(),
         }]);
         assert_eq!(game.bids[&has_second_turn], 0);
+
+        insta::assert_yaml_snapshot!(game);
 
         // first player that bid 0 goes first because both bid 0
         assert_eq!(game.curr_player_turn.clone().unwrap(), has_first_turn);

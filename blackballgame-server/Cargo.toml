@@ -32,3 +32,4 @@ tower-http = {version = "0.5.0", features = ["full"]}
 tracing = "0.1.40"
 tracing-subscriber = {version = "0.3.18", default-features = false, features = ["fmt", "ansi", "env-filter", "tracing-log"]}
 dioxus-fullstack = "0.5.2"
+insta = "1.39.0"
