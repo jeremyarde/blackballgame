@@ -583,6 +583,7 @@ function Card({ card, playCard }) {
 
 export interface GameState {
   bids: Bids;
+  player_order: string[];
   curr_played_cards: CurrPlayedCard[];
   curr_player_turn: string;
   curr_round: number;
