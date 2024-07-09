@@ -8,7 +8,7 @@ use tracing::{debug, info};
 
 use crate::{
     create_deck, Card, GameAction, GameClient, GameError, GameMessage, GameState, GameplayState,
-    PlayState, PlayerRole, Suit,
+    PlayState, PlayerRole, SetupGameOptions, Suit,
 };
 
 fn advance_player_turn(curr: &String, players: &Vec<String>) -> String {
@@ -70,7 +70,7 @@ impl GameState {
         match event.message.action {
             // GameAction::PlayCard(_) => todo!(),
             // GameAction::Bid(_) => todo!(),
-            GameAction::StartGame => self.setup_game(None),
+            GameAction::StartGame(sgo) => self.setup_game(sgo),
             // GameAction::Deal => todo!(),
             _ => return None,
         }
@@ -390,7 +390,8 @@ impl GameState {
         self.system_status.push(message);
     }
 
-    pub fn setup_game(&mut self, max_rounds: Option<i32>) {
+    pub fn setup_game(&mut self, sgo: SetupGameOptions) {
+        self.setup_game_options = sgo;
         if self.players.len() == 1 {
             // Should maybe send a better message
             // self.system_status.push("Not enough players".into());
@@ -399,7 +400,10 @@ impl GameState {
         }
         let mut deal_play_order: Vec<String> =
             self.players.iter().map(|(id, player)| id.clone()).collect();
-        fastrand::shuffle(&mut deal_play_order);
+
+        if !self.setup_game_options.deterministic {
+            fastrand::shuffle(&mut deal_play_order);
+        }
 
         self.player_order = deal_play_order;
         self.curr_dealer_idx = 0;
@@ -422,9 +426,7 @@ impl GameState {
 
         let num_players = self.players.len() as i32;
 
-        let max_rounds = if max_rounds.is_some() {
-            max_rounds.unwrap()
-        } else if 52i32.div_euclid(num_players) > 9 {
+        if 52i32.div_euclid(self.setup_game_options.rounds.try_into().unwrap()) > 9 {
             9
         } else {
             52i32.div_euclid(num_players)
@@ -433,7 +435,11 @@ impl GameState {
         self.deal();
         self.update_to_next_state();
 
-        tracing::info!("Players: {}\nRounds: {}", num_players, max_rounds);
+        tracing::info!(
+            "Players: {}\nSettings: {:?}",
+            num_players,
+            self.setup_game_options
+        );
     }
 
     fn get_random_card(&mut self) -> Option<Card> {
@@ -484,7 +490,10 @@ impl GameState {
     fn deal(&mut self) {
         tracing::info!("=== Dealing ===");
         tracing::info!("Dealer: {}", self.player_order[0]);
-        fastrand::shuffle(&mut self.deck);
+
+        if !self.setup_game_options.deterministic {
+            fastrand::shuffle(&mut self.deck);
+        }
 
         for i in 1..=self.curr_round {
             // get random card, give to a player
@@ -533,7 +542,7 @@ impl GameState {
         return actual_hand;
     }
 
-    pub fn new() -> Self {
+    pub fn new() -> GameState {
         // let (tx, rx) = broadcast::channel(10);
 
         GameState {
@@ -561,8 +570,9 @@ impl GameState {
             players_secrets: HashMap::new(),
             curr_player_turn_idx: 0,
             curr_dealer_idx: 0,
-            secret_key: "mysecretkey".to_string(), // tx,
-                                                   // rx,
+            secret_key: "mysecretkey".to_string(),
+            setup_game_options: SetupGameOptions::new(), // tx,
+                                                         // rx,
         }
     }
 }
@@ -686,7 +696,7 @@ mod tests {
     use crate::{
         create_deck,
         game::{advance_player_turn, find_winning_card},
-        Card, GameMessage, GameState, GameplayState, PlayState, PlayerRole, Suit,
+        Card, GameMessage, GameState, GameplayState, PlayState, PlayerRole, SetupGameOptions, Suit,
     };
 
     #[test]
@@ -844,7 +854,7 @@ mod tests {
         game.process_event(vec![GameMessage {
             username: PLAYER_ONE.clone(),
             message: crate::GameEvent {
-                action: crate::GameAction::StartGame,
+                action: crate::GameAction::StartGame(SetupGameOptions::from(5, true)),
                 // origin: crate::Actioner::Player(PLAYER_ONE.clone()),
             },
             timestamp: Utc::now(),
@@ -855,8 +865,6 @@ mod tests {
         let has_second_turn = game.player_order[0].clone(); // dealer goes second
 
         println!("Game details @StartGame: {:#?}", game.get_state());
-
-        insta::assert_yaml_snapshot!(game);
 
         assert_ne!(has_first_turn, has_second_turn);
         assert_eq!(first_dealer, has_second_turn); // first dealer goes second
@@ -872,8 +880,6 @@ mod tests {
             timestamp: Utc::now(),
         }]);
 
-        insta::assert_yaml_snapshot!(game);
-
         assert_eq!(game.bids[&has_first_turn], 0);
         assert_eq!(game.curr_player_turn.clone().unwrap(), has_second_turn);
 
@@ -887,7 +893,11 @@ mod tests {
         }]);
         assert_eq!(game.bids[&has_second_turn], 0);
 
-        insta::assert_yaml_snapshot!(game);
+        insta::assert_yaml_snapshot!(game, {
+            ".timestamp" => "[utc]",
+            ".players.*.encrypted_hand" => "[encrypted_hand]",
+            ".event_log.*" => "[event_log]"
+        });
 
         // first player that bid 0 goes first because both bid 0
         assert_eq!(game.curr_player_turn.clone().unwrap(), has_first_turn);
@@ -959,6 +969,12 @@ mod tests {
         assert_eq!(has_first_turn, game.curr_dealer); // round 1 first player is now dealer
         assert_eq!(has_second_turn, game.curr_player_turn.clone().unwrap()); // round 1 second player is now going first
         assert_eq!(first_dealer, game.curr_player_turn.clone().unwrap()); // round 1 dealer goes first in round 2
+
+        insta::assert_yaml_snapshot!(game, {
+            ".timestamp" => "[utc]",
+            ".players.*.encrypted_hand" => "[encrypted_hand]",
+            ".event_log.*" => "[event_log]"
+        });
     }
 
     #[test]

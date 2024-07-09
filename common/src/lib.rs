@@ -58,6 +58,7 @@ impl fmt::Display for GameClient {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameState {
+    pub setup_game_options: SetupGameOptions,
     secret_key: String,
     pub players: HashMap<String, GameClient>,
     #[serde(skip)]
@@ -83,6 +84,28 @@ pub struct GameState {
     pub event_log: Vec<GameMessage>,
     // #[serde(skip)]
     pub system_status: Vec<String>, // useful to tell players what is going wrong
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SetupGameOptions {
+    rounds: usize,
+    deterministic: bool,
+}
+
+impl SetupGameOptions {
+    pub fn new() -> SetupGameOptions {
+        return SetupGameOptions {
+            rounds: 99,
+            deterministic: false,
+        };
+    }
+
+    pub fn from(max_rounds: usize, deterministic: bool) -> SetupGameOptions {
+        return SetupGameOptions {
+            rounds: max_rounds,
+            deterministic: deterministic,
+        };
+    }
 }
 
 pub fn create_deck() -> Vec<Card> {
@@ -144,7 +167,7 @@ pub enum GameAction {
     Bid(i32),
 
     // System actions
-    StartGame,
+    StartGame(SetupGameOptions),
     Deal,
     CurrentState,
 }

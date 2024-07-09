@@ -2,47 +2,44 @@
 source: common/src/game.rs
 expression: game
 ---
+setup_game_options:
+  rounds: 5
+  deterministic: true
 secret_key: mysecretkey
 players:
   p2:
     id: p2
-    encrypted_hand: KBBbNhQTW0FbXFAWBwwVBxc0GyZSC0MAX1JeRBgYBRZRUVs7GVAMHwMUUEpJGw0OBg5bZUVMPA==
+    encrypted_hand: "[encrypted_hand]"
     num_cards: 0
     role: Player
   p1:
     id: p1
-    encrypted_hand: KBBbNgwTD0UBXxsUCRkfHBc0GyZKCxcGB1EVRhYNDw1RUVs8BERXVBpRTwUJDQNbSVpKIjU=
+    encrypted_hand: "[encrypted_hand]"
     num_cards: 0
     role: Leader
-curr_round: 1
-trump: heart
+curr_round: 2
+trump: diamond
 player_order:
-  - p1
   - p2
+  - p1
 curr_played_cards: []
-curr_player_turn: p1
+curr_player_turn: p2
 curr_winning_card: ~
 curr_dealer: p1
-bids:
-  p2: 0
-bid_order:
-  - - p2
-    - 0
+bids: {}
+bid_order: []
 wins:
   p2: 0
   p1: 0
 score:
-  p2: 0
+  p2: 10
   p1: 0
 gameplay_state: Bid
 event_log:
-  - username: p1
-    message:
-      action: startgame
-    timestamp: "2024-07-09T02:21:36.361012Z"
-  - username: p2
-    message:
-      action:
-        bid: 0
-    timestamp: "2024-07-09T02:21:36.422177Z"
+  - "[event_log]"
+  - "[event_log]"
+  - "[event_log]"
+  - "[event_log]"
+  - "[event_log]"
+  - "[event_log]"
 system_status: []
