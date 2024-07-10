@@ -1,0 +1,47 @@
+---
+source: common/src/game.rs
+assertion_line: 980
+expression: game
+---
+setup_game_options:
+  rounds: 5
+  deterministic: true
+  start_round: 1
+secret_key: mysecretkey
+players:
+  p1:
+    id: p1
+    encrypted_hand: "[encrypted_hand]"
+    num_cards: 0
+    role: Leader
+  p2:
+    id: p2
+    encrypted_hand: "[encrypted_hand]"
+    num_cards: 0
+    role: Player
+curr_round: 2
+trump: diamond
+player_order:
+  - p1
+  - p2
+curr_played_cards: []
+curr_player_turn: p1
+curr_winning_card: ~
+curr_dealer: p2
+bids: {}
+bid_order: []
+wins:
+  p1: 0
+  p2: 0
+score:
+  p1: 10
+  p2: 0
+gameplay_state: Bid
+event_log:
+  - "[event_log]"
+  - "[event_log]"
+  - "[event_log]"
+  - "[event_log]"
+  - "[event_log]"
+  - "[event_log]"
+system_status: []

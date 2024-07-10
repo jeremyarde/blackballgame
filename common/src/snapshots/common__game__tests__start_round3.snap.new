@@ -1,0 +1,97 @@
+---
+source: common/src/game.rs
+assertion_line: 1093
+expression: game
+---
+setup_game_options:
+  rounds: 5
+  deterministic: true
+  start_round: 3
+secret_key: mysecretkey
+players:
+  p1:
+    id: p1
+    encrypted_hand: KBBbNgobA0dbGxMHHRBPHxc0GyZMAxsCWxUdVQIEXw5RUVssHlhdF0gbEwEQHUMfUVFIaxMVQlADUxNNQ0QaWAMHGCYLXWYQExULVQFAFFZRGAw2GhsDUA5eUBoeH1JYX0kPPgJMXFBQBgUKXQoUExdJQ2peFRsCBlZIEhUuVANRUVsvXxsVUBlCWANTSxQJAwodOkwVGwQLW0QSU0sHSQ42
+    num_cards: 0
+    role: Leader
+  p2:
+    id: p2
+    encrypted_hand: KBBbNhYRS0VKGRBEHBgMHBc0GyZQCVMGQBceFgMMHA1RUVs8HkYTVF4XRFUcDBBbSVpNIl5IUx8WFwgFQlVXCR8KADoWbBMPUA8QREJbWVsAHhArUAlTHhdUQEBSVVcPEgcMOlAJQEIPGUkWGR1XQ0BcVX0CXxAPF1FtVglbT1sDWVtzUEAEHwYXCBYTFQAbUUdbKRNfBBNQDwMHDSQ=
+    num_cards: 0
+    role: Player
+curr_round: 3
+trump: heart
+player_order:
+  - p1
+  - p2
+curr_played_cards:
+  - id: 38
+    suit: club
+    value: 14
+    played_by: p2
+  - id: 51
+    suit: spade
+    value: 14
+    played_by: p1
+curr_player_turn: p2
+curr_winning_card:
+  id: 38
+  suit: club
+  value: 14
+  played_by: p2
+curr_dealer: p1
+bids:
+  p2: 0
+  p1: 0
+bid_order:
+  - - p2
+    - 0
+  - - p1
+    - 0
+wins:
+  p2: 1
+  p1: 0
+score:
+  p1: 0
+  p2: 0
+gameplay_state:
+  Play:
+    hand_num: 1
+event_log:
+  - username: p1
+    message:
+      action:
+        startgame:
+          rounds: 5
+          deterministic: true
+          start_round: 3
+    timestamp: "2024-07-10T23:34:54.453794Z"
+  - username: p2
+    message:
+      action:
+        bid: 0
+    timestamp: "2024-07-10T23:34:54.453953Z"
+  - username: p1
+    message:
+      action:
+        bid: 0
+    timestamp: "2024-07-10T23:34:54.453953Z"
+  - username: p2
+    message:
+      action:
+        playcard:
+          id: 38
+          suit: club
+          value: 14
+          played_by: p2
+    timestamp: "2024-07-10T23:34:54.453995Z"
+  - username: p1
+    message:
+      action:
+        playcard:
+          id: 51
+          suit: spade
+          value: 14
+          played_by: p1
+    timestamp: "2024-07-10T23:34:54.453996Z"
+system_status: []
