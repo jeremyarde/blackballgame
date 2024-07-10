@@ -392,8 +392,13 @@ impl GameState {
             self.broadcast_message("Not enough players".to_string());
             return;
         }
+
+        if self.setup_game_options.deterministic {
+            self.player_order.sort();
+        }
+
         let mut deal_play_order: Vec<String> =
-            self.players.iter().map(|(id, player)| id.clone()).collect();
+            self.player_order.iter().map(|id| id.clone()).collect();
 
         if !self.setup_game_options.deterministic {
             fastrand::shuffle(&mut deal_play_order);
@@ -412,19 +417,13 @@ impl GameState {
                 .clone(),
         );
 
-        self.players.iter().for_each(|(id, player)| {
+        self.player_order.iter().for_each(|(id)| {
             // self.bids.insert(id.clone(), 0);
             self.wins.insert(id.clone(), 0);
             self.score.insert(id.clone(), 0);
         });
 
         let num_players = self.players.len() as i32;
-
-        // if 52i32.div_euclid(self.setup_game_options.rounds.try_into().unwrap()) > 9 {
-        //     9
-        // } else {
-        //     52i32.div_euclid(num_players)
-        // };
 
         self.curr_round = if self.setup_game_options.start_round.is_some() {
             self.setup_game_options
@@ -1038,5 +1037,41 @@ mod tests {
             ".players.*.encrypted_hand" => "[encrypted_hand]",
             ".event_log.*" => "[event_log]"
         });
+
+        game.process_event(vec![
+            GameMessage {
+                username: player_two.clone(),
+                message: crate::GameEvent {
+                    action: crate::GameAction::PlayCard(
+                        game.players
+                            .get(&player_two)
+                            .unwrap()
+                            .hand
+                            .first()
+                            .clone()
+                            .unwrap()
+                            .clone(),
+                    ),
+                    // origin: crate::Actioner::Player(has_second_turn.clone()),
+                },
+                timestamp: Utc::now(),
+            },
+            GameMessage {
+                username: player_one.clone(),
+                message: crate::GameEvent {
+                    action: crate::GameAction::PlayCard(
+                        game.players
+                            .get(&player_one)
+                            .unwrap()
+                            .hand
+                            .first()
+                            .clone()
+                            .unwrap()
+                            .clone(),
+                    ), // origin: crate::Actioner::Player(has_second_turn.clone()),
+                },
+                timestamp: Utc::now(),
+            },
+        ]);
     }
 }
