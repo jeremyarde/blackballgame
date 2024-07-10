@@ -393,6 +393,15 @@ impl GameState {
             return;
         }
 
+        let player_ids: Vec<String> = self
+            .players
+            .keys()
+            .into_iter()
+            .map(|id| id.clone())
+            .collect::<Vec<String>>();
+
+        self.player_order = player_ids;
+
         if self.setup_game_options.deterministic {
             self.player_order.sort();
         }
@@ -417,7 +426,7 @@ impl GameState {
                 .clone(),
         );
 
-        self.player_order.iter().for_each(|(id)| {
+        self.player_order.iter().for_each(|id| {
             // self.bids.insert(id.clone(), 0);
             self.wins.insert(id.clone(), 0);
             self.score.insert(id.clone(), 0);

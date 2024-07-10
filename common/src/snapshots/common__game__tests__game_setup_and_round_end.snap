@@ -5,6 +5,7 @@ expression: game
 setup_game_options:
   rounds: 5
   deterministic: true
+  start_round: 1
 secret_key: mysecretkey
 players:
   p2:
@@ -20,26 +21,26 @@ players:
 curr_round: 1
 trump: heart
 player_order:
-  - p2
   - p1
+  - p2
 curr_played_cards: []
-curr_player_turn: p1
+curr_player_turn: p2
 curr_winning_card: ~
-curr_dealer: p2
+curr_dealer: p1
 bids:
-  p1: 0
   p2: 0
+  p1: 0
 bid_order:
-  - - p1
-    - 0
   - - p2
+    - 0
+  - - p1
     - 0
 wins:
   p1: 0
   p2: 0
 score:
-  p2: 0
   p1: 0
+  p2: 0
 gameplay_state:
   Play:
     hand_num: 1
