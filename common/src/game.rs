@@ -33,6 +33,10 @@ impl GameState {
             GameplayState::Bid => GameplayState::Play(PlayState::new()),
             GameplayState::Pregame => GameplayState::Bid,
             GameplayState::Play(ps) => {
+                info!(
+                    "jere/ update state play -> ?? {}, {}",
+                    ps.hand_num, self.curr_round
+                );
                 if ps.hand_num >= self.curr_round.try_into().unwrap() {
                     GameplayState::PostRound
                 } else {
@@ -170,17 +174,17 @@ impl GameState {
                             }
                         });
 
-                        if let Some(loc) = cardloc {
-                            player.hand.remove(loc);
-                            self.curr_played_cards.push(card.clone());
-                        }
+                        // encrypt player hand again
+                        self.encrypt_player_hand(&player_id);
+
+                        // add card to curr_played_cards
+                        self.curr_played_cards.push(x.clone());
 
                         self.curr_winning_card = Some(find_winning_card(
                             self.curr_played_cards.clone(),
                             self.trump.clone(),
                         ));
 
-                        // self.curr_player_turn_idx = advance_player_turn(curr, players)
                         self.curr_player_turn = Some(advance_player_turn(
                             &self.curr_player_turn.clone().unwrap(),
                             &self.player_order,
@@ -221,29 +225,6 @@ impl GameState {
                 continue;
             }
 
-            // check if its the player's turn
-            // match event
-            //     .username
-            //     .eq(&self.curr_player_turn.clone().unwrap_or("".into()))
-            // {
-            //     false => {
-            //         info!(
-            //             "{}'s turn, not {}'s turn.",
-            //             self.curr_player_turn.clone().unwrap(),
-            //             event.username
-            //         );
-            //         self.broadcast_message(format!(
-            //             "{}'s turn, not {}'s turn.",
-            //             self.curr_player_turn.clone().unwrap(),
-            //             event.username
-            //         ));
-            //         // continue because we have multiple messages
-            //         continue;
-            //     }
-            //     _ => (),
-            // }
-
-            debug!("GameState: {:#?}", self.get_state());
             match &self.gameplay_state {
                 // Allow new players to join
                 GameplayState::Pregame => self.process_event_pregame(event),
@@ -259,17 +240,30 @@ impl GameState {
         return self.get_state();
     }
 
-    pub fn get_state(&mut self) -> Self {
-        for (key, player) in self.players.iter_mut() {
-            let hand = player.hand.clone();
-            let plaintext_hand = json!(hand).to_string();
-            let player_secret = self.players_secrets.get(key).unwrap();
-            let encoded = xor_encrypt_decrypt(&plaintext_hand, player_secret);
-            let secret_data = BASE64.encode(&encoded);
+    pub fn encrypt_player_hand(&mut self, player_id: &String) {
+        let mut player = self.players.get_mut(player_id).unwrap();
+        let hand = player.hand.clone();
+        let plaintext_hand = json!(hand).to_string();
+        let player_secret = self.players_secrets.get(player_id).unwrap();
+        let encoded = xor_encrypt_decrypt(&plaintext_hand, player_secret);
+        let secret_data = BASE64.encode(&encoded);
 
-            player.encrypted_hand = secret_data;
-            // player.nonce = nonce.to_vec();
-        }
+        player.encrypted_hand = secret_data;
+    }
+
+    pub fn get_state(&mut self) -> Self {
+        // for player in self.player_order.iter() {
+        //     // let hand = player.hand.clone();
+        //     // let plaintext_hand = json!(hand).to_string();
+        //     // let player_secret = self.players_secrets.get(key).unwrap();
+        //     // let encoded = xor_encrypt_decrypt(&plaintext_hand, player_secret);
+        //     // let secret_data = BASE64.encode(&encoded);
+
+        //     // player.encrypted_hand = secret_data;
+        //     // // player.nonce = nonce.to_vec();
+        //     // self.encrypt_hand(&key);
+        //     self.encrypt_hand(player);
+        // }
 
         let mut cloned = self.clone();
         cloned
@@ -426,10 +420,20 @@ impl GameState {
 
         let num_players = self.players.len() as i32;
 
-        if 52i32.div_euclid(self.setup_game_options.rounds.try_into().unwrap()) > 9 {
-            9
+        // if 52i32.div_euclid(self.setup_game_options.rounds.try_into().unwrap()) > 9 {
+        //     9
+        // } else {
+        //     52i32.div_euclid(num_players)
+        // };
+
+        self.curr_round = if self.setup_game_options.start_round.is_some() {
+            self.setup_game_options
+                .start_round
+                .unwrap()
+                .try_into()
+                .unwrap()
         } else {
-            52i32.div_euclid(num_players)
+            1
         };
 
         self.deal();
@@ -506,6 +510,11 @@ impl GameState {
                 player.hand.push(new_card);
             }
         }
+
+        let players = self.player_order.clone();
+        players.into_iter().for_each(|player_id| {
+            self.encrypt_player_hand(&player_id);
+        });
     }
 
     fn player_status(&self) {
@@ -854,7 +863,7 @@ mod tests {
         game.process_event(vec![GameMessage {
             username: PLAYER_ONE.clone(),
             message: crate::GameEvent {
-                action: crate::GameAction::StartGame(SetupGameOptions::from(5, true)),
+                action: crate::GameAction::StartGame(SetupGameOptions::from(5, true, Some(1))),
                 // origin: crate::Actioner::Player(PLAYER_ONE.clone()),
             },
             timestamp: Utc::now(),
@@ -1004,5 +1013,30 @@ mod tests {
             }
         );
         println!("Cards: {:?}", res);
+    }
+
+    #[test]
+    fn test_start_round3() {
+        let player_one = "p1".to_string();
+        let player_two = "p2".to_string();
+
+        let mut game = GameState::new();
+        game.add_player(player_one.clone(), PlayerRole::Leader);
+        game.add_player(player_two.clone(), PlayerRole::Player);
+
+        game.process_event(vec![GameMessage {
+            username: player_one.clone(),
+            message: crate::GameEvent {
+                action: crate::GameAction::StartGame(SetupGameOptions::from(5, true, Some(3))),
+                // origin: crate::Actioner::Player(PLAYER_ONE.clone()),
+            },
+            timestamp: Utc::now(),
+        }]);
+
+        insta::assert_yaml_snapshot!(game, {
+            ".timestamp" => "[utc]",
+            ".players.*.encrypted_hand" => "[encrypted_hand]",
+            ".event_log.*" => "[event_log]"
+        });
     }
 }

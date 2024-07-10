@@ -227,7 +227,12 @@ function App() {
     let message = {
       username: username,
       message: {
-        action: "startgame",
+        action: {
+          startgame: {
+            rounds: 9,
+            deterministic: false,
+          },
+        },
         origin: { player: username },
       },
       timestamp: new Date().toISOString(),
@@ -373,15 +378,17 @@ function App() {
                     }
                   })}
               </div>
-              {gamestate && gamestate.gameplay_state["Play"] && (
-                <div className="bg-green-500">
-                  <h3>Played Cards</h3>
-                  <CardArea
-                    cards={gamestate ? gamestate.curr_played_cards : []}
-                    playCard={playCard}
-                  />
-                </div>
-              )}
+              {gamestate &&
+                (gamestate.gameplay_state["Play"] ||
+                  gamestate.gameplay_state["PostRound"]) && (
+                  <div className="bg-green-500">
+                    <h3>Played Cards</h3>
+                    <CardArea
+                      cards={gamestate ? gamestate.curr_played_cards : []}
+                      playCard={playCard}
+                    />
+                  </div>
+                )}
               <div className="flex">
                 <div
                   className={`outline-4 m-2 w-full outline flex flex-col ${
@@ -426,12 +433,18 @@ function App() {
                   )}
                   {gamestate && gamestate.gameplay_state === "PostRound" && (
                     <div className="w-full p-4 text-center bg-red-300">
-                      <button
-                        className="p-2 bg-red-400 border border-red-500 border-solid rounded-md"
-                        onClick={dealCard}
-                      >
-                        Start next round
-                      </button>
+                      {gamestate.curr_player_turn === username ? (
+                        <button
+                          className="p-2 bg-red-400 border border-red-500 border-solid rounded-md"
+                          onClick={dealCard}
+                        >
+                          Start next round
+                        </button>
+                      ) : (
+                        <div className="p-2">
+                          Waiting for dealer to start next round
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

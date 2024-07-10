@@ -44,7 +44,7 @@ enum GameError {
 pub struct GameClient {
     pub id: String,
     #[serde(skip)]
-    hand: Vec<Card>, // we don't want everyone getting this information
+    pub hand: Vec<Card>, // we don't want everyone getting this information
     pub encrypted_hand: String,
     pub num_cards: i32,
     pub role: PlayerRole,
@@ -90,6 +90,7 @@ pub struct GameState {
 pub struct SetupGameOptions {
     rounds: usize,
     deterministic: bool,
+    start_round: Option<usize>,
 }
 
 impl SetupGameOptions {
@@ -97,13 +98,19 @@ impl SetupGameOptions {
         return SetupGameOptions {
             rounds: 99,
             deterministic: false,
+            start_round: None,
         };
     }
 
-    pub fn from(max_rounds: usize, deterministic: bool) -> SetupGameOptions {
+    pub fn from(
+        max_rounds: usize,
+        deterministic: bool,
+        start_round: Option<usize>,
+    ) -> SetupGameOptions {
         return SetupGameOptions {
             rounds: max_rounds,
             deterministic: deterministic,
+            start_round: start_round,
         };
     }
 }

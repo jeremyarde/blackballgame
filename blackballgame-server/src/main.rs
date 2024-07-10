@@ -139,7 +139,9 @@ async fn serve_asset(path: Option<Path<String>>) -> impl IntoResponse {
 async fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(
-            EnvFilter::from_default_env().add_directive("blackballgame=debug".parse().unwrap()),
+            EnvFilter::from_default_env()
+                .add_directive("blackballgame=debug".parse().unwrap())
+                .add_directive("common=debug".parse().unwrap()),
         )
         .with_span_events(FmtSpan::FULL)
         // .with_thread_names(true) // only says "tokio-runtime-worker"
