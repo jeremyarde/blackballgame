@@ -454,11 +454,6 @@ impl GameState {
         );
     }
 
-    fn get_random_card(&mut self) -> Option<Card> {
-        fastrand::shuffle(&mut self.deck);
-        self.deck.pop()
-    }
-
     fn advance_trump(&mut self) {
         match self.trump {
             Suit::Heart => self.trump = Suit::Diamond,
@@ -510,7 +505,7 @@ impl GameState {
         for i in 1..=self.curr_round {
             // get random card, give to a player
             for player_id in self.player_order.iter() {
-                let card = get_random_card(&mut self.deck).unwrap();
+                let card = self.deck.pop().unwrap();
                 let player: &mut GameClient = self.players.get_mut(player_id).unwrap();
 
                 let mut new_card = card.clone();
@@ -619,11 +614,6 @@ fn find_winning_card(curr_played_cards: Vec<Card>, trump: Suit) -> Card {
 
     tracing::info!("Curr winning card: {:?}", curr_winning_card);
     curr_winning_card
-}
-
-fn get_random_card(deck: &mut Vec<Card>) -> Option<Card> {
-    fastrand::shuffle(deck);
-    deck.pop()
 }
 
 fn validate_bid(
@@ -1041,11 +1031,28 @@ mod tests {
             timestamp: Utc::now(),
         }]);
 
-        insta::assert_yaml_snapshot!(game, {
-            ".timestamp" => "[utc]",
-            ".players.*.encrypted_hand" => "[encrypted_hand]",
-            ".event_log.*" => "[event_log]"
-        });
+        // insta::assert_yaml_snapshot!(game, {
+        //     ".timestamp" => "[utc]",
+        //     ".players.*.encrypted_hand" => "[encrypted_hand]",
+        //     ".event_log.*" => "[event_log]"
+        // });
+
+        game.process_event(vec![
+            GameMessage {
+                username: player_two.clone(),
+                message: crate::GameEvent {
+                    action: crate::GameAction::Bid(0),
+                },
+                timestamp: Utc::now(),
+            },
+            GameMessage {
+                username: player_one.clone(),
+                message: crate::GameEvent {
+                    action: crate::GameAction::Bid(0), // origin: crate::Actioner::Player(has_second_turn.clone()),
+                },
+                timestamp: Utc::now(),
+            },
+        ]);
 
         game.process_event(vec![
             GameMessage {
@@ -1082,5 +1089,11 @@ mod tests {
                 timestamp: Utc::now(),
             },
         ]);
+
+        insta::assert_yaml_snapshot!(game, {
+            ".timestamp" => "[utc]",
+            // ".players.*.encrypted_hand" => "[encrypted_hand]",
+            // ".event_log.*" => "[event_log]"
+        });
     }
 }
