@@ -9,7 +9,10 @@ use std::{
 };
 
 use chrono::Utc;
-use common::{Actioner, Connect, GameAction, GameEvent, GameMessage, GameState, GameplayState};
+use common::{
+    Actioner, Connect, GameAction, GameEvent, GameMessage, GameState, GameplayState,
+    SetupGameOptions,
+};
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -87,7 +90,7 @@ impl AI {
             }
             's' => {
                 info!("Requesting StartGame");
-                GameAction::StartGame
+                GameAction::StartGame(SetupGameOptions::new())
             }
             'c' => {
                 info!("Requesting CurrentState");
