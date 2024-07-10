@@ -11,12 +11,12 @@ secret_key: mysecretkey
 players:
   p1:
     id: p1
-    encrypted_hand: KBBbNgobA0dbGxMHHRBPHxc0GyZMAxsCWxUdVQIEXw5RUVssHlhdF0gbEwEQHUMfUVFIaxMVQlADUxNNQ0QaWAMHGCYLXWYQExULVQFAFFZRGAw2GhsDUA5eUBoeH1JYX0kPPgJMXFBQBgUKXQoUExdJQ2peFRsCBlZIEhUuVANRUVsvXxsVUBlCWANTSxQJAwodOkwVGwQLW0QSU0sHSQ42
+    encrypted_hand: "[encrypted_hand]"
     num_cards: 0
     role: Leader
   p2:
     id: p2
-    encrypted_hand: KBBbNhYRS0VKGRBEHBgMHBc0GyZQCVMGQBceFgMMHA1RUVs8HkYTVF4XRFUcDBBbSVpNIl5IUx8WFwgFQlVXCR8KADoWbBMPUA8QREJbWVsAHhArUAlTHhdUQEBSVVcPEgcMOlAJQEIPGUkWGR1XQ0BcVX0CXxAPF1FtVglbT1sDWVtzUEAEHwYXCBYTFQAbUUdbKRNfBBNQDwMHDSQ=
+    encrypted_hand: "[encrypted_hand]"
     num_cards: 0
     role: Player
 curr_round: 3
@@ -41,16 +41,16 @@ curr_winning_card:
   played_by: p2
 curr_dealer: p1
 bids:
-  p2: 0
   p1: 0
+  p2: 0
 bid_order:
   - - p2
     - 0
   - - p1
     - 0
 wins:
-  p2: 1
   p1: 0
+  p2: 1
 score:
   p1: 0
   p2: 0
@@ -65,17 +65,17 @@ event_log:
           rounds: 5
           deterministic: true
           start_round: 3
-    timestamp: "2024-07-10T23:34:54.453794Z"
+    timestamp: "[event_timestamp]"
   - username: p2
     message:
       action:
         bid: 0
-    timestamp: "2024-07-10T23:34:54.453953Z"
+    timestamp: "[event_timestamp]"
   - username: p1
     message:
       action:
         bid: 0
-    timestamp: "2024-07-10T23:34:54.453953Z"
+    timestamp: "[event_timestamp]"
   - username: p2
     message:
       action:
@@ -84,7 +84,7 @@ event_log:
           suit: club
           value: 14
           played_by: p2
-    timestamp: "2024-07-10T23:34:54.453995Z"
+    timestamp: "[event_timestamp]"
   - username: p1
     message:
       action:
@@ -93,5 +93,5 @@ event_log:
           suit: spade
           value: 14
           played_by: p1
-    timestamp: "2024-07-10T23:34:54.453996Z"
+    timestamp: "[event_timestamp]"
 system_status: []

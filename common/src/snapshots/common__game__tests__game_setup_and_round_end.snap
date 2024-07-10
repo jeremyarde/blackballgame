@@ -36,11 +36,11 @@ bid_order:
   - - p1
     - 0
 wins:
-  p1: 0
   p2: 0
+  p1: 0
 score:
-  p1: 0
   p2: 0
+  p1: 0
 gameplay_state:
   Play:
     hand_num: 1

@@ -1092,8 +1092,13 @@ mod tests {
 
         insta::assert_yaml_snapshot!(game, {
             ".timestamp" => "[utc]",
-            // ".players.*.encrypted_hand" => "[encrypted_hand]",
-            // ".event_log.*" => "[event_log]"
+            ".players.*.encrypted_hand" => "[encrypted_hand]",
+            ".event_log[].timestamp" => "[event_timestamp]",
+            ".wins" => insta::sorted_redaction(),
+            ".bids" => insta::sorted_redaction(),
+            ".score" => insta::sorted_redaction(),
+            ".players" => insta::sorted_redaction(),
+
         });
     }
 }
