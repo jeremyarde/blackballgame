@@ -35,8 +35,8 @@ bid_order:
   - - p2
     - 0
 wins:
-  p2: 0
   p1: 0
+  p2: 0
 score:
   p2: 0
   p1: 0
