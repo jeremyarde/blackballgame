@@ -1,6 +1,6 @@
 ---
 source: common/src/game.rs
-assertion_line: 1093
+assertion_line: 1061
 expression: game
 ---
 setup_game_options:
@@ -24,39 +24,19 @@ trump: heart
 player_order:
   - p1
   - p2
-curr_played_cards:
-  - id: 38
-    suit: club
-    value: 14
-    played_by: p2
-  - id: 51
-    suit: spade
-    value: 14
-    played_by: p1
+curr_played_cards: []
 curr_player_turn: p2
-curr_winning_card:
-  id: 38
-  suit: club
-  value: 14
-  played_by: p2
+curr_winning_card: ~
 curr_dealer: p1
-bids:
-  p1: 0
-  p2: 0
-bid_order:
-  - - p2
-    - 0
-  - - p1
-    - 0
+bids: {}
+bid_order: []
 wins:
   p1: 0
-  p2: 1
+  p2: 0
 score:
   p1: 0
   p2: 0
-gameplay_state:
-  Play:
-    hand_num: 1
+gameplay_state: Bid
 event_log:
   - username: p1
     message:
@@ -65,33 +45,5 @@ event_log:
           rounds: 5
           deterministic: true
           start_round: 3
-    timestamp: "[event_timestamp]"
-  - username: p2
-    message:
-      action:
-        bid: 0
-    timestamp: "[event_timestamp]"
-  - username: p1
-    message:
-      action:
-        bid: 0
-    timestamp: "[event_timestamp]"
-  - username: p2
-    message:
-      action:
-        playcard:
-          id: 38
-          suit: club
-          value: 14
-          played_by: p2
-    timestamp: "[event_timestamp]"
-  - username: p1
-    message:
-      action:
-        playcard:
-          id: 51
-          suit: spade
-          value: 14
-          played_by: p1
     timestamp: "[event_timestamp]"
 system_status: []

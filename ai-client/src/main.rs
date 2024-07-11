@@ -122,6 +122,7 @@ impl AI {
         let action = match &gamestate.gameplay_state {
             common::GameplayState::Bid => get_bid(gamestate),
             common::GameplayState::Pregame => return None,
+            common::GameplayState::PostHand(ps) => return None,
             common::GameplayState::Play(ps) => {
                 let player = gamestate.players.get(&self.username).unwrap();
                 let cards = GameState::get_hand_from_encrypted(

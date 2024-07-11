@@ -37,6 +37,14 @@ impl GameState {
                     "jere/ update state play -> ?? {}, {}",
                     ps.hand_num, self.curr_round
                 );
+                // if ps.hand_num >= self.curr_round.try_into().unwrap() {
+                //     GameplayState::PostHand(ps.clone())
+                // } else {
+                //     GameplayState::Play(PlayState::from(ps.hand_num + 1))
+                // }
+                GameplayState::PostHand(ps.clone())
+            }
+            GameplayState::PostHand(ps) => {
                 if ps.hand_num >= self.curr_round.try_into().unwrap() {
                     GameplayState::PostRound
                 } else {
@@ -67,6 +75,7 @@ impl GameState {
             GameplayState::Bid => {}
             GameplayState::Pregame => {}
             GameplayState::PostRound => {}
+            GameplayState::PostHand(ps) => {}
         }
     }
 
@@ -234,6 +243,17 @@ impl GameState {
                 // Get winner once everyones played and start again with winner of round
                 GameplayState::Play(ps) => self.process_event_play(event),
                 GameplayState::PostRound => self.process_event_postround(event),
+                GameplayState::PostHand(ps) => {
+                    if event.message.action == GameAction::Ack
+                        || event.message.action == GameAction::Deal
+                    {
+                        self.start_next_hand();
+                        self.update_to_next_state();
+                        Some(self.get_state())
+                    } else {
+                        None
+                    }
+                }
             };
         }
 
@@ -871,14 +891,11 @@ mod tests {
         let has_first_turn = game.player_order[1].clone(); // person after dealer
         let has_second_turn = game.player_order[0].clone(); // dealer goes second
 
-        println!("Game details @StartGame: {:#?}", game.get_state());
-
         assert_ne!(has_first_turn, has_second_turn);
         assert_eq!(first_dealer, has_second_turn); // first dealer goes second
         assert_eq!(game.curr_player_turn.clone().unwrap(), has_first_turn);
         assert_eq!(game.gameplay_state, GameplayState::Bid);
 
-        println!("jere/ before bid: {:#?}", game.get_state());
         game.process_event(vec![GameMessage {
             username: has_first_turn.clone(),
             message: crate::GameEvent {
@@ -903,7 +920,11 @@ mod tests {
         insta::assert_yaml_snapshot!(game, {
             ".timestamp" => "[utc]",
             ".players.*.encrypted_hand" => "[encrypted_hand]",
-            ".event_log.*" => "[event_log]"
+            ".event_log[].timestamp" => "[event_timestamp]",
+            ".wins" => insta::sorted_redaction(),
+            ".bids" => insta::sorted_redaction(),
+            ".score" => insta::sorted_redaction(),
+            ".players" => insta::sorted_redaction(),
         });
 
         // first player that bid 0 goes first because both bid 0
@@ -957,8 +978,10 @@ mod tests {
             timestamp: Utc::now(),
         }]);
 
-        println!("Game details @Bid - Round 2: {:#?}", game.get_state());
-        assert_eq!(game.gameplay_state, GameplayState::PostRound);
+        assert_eq!(
+            game.gameplay_state,
+            GameplayState::PostHand(PlayState::from(1))
+        );
         assert_eq!(game.curr_played_cards.len(), 2);
 
         // Send "start next round" message
@@ -980,7 +1003,11 @@ mod tests {
         insta::assert_yaml_snapshot!(game, {
             ".timestamp" => "[utc]",
             ".players.*.encrypted_hand" => "[encrypted_hand]",
-            ".event_log.*" => "[event_log]"
+            ".event_log[].timestamp" => "[event_timestamp]",
+            ".wins" => insta::sorted_redaction(),
+            ".bids" => insta::sorted_redaction(),
+            ".score" => insta::sorted_redaction(),
+            ".players" => insta::sorted_redaction(),
         });
     }
 
@@ -1031,11 +1058,15 @@ mod tests {
             timestamp: Utc::now(),
         }]);
 
-        // insta::assert_yaml_snapshot!(game, {
-        //     ".timestamp" => "[utc]",
-        //     ".players.*.encrypted_hand" => "[encrypted_hand]",
-        //     ".event_log.*" => "[event_log]"
-        // });
+        insta::assert_yaml_snapshot!(game, {
+            ".timestamp" => "[utc]",
+            ".players.*.encrypted_hand" => "[encrypted_hand]",
+            ".event_log[].timestamp" => "[event_timestamp]",
+            ".wins" => insta::sorted_redaction(),
+            ".bids" => insta::sorted_redaction(),
+            ".score" => insta::sorted_redaction(),
+            ".players" => insta::sorted_redaction(),
+        });
 
         game.process_event(vec![
             GameMessage {
@@ -1098,7 +1129,6 @@ mod tests {
             ".bids" => insta::sorted_redaction(),
             ".score" => insta::sorted_redaction(),
             ".players" => insta::sorted_redaction(),
-
         });
     }
 }

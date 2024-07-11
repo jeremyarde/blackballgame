@@ -11,7 +11,8 @@ pub enum GameplayState {
     Bid,
     Play(PlayState),
     Pregame,
-    PostRound,
+    PostRound,           // players played all cards
+    PostHand(PlayState), // each player played a card
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Deserialize)]
@@ -172,6 +173,7 @@ pub enum GameAction {
     // Player actions
     PlayCard(Card),
     Bid(i32),
+    Ack,
 
     // System actions
     StartGame(SetupGameOptions),
