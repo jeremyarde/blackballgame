@@ -1,6 +1,5 @@
 ---
 source: common/src/game.rs
-assertion_line: 1124
 expression: game
 ---
 setup_game_options:
@@ -55,7 +54,7 @@ score:
   p1: 0
   p2: 0
 gameplay_state:
-  Play:
+  PostHand:
     hand_num: 1
 event_log:
   - username: p1
