@@ -287,6 +287,18 @@ function App() {
     sendMessage(message);
   };
 
+  const sendAck = () => {
+    console.log("sendAck");
+    let message = {
+      username: username,
+      message: {
+        action: "ack",
+        // origin: { player: username },
+      },
+      timestamp: new Date().toISOString(),
+    };
+    sendMessage(message);
+  };
   let bids = [];
   if (gamestate?.curr_round) {
     for (let i = 0; i < gamestate.curr_round + 1; i++) {
@@ -380,12 +392,14 @@ function App() {
               </div>
               {gamestate &&
                 (gamestate.gameplay_state["Play"] ||
-                  gamestate.gameplay_state["PostRound"]) && (
+                  gamestate.gameplay_state["PostRound"] ||
+                  gamestate.gameplay_state["PostHand"]) && (
                   <div className="bg-green-500">
                     <h3>Played Cards</h3>
                     <CardArea
                       cards={gamestate ? gamestate.curr_played_cards : []}
                       playCard={playCard}
+                      gamestate={gamestate}
                     />
                   </div>
                 )}
@@ -397,16 +411,19 @@ function App() {
                       : ""
                   }`}
                 >
-                  <CardArea
-                    cards={
-                      // gamestate?.players &&
-                      // gamestate.players[username] &&
-                      // gamestate?.players[username].hand
-                      //   ? gamestate?.players[username].hand
-                      playerHand ? playerHand : []
-                    }
-                    playCard={playCard}
-                  />
+                  {gamestate && (
+                    <CardArea
+                      cards={
+                        // gamestate?.players &&
+                        // gamestate.players[username] &&
+                        // gamestate?.players[username].hand
+                        //   ? gamestate?.players[username].hand
+                        playerHand ? playerHand : []
+                      }
+                      playCard={playCard}
+                      gamestate={gamestate}
+                    />
+                  )}
                   {gamestate && gamestate.curr_player_turn == username && (
                     <h3 className="self-center mt-3">Your turn</h3>
                   )}
@@ -445,6 +462,26 @@ function App() {
                           Waiting for dealer to start next round
                         </div>
                       )}
+                    </div>
+                  )}
+                  {gamestate && gamestate.gameplay_state["PostHand"] && (
+                    <div className="w-full p-4 text-center bg-red-300">
+                      {
+                        <>
+                          <button
+                            className="p-2 bg-red-400 border border-red-500 border-solid rounded-md"
+                            onClick={sendAck}
+                          >
+                            Go to next hand
+                          </button>
+                          <button
+                            className="p-2 bg-red-400 border border-red-500 border-solid rounded-md"
+                            onClick={dealCard}
+                          >
+                            Start next round
+                          </button>
+                        </>
+                      }
                     </div>
                   )}
                 </div>
@@ -538,21 +575,29 @@ import Diamond from "./assets/diamond.svg";
 import Heart from "./assets/heart.svg";
 import Spade from "./assets/spade.svg";
 
-function CardArea({ cards = [], playCard }) {
+function CardArea({ cards = [], playCard, gamestate }) {
   console.log("jere/ cards", cards);
   let sortedCards = cards.sort((a, b) => a.id - b.id);
+  let curr_winning_card = gamestate?.curr_winning_card;
   return (
     <div className="flex flex-row justify-center space-x-2">
       {sortedCards
         ? sortedCards.map((card) => {
-            return <Card key={card.id} card={card} playCard={playCard} />;
+            return (
+              <Card
+                key={card.id}
+                card={card}
+                playCard={playCard}
+                isWinning={curr_winning_card?.id === card.id}
+              />
+            );
           })
         : ""}
     </div>
   );
 }
 
-function Card({ card, playCard }) {
+function Card({ card, playCard, isWinning }) {
   let suitDisplay = {
     spade: { src: Spade },
     diamond: { src: Diamond },
@@ -580,10 +625,12 @@ function Card({ card, playCard }) {
     <>
       <div
         key={card.id}
-        className="flex h-[140px] w-[100px] items-center justify-center rounded-lg bg-white shadow-lg"
+        className={`flex h-[140px] w-[100px] items-center justify-center rounded-lg bg-white shadow-lg ${
+          isWinning ? "bg-yellow-200" : ""
+        }`}
         onMouseDown={() => playCard(card)}
       >
-        <div className="flex flex-col items-center gap-2">
+        <div className={`flex flex-col items-center gap-2`}>
           <span className="text-xl font-bold">{cardValue[card.value]}</span>
           <span className="font-medium text-md">
             <img className={`size-14`} src={suitDisplay[card.suit].src}></img>

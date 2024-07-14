@@ -378,6 +378,8 @@ impl GameState {
         }
 
         self.curr_dealer = self.player_order.get(self.curr_dealer_idx).unwrap().clone();
+
+        // this caused an issue...
         self.curr_player_turn = Some(
             self.player_order
                 .get(self.curr_player_turn_idx)
