@@ -11,22 +11,6 @@ use crate::{
     PlayState, PlayerRole, SetupGameOptions, Suit,
 };
 
-fn advance_player_turn(curr: &String, players: &Vec<String>) -> String {
-    let mut loc = 0;
-    for (i, p) in players.iter().enumerate() {
-        if p == curr {
-            loc = i;
-        }
-    }
-
-    // Current player is at the end of the order, loop back around to the start
-    if loc + 1 == players.len() {
-        return players[0].clone();
-    }
-
-    players[loc + 1].clone()
-}
-
 impl GameState {
     pub fn update_to_next_state(&mut self) {
         let newstate = match &self.gameplay_state {
@@ -67,21 +51,6 @@ impl GameState {
         // self.transition_state(newstate.clone());
         self.gameplay_state = newstate;
     }
-
-    // This handles setting up the initial state of the game once we get to the state
-    // not really used right now, but will be nice to consolidate this information here
-    // fn transition_state(&mut self, newstate: GameplayState) {
-    //     match newstate {
-    //         GameplayState::Play(ps) => {
-    //             self.curr_played_cards = vec![];
-    //             self.curr_winning_card = None;
-    //         }
-    //         GameplayState::Bid => {}
-    //         GameplayState::Pregame => {}
-    //         GameplayState::PostRound => {}
-    //         GameplayState::PostHand(ps) => {}
-    //     }
-    // }
 
     pub fn process_event_pregame(&mut self, event: GameMessage) {
         match event.message.action {
@@ -125,7 +94,10 @@ impl GameState {
                 let res = self.update_bid(event.username.clone(), &bid);
                 info!("Bid result: {:?}", res);
                 if res.is_ok() {
-                    self.advance_player_turn(None);
+                    let (next_turn_idx, next_turn) =
+                        self.advance_turn(self.curr_player_turn_idx, &self.player_order);
+                    self.curr_player_turn_idx = next_turn_idx;
+                    self.curr_player_turn = Some(next_turn);
                 }
 
                 if self.is_bidding_over() {
@@ -135,8 +107,7 @@ impl GameState {
                             curr_highest_bid = (player.to_string(), *bid);
                         }
                     }
-                    self.advance_player_turn(Some(curr_highest_bid.0));
-
+                    self.set_curr_player_turn(&curr_highest_bid.0);
                     self.update_to_next_state();
                 }
             }
@@ -196,10 +167,10 @@ impl GameState {
                             self.trump.clone(),
                         ));
 
-                        self.curr_player_turn = Some(advance_player_turn(
-                            &self.curr_player_turn.clone().unwrap(),
-                            &self.player_order,
-                        ));
+                        let (next_turn_idx, next_turn) =
+                            self.advance_turn(self.curr_player_turn_idx, &self.player_order);
+                        self.curr_player_turn_idx = next_turn_idx;
+                        self.curr_player_turn = Some(next_turn);
                     }
                     Err(e) => {
                         info!("card is NOT valid: {:?}", e);
@@ -312,38 +283,24 @@ impl GameState {
         if let Some(x) = self.wins.get_mut(&winner) {
             *x += 1;
         }
+        // person who won the hand plays first next hand
+        self.set_curr_player_turn(&winner);
+    }
 
-        self.curr_player_turn = Some(winner); // person who won the hand plays first next hand
+    pub fn set_curr_player_turn(&mut self, next_player: &String) {
+        let mut next_idx = 0;
+        for (i, player) in self.player_order.iter().enumerate() {
+            if player == next_player {
+                self.curr_player_turn_idx = i;
+                self.curr_player_turn = Some(next_player.clone());
+                return;
+            }
+        }
     }
 
     pub fn start_next_hand(&mut self) {
         self.curr_played_cards = vec![];
         self.curr_winning_card = None;
-    }
-
-    pub fn advance_player_turn(&mut self, next_curr_player: Option<String>) {
-        if next_curr_player.is_none() {
-            self.curr_player_turn_idx += 1;
-
-            if self.curr_player_turn_idx >= self.player_order.len() {
-                self.curr_player_turn_idx = 0;
-            }
-            self.curr_player_turn = Some(
-                self.player_order
-                    .get(self.curr_player_turn_idx)
-                    .unwrap()
-                    .clone(),
-            );
-            return;
-        }
-
-        for (i, player) in self.player_order.iter().enumerate() {
-            if player.eq(&next_curr_player.clone().unwrap()) {
-                self.curr_player_turn = next_curr_player;
-                self.curr_player_turn_idx = i;
-                return;
-            }
-        }
     }
 
     pub fn start_next_round(&mut self) {
@@ -366,26 +323,16 @@ impl GameState {
         self.advance_trump();
         // self.advance_dealer();
 
-        if self.curr_dealer_idx == self.player_order.len() - 1 {
-            self.curr_dealer_idx = 0;
-        } else {
-            self.curr_dealer_idx += 1;
-        }
-        if self.curr_dealer_idx == self.player_order.len() - 1 {
-            self.curr_player_turn_idx = 0;
-        } else {
-            self.curr_player_turn_idx += 1;
-        }
+        let (next_turn_idx, next_player) =
+            self.advance_turn(self.curr_player_turn_idx, &self.player_order);
+        self.curr_player_turn_idx = next_turn_idx;
+        self.curr_player_turn = Some(next_player);
 
-        self.curr_dealer = self.player_order.get(self.curr_dealer_idx).unwrap().clone();
+        let (next_turn_idx, next_player) =
+            self.advance_turn(self.curr_dealer_idx, &self.player_order);
+        self.curr_dealer_idx = next_turn_idx;
+        self.curr_dealer = next_player;
 
-        // this caused an issue...
-        self.curr_player_turn = Some(
-            self.player_order
-                .get(self.curr_player_turn_idx)
-                .unwrap()
-                .clone(),
-        );
         self.curr_round += 1;
 
         self.curr_played_cards = vec![];
@@ -395,6 +342,17 @@ impl GameState {
         self.update_to_next_state();
 
         tracing::info!("Player status: {:#?}", self.player_status());
+    }
+
+    fn advance_turn(&self, curr_turn_idx: usize, player_order: &Vec<String>) -> (usize, String) {
+        let mut next_player_idx = 0;
+        if curr_turn_idx == player_order.len() - 1 {
+            next_player_idx = 0;
+        } else {
+            next_player_idx += 1;
+        }
+
+        return (next_player_idx, player_order[next_player_idx].clone());
     }
 
     pub fn broadcast_message(&mut self, message: String) {
@@ -483,12 +441,6 @@ impl GameState {
 
     fn update_bid(&mut self, player_id: String, bid: &i32) -> Result<i32, String> {
         tracing::info!("Player {} to bid", player_id);
-
-        // if self.curr_player_turn.clone().unwrap() != player_id {
-        //     self.system_status
-        //         .push(format!("Not player {}'s turn.", player_id));
-        //     return Err("Not player {}'s turn.".to_string());
-        // }
         let client = self.players.get_mut(&player_id).unwrap();
 
         match validate_bid(
@@ -718,9 +670,8 @@ mod tests {
     use chrono::Utc;
 
     use crate::{
-        create_deck,
-        game::{advance_player_turn, find_winning_card},
-        Card, GameMessage, GameState, GameplayState, PlayState, PlayerRole, SetupGameOptions, Suit,
+        create_deck, game::find_winning_card, Card, GameMessage, GameState, GameplayState,
+        PlayState, PlayerRole, SetupGameOptions, Suit,
     };
 
     #[test]
@@ -801,44 +752,9 @@ mod tests {
         assert!(res.id == 1)
     }
 
-    // #[test]
-    // fn test_get_curr_player_from_bids() {
-    //     let bid_order = vec![
-    //         ("P1".to_string(), 2),
-    //         ("P2".to_string(), 1),
-    //         ("P3".to_string(), 3),
-    //     ];
-    //     let next = update_curr_player_from_bids(&bid_order);
-
-    //     assert!(next == "P3");
-    // }
-
-    // #[test]
-    // fn test_get_curr_player_from_bids_multiple_same_bid() {
-    //     let bid_order = vec![
-    //         ("P1".to_string(), 6),
-    //         ("P2".to_string(), 0),
-    //         ("P3".to_string(), 6),
-    //     ];
-    //     let next = update_curr_player_from_bids(&bid_order);
-
-    //     assert!(next == "P1");
-    // }
-
-    // #[test]
-    // fn test_get_curr_player_from_bids_no_bids() {
-    //     let bid_order = vec![
-    //         ("P1".to_string(), 0),
-    //         ("P2".to_string(), 0),
-    //         ("P3".to_string(), 0),
-    //     ];
-    //     let next = update_curr_player_from_bids(&bid_order);
-
-    //     assert!(next == "P1");
-    // }
-
     #[test]
     fn test_advance_player_turn() {
+        let game = GameState::new();
         let players = vec![
             "P1".to_string(),
             "P2".to_string(),
@@ -846,13 +762,15 @@ mod tests {
             "P4".to_string(),
         ];
 
-        let curr = "P1".to_string();
-        let res = advance_player_turn(&curr, &players);
+        let curr = 0;
+        let (i, res) = game.advance_turn(curr, &players);
 
         assert!(res == "P2".to_string());
+        assert!(i == 1);
     }
     #[test]
     fn test_advance_player_turn_end_player() {
+        let game = GameState::new();
         let players = vec![
             "P1".to_string(),
             "P2".to_string(),
@@ -860,10 +778,11 @@ mod tests {
             "P4".to_string(),
         ];
 
-        let curr = "P4".to_string();
-        let res = advance_player_turn(&curr, &players);
+        let curr = 3;
+        let (i, res) = game.advance_turn(curr, &players);
 
         assert!(res == "P1".to_string());
+        assert!(i == 0);
     }
 
     #[test]
@@ -1150,5 +1069,13 @@ mod tests {
             ".score" => insta::sorted_redaction(),
             ".players" => insta::sorted_redaction(),
         });
+
+        game.process_event(vec![GameMessage {
+            username: player_two.clone(),
+            message: crate::GameEvent {
+                action: crate::GameAction::Ack,
+            },
+            timestamp: Utc::now(),
+        }]);
     }
 }
