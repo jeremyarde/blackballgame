@@ -574,6 +574,7 @@ import Club from "./assets/club.svg";
 import Diamond from "./assets/diamond.svg";
 import Heart from "./assets/heart.svg";
 import Spade from "./assets/spade.svg";
+import NoTrump from "./assets/notrump.svg";
 
 function CardArea({ cards = [], playCard, gamestate }) {
   console.log("jere/ cards", cards);
@@ -603,6 +604,7 @@ function Card({ card, playCard, isWinning }) {
     diamond: { src: Diamond },
     club: { src: Club },
     heart: { src: Heart },
+    notrump: { src: NoTrump },
   };
 
   let cardValue = {

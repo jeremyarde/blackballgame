@@ -2,3 +2,4 @@
 - show lobbies you can join
 - private/public lobbies
 - show players in your lobby
+- better displayer for your own bids (under hand?)
