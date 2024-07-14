@@ -19,9 +19,13 @@ const enum GAME_STATE {
   START,
 }
 
-const ws_url = `ws://${window.location.hostname}${
-  import.meta.env.MODE === "development" ? ":8080" : ""
-}/ws`;
+const ws_url = {
+  development: `ws://${window.location.hostname}:8080/ws`,
+  production: `wss://${window.location.hostname}/ws`,
+};
+// const ws_url = `ws://${window.location.hostname}${
+//   import.meta.env.MODE === "development" ? ":8080" : ""
+// }/ws`;
 
 // const buttonStyle =
 //   "w-24 h-10 border border-solid rounded-md  bg-background  ";
@@ -38,7 +42,7 @@ function App() {
   const [messages, setMessages] = useState([]);
   // const [hideState, setHideState] = useState(true);
 
-  const [url, setUrl] = useState(ws_url);
+  const [url, setUrl] = useState(ws_url[import.meta.env.MODE]);
   const [ws, setWs] = useState<WebSocket | undefined>(undefined);
   const [gamestate, setGamestate] = useState<GameState | undefined>(
     TEST ? EXAMPLE : undefined
