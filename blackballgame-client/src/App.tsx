@@ -22,8 +22,7 @@ const enum GAME_STATE {
 const ws_url = {
   development: `ws://${window.location.host}:8080/ws`,
   // production: `wss://${window.location.host}/ws`,
-  production:
-    "wss://https://blackballgame-blackballgame-server.onrender.com/ws",
+  production: "wss://blackballgame-blackballgame-server.onrender.com/ws",
 };
 // const ws_url = `ws://${window.location.hostname}${
 //   import.meta.env.MODE === "development" ? ":8080" : ""
