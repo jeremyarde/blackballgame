@@ -3,3 +3,11 @@
 - private/public lobbies
 - show players in your lobby
 - better displayer for your own bids (under hand?)
+- show your wins under your hand
+- hover for extra game details from a tab on the side?
+
+game stuff
+- allow quitting a game
+- need to drop games that aren't active
+- disconnect issues kind of?
+- split messages between game and system so you can get active games, join lobbies, etc

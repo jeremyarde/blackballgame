@@ -20,8 +20,8 @@ const enum GAME_STATE {
 }
 
 const ws_url = {
-  development: `ws://${window.location.hostname}:8080/ws`,
-  production: `wss://${window.location.hostname}/ws`,
+  development: `ws://${window.location.host}:8080/ws`,
+  production: `ws://${window.location.host}/ws`,
 };
 // const ws_url = `ws://${window.location.hostname}${
 //   import.meta.env.MODE === "development" ? ":8080" : ""
@@ -32,6 +32,11 @@ const ws_url = {
 
 function App() {
   console.log(`Mode: ${import.meta.env.MODE}`);
+  console.log(
+    `Host: ${window.location.host}, hostname: ${window.location.hostname}`
+  );
+  console.log(`WS urls: ${JSON.stringify(ws_url)}`);
+
   // connection to server state
   const [username, setUsername] = useState(TEST ? EXAMPLE_USERNAME : "");
   const [lobbyCode, setLobbyCode] = useState("");
@@ -92,7 +97,11 @@ function App() {
       return JSON.parse(secretDataString);
     }
 
-    if (gamestate?.players && gamestate.players[username]) {
+    if (
+      gamestate?.players &&
+      gamestate.players[username] &&
+      gamestate.players[username].encrypted_hand
+    ) {
       let playerdetails = gamestate.players[username];
       console.log("jere/ playerdetails: ", playerdetails);
       let hand = decryptHand(playerdetails.encrypted_hand);
@@ -398,7 +407,7 @@ function App() {
                 (gamestate.gameplay_state["Play"] ||
                   gamestate.gameplay_state["PostRound"] ||
                   gamestate.gameplay_state["PostHand"]) && (
-                  <div className="bg-green-500">
+                  <div className="bg-green-500 h-1/4">
                     <h3>Played Cards</h3>
                     <CardArea
                       cards={gamestate ? gamestate.curr_played_cards : []}
@@ -429,7 +438,7 @@ function App() {
                     />
                   )}
                   {gamestate && gamestate.curr_player_turn == username && (
-                    <h3 className="self-center mt-3">Your turn</h3>
+                    <h3 className="flex self-center mt-3">Your turn</h3>
                   )}
                   {gamestate && gamestate.gameplay_state == "Bid" && (
                     <div className="flex justify-center m-4">
@@ -489,6 +498,36 @@ function App() {
                     </div>
                   )}
                 </div>
+              </div>
+              <div className="w-full bg-cyan-200">
+                {gamestate?.players && username && (
+                  <div className="flex flex-row w-full ">
+                    <label className="text-center bg-cyan-400">
+                      <b>{`${username} (you)`}</b>
+                    </label>
+                    <ul className="flex flex-row items-stretch content-between justify-between">
+                      <li className="">
+                        <div>Cards left</div>
+                        <div>{gamestate.players[username].num_cards}</div>
+                      </li>
+                      <li className="">
+                        <div>Hands won</div>
+                        <div>{gamestate.wins[username]}</div>
+                      </li>
+                      <li className="">
+                        <div>Bid</div>
+                        <div>
+                          {gamestate.bids[username] ??
+                            `${gamestate.curr_player_turn}'s turn to bid`}
+                        </div>
+                      </li>
+                      <li className="">
+                        <div>Score</div>
+                        <div>{gamestate.score[username]}</div>
+                      </li>
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
             {gamestate && gamestate.players && (
@@ -551,18 +590,6 @@ function App() {
                       ? displayObject(gamestate.score)
                       : "No bids"}
                   </label>
-                </div>
-
-                <div className="flex flex-col bg-cyan-200">
-                  <h2>Hand details</h2>
-                  <div>{displayObject(gamestate.trump)}</div>
-                  <div>{displayObject(gamestate.system_status)}</div>
-                  <div>
-                    wins:{" "}
-                    {gamestate.wins && gamestate.wins[username]
-                      ? displayObject(gamestate.wins[username])
-                      : "N/A"}
-                  </div>
                 </div>
               </div>
             )}
