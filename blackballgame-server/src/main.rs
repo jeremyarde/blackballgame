@@ -177,7 +177,7 @@ async fn main() {
 
 pub async fn get_rooms(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let rooms = match state.rooms.try_lock() {
-        Ok(rooms) => rooms.keys().map(|key| key.clone()).collect::<Vec<String>>(),
+        Ok(rooms) => rooms.keys().cloned().collect::<Vec<String>>(),
         Err(_) => vec![String::from("Could not get rooms")],
     };
 

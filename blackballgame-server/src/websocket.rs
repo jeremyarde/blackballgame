@@ -164,7 +164,7 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
                                 let _ = sender
                                     .send(Message::Text(
                                         json!(ServerMessage {
-                                            message: format!("Username taken, attempted to reconnect or secrets did not match."),
+                                            message: "Username taken, attempted to reconnect or secrets did not match.".to_string(),
                                             from: "System".to_string(),
                                         })
                                         .to_string(),
@@ -435,7 +435,7 @@ pub async fn ws_handler(
 
 pub async fn get_rooms(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let rooms = match state.rooms.try_lock() {
-        Ok(rooms) => rooms.keys().map(|key| key.clone()).collect::<Vec<String>>(),
+        Ok(rooms) => rooms.keys().cloned().collect::<Vec<String>>(),
         Err(_) => vec![String::from("Could not get rooms")],
     };
 

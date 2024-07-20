@@ -22,11 +22,11 @@ pub async fn app_endpoint(
         .await
         .iter()
         .map(|(roomid, gamestate)| {
-            return format!("{} has {} players", roomid, gamestate.players.len());
+            format!("{} has {} players", roomid, gamestate.players.len())
         })
         .collect::<Vec<String>>();
 
-    let rooms = if test.len() > 0 {
+    let rooms = if !test.is_empty() {
         test.join("\n")
     } else {
         "No rooms".to_string()
