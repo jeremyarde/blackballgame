@@ -1,5 +1,6 @@
 use std::{any, collections::HashMap};
 
+use chrono::Utc;
 use data_encoding::BASE64;
 
 use nanoid::nanoid_gen;
@@ -552,8 +553,10 @@ impl GameState {
             curr_player_turn_idx: 0,
             curr_dealer_idx: 0,
             secret_key: "mysecretkey".to_string(),
-            setup_game_options: SetupGameOptions::new(), // tx,
-                                                         // rx,
+            setup_game_options: SetupGameOptions::new(),
+            is_public: true,
+            latest_update: Utc::now(), // tx,
+                                       // rx,
         }
     }
 }

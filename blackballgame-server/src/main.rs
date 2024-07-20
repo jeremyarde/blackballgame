@@ -13,12 +13,19 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Response;
 use axum::routing::get;
+use axum::routing::post;
+use axum::Json;
 use axum::Router;
+use common::GameState;
+use dioxus::prelude::server_fn::client::browser;
 use futures_util::StreamExt;
 use include_dir::Dir;
 use include_dir::File;
 use mime_guess::mime;
 use mime_guess::Mime;
+use serde::Deserialize;
+use serde::Serialize;
+use serde_json::json;
 use tokio::sync::Mutex;
 
 use tower_http::cors::Any;
@@ -148,7 +155,7 @@ async fn main() {
 
     let app = Router::new()
         .route("/ws", get(ws_handler))
-        .route("/rooms", get(get_rooms))
+        .route("/rooms", get(get_rooms).post(create_room))
         .route("/health", get(|| async { "ok" }))
         .route(
             "/*path",
@@ -175,6 +182,7 @@ async fn main() {
     .unwrap();
 }
 
+#[axum::debug_handler]
 pub async fn get_rooms(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let rooms = match state.rooms.try_lock() {
         Ok(rooms) => rooms.keys().cloned().collect::<Vec<String>>(),
@@ -183,4 +191,52 @@ pub async fn get_rooms(State(state): State<Arc<AppState>>) -> impl IntoResponse 
 
     rooms.join("\n")
     // rooms
+}
+
+#[derive(Deserialize)]
+pub struct CreateGameRequest {
+    lobby_code: String,
+}
+
+#[derive(Serialize)]
+pub struct CreateGameResponse {
+    lobby_code: String,
+}
+
+pub async fn create_room(
+    State(state): State<Arc<AppState>>,
+    Json(request): Json<CreateGameRequest>,
+) -> impl IntoResponse {
+    info!("Creating a new lobby");
+    // check if lobby code already exists and don't create a new game
+
+    let mut rooms = state.rooms.lock().await;
+    if rooms.contains_key(&request.lobby_code) {
+        info!("Room \"{}\" already exists.", request.lobby_code);
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(CreateGameResponse {
+                lobby_code: request.lobby_code,
+            }),
+        );
+    }
+
+    let newgame = GameState::new();
+    rooms.insert(request.lobby_code.clone(), newgame);
+
+    let broadcast_channel = tokio::sync::broadcast::channel(10).0;
+    state
+        .room_broadcast_channel
+        .lock()
+        .await
+        .insert(request.lobby_code.clone(), broadcast_channel);
+
+    info!("Success. Created lobby: {}", request.lobby_code);
+
+    (
+        StatusCode::CREATED,
+        Json(CreateGameResponse {
+            lobby_code: request.lobby_code.clone(),
+        }),
+    )
 }

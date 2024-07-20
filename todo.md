@@ -11,3 +11,16 @@ game stuff
 - need to drop games that aren't active
 - disconnect issues kind of?
 - split messages between game and system so you can get active games, join lobbies, etc
+
+curl -X POST 'localhost:8080/rooms' \
+-H 'Content-Type: application/json' \
+-d '{
+    "lobby_code": "testing"
+}'
+
+
+curl -X POST 'localhost:8080/rooms' \
+-H 'Content-Type: application/json' \
+-d '{
+    "lobby_code": "test1"
+}'
