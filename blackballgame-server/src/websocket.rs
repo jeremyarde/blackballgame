@@ -1,4 +1,5 @@
 use axum::extract::ws::Message;
+use axum::http::Response;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -14,7 +15,7 @@ use axum::http::header;
 use axum::http::Method;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::response::Response;
+
 use axum::routing::get;
 use axum::Router;
 use axum_extra::headers;
@@ -454,4 +455,14 @@ pub async fn ws_handler(
     // finalize the upgrade process by returning upgrade callback.
     // we can customize the callback by sending additional info such as address.
     ws.on_upgrade(move |socket| handle_socket(socket, addr, state))
+}
+
+pub async fn get_rooms(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let rooms = match state.rooms.try_lock() {
+        Ok(rooms) => rooms.keys().map(|key| key.clone()).collect::<Vec<String>>(),
+        Err(_) => vec![String::from("Could not get rooms")],
+    };
+
+    rooms.join("\n")
+    // rooms
 }

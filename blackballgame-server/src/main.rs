@@ -170,6 +170,7 @@ async fn main() {
 
     let app = Router::new()
         .route("/ws", get(ws_handler))
+        .route("/rooms", get(get_rooms))
         .route("/health", get(|| async { "ok" }))
         .route(
             "/*path",
@@ -194,4 +195,14 @@ async fn main() {
     )
     .await
     .unwrap();
+}
+
+pub async fn get_rooms(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let rooms = match state.rooms.try_lock() {
+        Ok(rooms) => rooms.keys().map(|key| key.clone()).collect::<Vec<String>>(),
+        Err(_) => vec![String::from("Could not get rooms")],
+    };
+
+    rooms.join("\n")
+    // rooms
 }
