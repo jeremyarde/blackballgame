@@ -2,11 +2,9 @@ use std::sync::Arc;
 
 use axum::{
     extract::{Path, State},
-    response::{Html, IntoResponse},
+    response::{IntoResponse},
 };
 use dioxus::prelude::*;
-use serde::{Deserialize, Serialize};
-use serde_json::json;
 
 use crate::websocket::AppState;
 
