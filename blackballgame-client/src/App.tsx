@@ -18,9 +18,45 @@ const enum GAME_STATE {
   GAME,
   START,
 }
+import Club from "./assets/club.svg";
+import Diamond from "./assets/diamond.svg";
+import Heart from "./assets/heart.svg";
+import Spade from "./assets/spade.svg";
+import NoTrump from "./assets/notrump.svg";
+
+// const suitDisplay = {
+//   spade: { src: Spade },
+//   diamond: { src: Diamond },
+//   club: { src: Club },
+//   heart: { src: Heart },
+//   notrump: { src: NoTrump },
+// };
+
+export function Suit({ cardsuit }) {
+  console.log("jere cardsuit: ", cardsuit);
+  let suit = {
+    notrump: <NoTrump className="size-14"></NoTrump>,
+    heart: <Heart className="size-14"></Heart>,
+    diamond: <Diamond className="size-14"></Diamond>,
+    club: <Club className="size-14"></Club>,
+    spade: <Spade className="size-14"></Spade>,
+  }[cardsuit];
+
+  console.log("jere/ suit: ", suit);
+
+  return <>{suit}</>;
+}
+
+// const suitDisplay = {
+//   spade: { src: "./assets/spade.svg" },
+//   diamond: { src: "./assets/diamond.svg" },
+//   club: { src: "./assets/club.svg" },
+//   heart: { src: "./assets/heart.svg" },
+//   notrump: { src: "./assets/notrump.svg" },
+// };
 
 const ws_url = {
-  development: `ws://${window.location.host}:8080/ws`,
+  development: `ws://${window.location.hostname}:8080/ws`,
   // production: `wss://${window.location.host}/ws`,
   production: "wss://blackballgame-blackballgame-server.onrender.com/ws",
 };
@@ -320,13 +356,6 @@ function App() {
     }
   }
 
-  let suitDisplay = {
-    spade: { src: Spade },
-    diamond: { src: Diamond },
-    club: { src: Club },
-    heart: { src: Heart },
-  };
-
   return (
     <>
       <div className="flex flex-col w-full h-full">
@@ -540,10 +569,7 @@ function App() {
                   </label>
                   <label>
                     Trump suit:
-                    <img
-                      className={`size-14`}
-                      src={suitDisplay[gamestate.trump].src}
-                    ></img>
+                    <Suit cardsuit={gamestate.trump}></Suit>
                   </label>
                   <label>Round: {gamestate.curr_round}</label>
                   <label>Player Turn: {gamestate.curr_player_turn}</label>
@@ -601,13 +627,6 @@ function App() {
   );
 }
 
-// import Club from "./assets/club.svg";
-import Club from "./assets/club.svg";
-import Diamond from "./assets/diamond.svg";
-import Heart from "./assets/heart.svg";
-import Spade from "./assets/spade.svg";
-import NoTrump from "./assets/notrump.svg";
-
 function CardArea({ cards = [], playCard, gamestate }) {
   console.log("jere/ cards", cards);
   let sortedCards = cards.sort((a, b) => a.id - b.id);
@@ -631,14 +650,6 @@ function CardArea({ cards = [], playCard, gamestate }) {
 }
 
 function Card({ card, playCard, isWinning }) {
-  let suitDisplay = {
-    spade: { src: Spade },
-    diamond: { src: Diamond },
-    club: { src: Club },
-    heart: { src: Heart },
-    notrump: { src: NoTrump },
-  };
-
   let cardValue = {
     14: "A",
     13: "K",
@@ -667,7 +678,7 @@ function Card({ card, playCard, isWinning }) {
         <div className={`flex flex-col items-center gap-2`}>
           <span className="text-xl font-bold">{cardValue[card.value]}</span>
           <span className="font-medium text-md">
-            <img className={`size-14`} src={suitDisplay[card.suit].src}></img>
+            <Suit cardsuit={card.suit}></Suit>
           </span>
         </div>
       </div>
