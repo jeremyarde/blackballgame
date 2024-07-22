@@ -138,7 +138,30 @@ async fn main() {
         // allow `GET` and `POST` when accessing the resource
         .allow_methods([Method::GET, Method::POST])
         // allow requests from any origin
+        .allow_headers([axum::http::header::CONTENT_TYPE])
         .allow_origin(Any);
+
+    // let corslayer = CorsLayer::new()
+    // .allow_methods([Method::POST, Method::GET])
+    // .allow_headers([
+    //     axum::http::header::CONTENT_TYPE,
+    //     axum::http::header::ACCEPT,
+    //     // axum::http::header::AUTHORIZATION,
+    //     // axum::http::header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
+    //     // axum::http::header::ACCESS_CONTROL_REQUEST_METHOD,
+    //     // axum::http::HeaderName::from_static("x-auth-token"),
+    //     // axum::http::HeaderName::from_static("x-sid"),
+    //     axum::http::HeaderName::from_static("session_id"),
+    //     // axum::http::HeaderName::from_static("credentials"),
+    // ])
+    // // .allow_headers(Any)
+    // // .allow_credentials(true)
+    // .allow_origin(origins)
+    // // .allow_origin(Any)
+    // .expose_headers([
+    //     axum::http::header::CONTENT_ENCODING,
+    //     axum::http::HeaderName::from_static("session_id"),
+    // ]);
 
     // let assets_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets");
     let assets_dir =

@@ -13,6 +13,8 @@ out_dir = "dist"
 # resource (assets) file folder
 asset_dir = "assets"
 
+port = 5173
+
 [web.app]
 
 # HTML title tag content
