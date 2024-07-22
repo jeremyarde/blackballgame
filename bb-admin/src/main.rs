@@ -14,16 +14,22 @@ fn main() {
 
 #[component]
 fn App() -> Element {
+    let username = use_signal(|| String::new());
+
+
     // Build cool things ✌️
     let mut get_games_future = use_resource(|| async move {
-        reqwest::get("localhost:8080/admin/games")
+        reqwest::get("localhost:8080/rooms")
             .await
             .unwrap()
             .json::<HashMap<String, GameState>>()
             .await
     });
-    rsx! {
 
+
+
+    rsx! {
+        button { onclick: move |_| send_click(), "Join" }
         match &*get_games_future.read_unchecked() {
             Some(Ok(response)) => rsx! {
                 button { onclick: move |_| get_games_future.restart(), "Click to fetch another doggo" }
@@ -33,4 +39,8 @@ fn App() -> Element {
             None => rsx! { div { "Loading dogs..." } },
         }
     }
+}
+
+async fn send_login(username, lobby) {
+
 }

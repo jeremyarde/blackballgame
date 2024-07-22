@@ -1,0 +1,8 @@
+[package]
+edition = "2021"
+name = "client-bevy"
+version = "0.1.0"
+
+[dependencies]
+bevy = {version = "0.14.0", features = ["bevy_dev_tools"]}
+common = {path = "../common"}
