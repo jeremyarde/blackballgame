@@ -4,6 +4,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+use api_types::CreateGameRequest;
+use api_types::CreateGameResponse;
+use api_types::GetLobbiesResponse;
 use axum::body::Body;
 use axum::extract::Path;
 use axum::extract::State;
@@ -211,19 +214,8 @@ pub async fn get_rooms(State(state): State<Arc<AppState>>) -> impl IntoResponse 
         Ok(rooms) => rooms.keys().cloned().collect::<Vec<String>>(),
         Err(_) => vec![String::from("Could not get rooms")],
     };
-
-    rooms.join("\n")
+    (StatusCode::OK, Json(GetLobbiesResponse { lobbies: rooms }))
     // rooms
-}
-
-#[derive(Deserialize)]
-pub struct CreateGameRequest {
-    lobby_code: String,
-}
-
-#[derive(Serialize)]
-pub struct CreateGameResponse {
-    lobby_code: String,
 }
 
 pub async fn create_room(

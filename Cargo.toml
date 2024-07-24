@@ -8,5 +8,5 @@ members = [
   "common",
   "client-bevy",
   "client-ggez",
-  "bb-admin",
+  "bb-admin", "api_types",
 ]

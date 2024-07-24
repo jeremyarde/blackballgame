@@ -246,6 +246,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d301b3b94cb4b2f23d7917810addbbaff90738e0ca2be692bd027e70d7e0330c"
 
 [[package]]
+name = "api_types"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "approx"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -528,6 +535,7 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 name = "bb-admin"
 version = "0.1.0"
 dependencies = [
+ "api_types",
  "common",
  "dioxus",
  "dioxus-logger",
@@ -1449,6 +1457,7 @@ dependencies = [
 name = "blackballgame-server"
 version = "0.1.0"
 dependencies = [
+ "api_types",
  "axum",
  "axum-extra",
  "chrono",

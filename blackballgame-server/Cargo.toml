@@ -15,12 +15,15 @@ dioxus = {version = "0.5.1", features = ["axum", "fullstack"]}
 axum-extra = {version = "0.9.3", features = ["typed-header"]}
 # base64 = "0.22.1"
 # bevy = "0.13.2"
+api_types = {path = "../api_types"}
 chrono = {version = "0.4.38", features = ["serde"]}
 common = {path = "../common"}
 # fastrand = "2.0.2"
+dioxus-fullstack = "0.5.2"
 dioxus-ssr = "0.5.1"
 futures-util = {version = "0.3", default-features = false, features = ["sink", "std"]}
 include_dir = "0.7.4"
+insta = "1.39.0"
 mime_guess = "2.0.5"
 nanoid = {git = "https://github.com/jeremyarde/nanoid"}
 serde = {version = "1.0.198", features = ["derive"]}
@@ -31,5 +34,3 @@ tower = {version = "0.4", features = ["util"]}
 tower-http = {version = "0.5.0", features = ["full"]}
 tracing = "0.1.40"
 tracing-subscriber = {version = "0.3.18", default-features = false, features = ["fmt", "ansi", "env-filter", "tracing-log"]}
-dioxus-fullstack = "0.5.2"
-insta = "1.39.0"

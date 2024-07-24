@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+use api_types::GetLobbiesResponse;
 use common::{Connect, GameEvent, GameMessage, GameState};
 use dioxus::prelude::*;
 use futures_util::{SinkExt, StreamExt, TryStreamExt};
@@ -66,8 +67,11 @@ fn App() -> Element {
 
     let mut username = use_signal(|| String::new());
     let mut lobby = use_signal(|| String::new());
+    // let mut lobbies = use_signal(|| String::new());
     let mut connect_response = use_signal(|| String::from("..."));
-    let mut lobbies = use_signal(|| vec![String::from("No lobbies")]);
+    let mut lobbies = use_signal(|| GetLobbiesResponse {
+        lobbies: vec![String::from("No lobbies")],
+    });
 
     // Build cool things ✌️
     let mut get_games_future = use_resource(|| async move {
@@ -124,11 +128,13 @@ fn App() -> Element {
             match resp {
                 Ok(data) => {
                     // log::info!("Got response: {:?}", resp);
-                    connect_response.set(format!("response: {:?}", data).into());
+                    lobbies.set(data.json::<GetLobbiesResponse>().await.unwrap());
                 }
                 Err(err) => {
                     // log::info!("Request failed with error: {err:?}")
-                    connect_response.set(format!("{err}").into());
+                    lobbies.set(GetLobbiesResponse {
+                        lobbies: vec![format!("{err}")],
+                    });
                 }
             }
         });
@@ -162,11 +168,10 @@ fn App() -> Element {
             div { "results: {connect_response}" }
         }
         button { onclick: create_lobby, "Create lobby" }
-
         button { onclick: refresh_lobbies, "Refresh lobbies" }
         div {
             "lobby list"
-            {vec!["lobby code here"].into_iter().map(|lobby| rsx!(div{"{lobby}"}))}
+            {lobbies.read().lobbies.iter().map(|lobby| rsx!(div{"{lobby}"}))}
         }
     }
 }

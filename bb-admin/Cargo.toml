@@ -11,11 +11,12 @@ version = "0.1.0"
 dioxus = {version = "0.5", features = ["web"]}
 
 # Debug
+api_types = {path = "../api_types"}
 common = {path = "../common"}
 dioxus-logger = "0.5.0"
-reqwest = {version = "0.12.5", features = ["json"]}
-tracing = "0.1.40"
-serde = { version = "1.0.204", features = ["derive"] }
-serde_json = "1.0.120"
-reqwest-websocket = "0.4.1"
 futures-util = "0.3.30"
+reqwest = {version = "0.12.5", features = ["json"]}
+reqwest-websocket = "0.4.1"
+serde = {version = "1.0.204", features = ["derive"]}
+serde_json = "1.0.120"
+tracing = "0.1.40"
