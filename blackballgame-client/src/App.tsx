@@ -3,13 +3,6 @@ import "./App.css";
 import React from "react";
 import { EXAMPLE, LOBBYCODE_KEY, SECRET_KEY, USERNAME_KEY } from "./constant";
 
-// const urlMap = {
-//   local: "ws://127.0.0.1:8080/ws",
-//   localNetwork: `ws://${window.location.host}${
-//     import.meta.env.MODE === "development" ? ":8080" : ""
-//   }/ws`,
-// };
-
 const TEST = false;
 const EXAMPLE_USERNAME = "a";
 
@@ -55,6 +48,9 @@ export function Suit({ cardsuit }) {
 //   notrump: { src: "./assets/notrump.svg" },
 // };
 
+let mode = import.meta.env.MODE;
+// mode = "production";
+
 const ws_url = {
   development: `ws://${window.location.hostname}:8080/ws`,
   // production: `wss://${window.location.host}/ws`,
@@ -68,7 +64,7 @@ const ws_url = {
 //   "w-24 h-10 border border-solid rounded-md  bg-background  ";
 
 function App() {
-  console.log(`Mode: ${import.meta.env.MODE}`);
+  console.log(`Mode: ${mode}`);
   console.log(
     `Host: ${window.location.host}, hostname: ${window.location.hostname}`
   );
@@ -84,7 +80,7 @@ function App() {
   const [messages, setMessages] = useState([]);
   // const [hideState, setHideState] = useState(true);
 
-  const [url, setUrl] = useState(ws_url[import.meta.env.MODE]);
+  const [url, setUrl] = useState(ws_url[mode]);
   const [ws, setWs] = useState<WebSocket | undefined>(undefined);
   const [gamestate, setGamestate] = useState<GameState | undefined>(
     TEST ? EXAMPLE : undefined
@@ -215,7 +211,7 @@ function App() {
   }, [ws]); // adding messages causes the ws to close
 
   function sendMessage(message) {
-    if (ws) {
+    if (ws && ws.readyState === 1) {
       ws.send(JSON.stringify(message));
       // ws.send(message);
     }

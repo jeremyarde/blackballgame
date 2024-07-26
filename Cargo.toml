@@ -5,8 +5,7 @@ resolver = "2" # Important! wgpu/Bevy needs this!
 members = [
   "blackballgame-server", # "blackballgame-client",  # "bb-bevy",  # "bb-web",
   "ai-client",
-  "common",
-  "client-bevy",
-  "client-ggez",
-  "bb-admin", "api_types",
+  "common", # "client-bevy",  # "client-ggez",
+  "bb-admin",
+  "api_types",
 ]
