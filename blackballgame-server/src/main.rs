@@ -129,6 +129,7 @@ async fn main() {
         .with_env_filter(
             EnvFilter::from_default_env()
                 .add_directive("blackballgame=debug".parse().unwrap())
+                .add_directive("blackballgame-server=debug".parse().unwrap())
                 .add_directive("common=debug".parse().unwrap()),
         )
         .with_span_events(FmtSpan::FULL)

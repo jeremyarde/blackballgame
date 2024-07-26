@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use api_types::GetLobbiesResponse;
 use common::{Connect, GameEvent, GameMessage, GameState};
 use dioxus::prelude::*;
+use dotenvy::dotenv;
 use futures_util::{SinkExt, StreamExt, TryStreamExt};
 use reqwest::Client;
 use reqwest_websocket::{Message, RequestBuilderExt};
@@ -13,6 +14,8 @@ use serde_json::json;
 use tracing::Level;
 
 fn main() {
+    dotenvy::dotenv().ok();
+
     // Init logger
     dioxus_logger::init(Level::INFO).expect("failed to init logger");
     launch(App);
@@ -33,7 +36,7 @@ fn App() -> Element {
         // Connect to some sort of service
         // Creates a GET request, upgrades and sends it.
         let response = Client::default()
-            .get("ws://0.0.0.0:8080/ws")
+            .get(dotenvy::var("SERVER_URL").unwrap())
             .upgrade() // Prepares the WebSocket upgrade.
             .send()
             .await
