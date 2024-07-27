@@ -13,3 +13,8 @@ pub struct CreateGameRequest {
 pub struct GetLobbiesResponse {
     pub lobbies: Vec<String>,
 }
+#[derive(Deserialize, Serialize)]
+pub struct GetLobbyResponse {
+    pub lobby_code: String,
+    pub players: Vec<String>,
+}

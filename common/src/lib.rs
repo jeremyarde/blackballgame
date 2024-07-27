@@ -155,7 +155,7 @@ pub fn create_deck() -> Vec<Card> {
     cards
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Connect {
     pub username: String,
     pub channel: String,

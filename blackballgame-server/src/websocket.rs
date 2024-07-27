@@ -1,4 +1,8 @@
 use axum::extract::ws::Message;
+use axum::extract::Path;
+use axum::extract::Query;
+use tower_http::timeout::ResponseBodyTimeout;
+
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -53,7 +57,91 @@ impl ServerMessage {
         }
     }
 }
-async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppState>) {
+// #[derive(Deserialize)]
+// struct Params(String);
+
+// #[derive(Deserialize)]
+// struct Params {
+//     name: String,
+//     age: i32,
+// }
+
+// #[axum::debug_handler]
+// pub async fn ws_handler(
+//     Query(room_code): Query<Params>,
+//     ws: WebSocketUpgrade,
+//     // user_agent: Option<TypedHeader<headers::UserAgent>>,
+//     ConnectInfo(addr): ConnectInfo<SocketAddr>,
+//     State(state): State<Arc<AppState>>,
+// ) -> impl IntoResponse {
+//     // let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
+//     //     user_agent.to_string()
+//     // } else {
+//     //     String::from("Unknown browser")
+//     // };
+//     // info!("`{user_agent}` at {addr} connected.");
+//     // finalize the upgrade process by returning upgrade callback.
+//     // we can customize the callback by sending additional info such as address.
+//     ws.on_upgrade(move |socket| {
+//         handle_socket(
+//             room_code, socket, // addr,
+//             state,
+//         )
+//     })
+// }
+// #[axum::debug_handler]
+// pub async fn ws_handler(
+//     ws: WebSocketUpgrade,
+//     // user_agent: Option<TypedHeader<headers::UserAgent>>,
+//     // ConnectInfo(addr): ConnectInfo<SocketAddr>,
+//     State(state): State<Arc<AppState>>,
+//     // room_code: Path<String>,
+//     // Query(room_code): Query<Params>,
+// ) -> impl IntoResponse {
+//     let connect_room: String = room_code.clone();
+//     // let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
+//     //     user_agent.to_string()
+//     // } else {
+//     //     String::from("Unknown browser")
+//     // };
+//     // info!("`{user_agent}` at {addr} connected.");
+//     // finalize the upgrade process by returning upgrade callback.
+//     // we can customize the callback by sending additional info such as address.
+//     ws.on_upgrade(move |socket| {
+//         handle_socket(
+//             socket, // addr,
+//             state,  // connect_room,
+//                     // room_code,
+//         )
+//     })
+// }
+
+pub async fn ws_handler(
+    ws: WebSocketUpgrade,
+    user_agent: Option<TypedHeader<headers::UserAgent>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    State(state): State<Arc<AppState>>,
+    Path(room_code): Path<String>,
+) -> impl IntoResponse {
+    let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
+        user_agent.to_string()
+    } else {
+        String::from("Unknown browser")
+    };
+    // info!("`{user_agent}` at {addr} connected.");
+    // finalize the upgrade process by returning upgrade callback.
+    // we can customize the callback by sending additional info such as address.
+    ws.on_upgrade(move |socket| handle_socket(socket, addr, room_code, state))
+}
+
+async fn handle_socket(
+    mut socket: WebSocket,
+    who: SocketAddr,
+    // room_code: Params,
+    room_code: String,
+    state: Arc<AppState>,
+    // Path(room_code): Path<String>,
+) {
     let mut username = String::new();
     let mut lobby_code = String::new();
     let mut created_new_game = false;
@@ -428,21 +516,4 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, state: Arc<AppSta
             _ = (&mut recv_messages_from_clients) => send_messages_to_client.abort(),
         };
     }
-}
-
-pub async fn ws_handler(
-    ws: WebSocketUpgrade,
-    user_agent: Option<TypedHeader<headers::UserAgent>>,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    State(state): State<Arc<AppState>>,
-) -> impl IntoResponse {
-    let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
-        user_agent.to_string()
-    } else {
-        String::from("Unknown browser")
-    };
-    // info!("`{user_agent}` at {addr} connected.");
-    // finalize the upgrade process by returning upgrade callback.
-    // we can customize the callback by sending additional info such as address.
-    ws.on_upgrade(move |socket| handle_socket(socket, addr, state))
 }

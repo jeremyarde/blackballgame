@@ -34,3 +34,5 @@ tower = {version = "0.4", features = ["util"]}
 tower-http = {version = "0.5.0", features = ["full"]}
 tracing = "0.1.40"
 tracing-subscriber = {version = "0.3.18", default-features = false, features = ["fmt", "ansi", "env-filter", "tracing-log"]}
+anyhow = "1.0.86"
+strum_macros = "0.26.4"

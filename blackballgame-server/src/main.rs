@@ -7,6 +7,7 @@ use std::time::Duration;
 use api_types::CreateGameRequest;
 use api_types::CreateGameResponse;
 use api_types::GetLobbiesResponse;
+use api_types::GetLobbyResponse;
 use axum::body::Body;
 use axum::extract::Path;
 use axum::extract::State;
@@ -181,13 +182,16 @@ async fn main() {
     });
 
     let app = Router::new()
+        // .route("/rooms/ws", get(ws_handler))
         .route("/ws", get(ws_handler))
         .route("/rooms", get(get_rooms).post(create_room))
+        .route("/rooms/:room_code", get(get_room))
+        .route("/rooms/:room_code/ws", get(ws_handler))
         .route("/health", get(|| async { "ok" }))
-        .route(
-            "/*path",
-            get(|path| async { serve_asset(Some(path)).await }),
-        )
+        // .route(
+        //     "/*path",
+        //     get(|path| async { serve_asset(Some(path)).await }),
+        // )
         .route(
             "/",
             get(|| async { serve_asset(Some(Path("index.html".to_string()))).await }),
@@ -216,6 +220,45 @@ pub async fn get_rooms(State(state): State<Arc<AppState>>) -> impl IntoResponse 
         Err(_) => vec![String::from("Could not get rooms")],
     };
     (StatusCode::OK, Json(GetLobbiesResponse { lobbies: rooms }))
+    // rooms
+}
+
+#[derive(Debug, strum_macros::AsRefStr, Serialize, Clone)]
+#[serde(tag = "type", content = "data")]
+enum ServerError {
+    InternalServerError,
+    BadRequest,
+    NotFound,
+}
+
+impl IntoResponse for ServerError {
+    fn into_response(self) -> axum::response::Response {
+        println!("->> {:<12} - {self:?}", "INTO_RES");
+        let mut response = StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        response.extensions_mut().insert(self);
+        response
+    }
+}
+
+#[axum::debug_handler]
+pub async fn get_room(
+    State(state): State<Arc<AppState>>,
+    Path(room_code): Path<String>,
+) -> anyhow::Result<Json<GetLobbyResponse>, ServerError> {
+    let rooms = match state.rooms.try_lock() {
+        Ok(rooms) => rooms,
+        Err(_) => return Err(ServerError::InternalServerError),
+    };
+
+    let room = match rooms.get(&room_code) {
+        Some(room) => room,
+        None => return Err(ServerError::NotFound),
+    };
+
+    Ok(Json(GetLobbyResponse {
+        lobby_code: room_code,
+        players: room.players.keys().cloned().collect::<Vec<String>>(),
+    }))
     // rooms
 }
 
