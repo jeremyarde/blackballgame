@@ -1,6 +1,5 @@
 #![allow(non_snake_case)]
 
-use core::error;
 use std::{collections::HashMap, path::Path};
 
 use api_types::{GetLobbiesResponse, GetLobbyResponse};
@@ -176,7 +175,6 @@ fn Admin() -> Element {
                 "lobby"
             }
         }
-        // button { onclick: join_lobby, "Join" }
         div { class: "flex flex-col",
             "create lobby"
             input {
@@ -212,13 +210,14 @@ fn LobbyComponent(lobby: String) -> Element {
                 onclick: move |_| {
                     info!("Join {lobby}");
                 },
-                "Join"
+                "Game details"
             }
             Link {
                 class: "shadow-sm p-6 rounded-md bg-slate-200 hover:bg-slate-300 w-1/2",
                 to: Route::GameRoom {
                     room_code: lobby.clone(),
-                }
+                },
+                "Join game"
             }
         }
     )
@@ -255,6 +254,8 @@ fn GameRoom(room_code: String) -> Element {
     });
     let mut username = use_signal(|| String::new());
     let mut error = use_signal(|| Value::Null);
+    let mut player_secret = use_signal(|| String::new());
+
     let get_game_details = move |room_code: String| {
         spawn(async move {
             let resp = reqwest::Client::new()
@@ -267,7 +268,7 @@ fn GameRoom(room_code: String) -> Element {
                     // log::info!("Got response: {:?}", resp);
                     match data.json::<GetLobbyResponse>().await {
                         Ok(resp) => lobby.set(resp),
-                        Err(err) => error.set(json!("Failed to parse lobby: {err}")),
+                        Err(err) => error.set(json!(format!("Failed to parse lobby: {:?}", err))),
                     }
                 }
                 Err(err) => {
@@ -348,7 +349,12 @@ fn GameRoom(room_code: String) -> Element {
                     return;
                 }
                 match serde_json::from_str::<Value>(&text) {
-                    Ok(x) => server_message.set(x),
+                    Ok(x) => {
+                        if x.get("client_secret").is_some() {
+                            player_secret.set(x.get("client_secret").unwrap().to_string());
+                        }
+                        server_message.set(x);
+                    }
                     Err(err) => info!("Failed to parse server message: {}", err),
                 };
             }
@@ -365,8 +371,6 @@ fn GameRoom(room_code: String) -> Element {
         }));
     };
 
-    // get_game_details(room_code.clone());
-
     rsx!(
         {if error().is_null() {rsx!()} else {error.read().as_str().map(|err| rsx!(div { "{err}" }))}},
         button {
@@ -379,6 +383,8 @@ fn GameRoom(room_code: String) -> Element {
             input {
                 r#type: "text",
                 value: "{username}",
+                required: true,
+                minlength: 3,
                 oninput: move |event| username.set(event.value())
             }
         }
@@ -392,7 +398,11 @@ fn GameRoom(room_code: String) -> Element {
         {lobby.read().players.iter().enumerate().map(|(i, player)| rsx!(div { "{i}: {player}" }))},
         // div { "{gamestate.read():?}" }
         div { "Server message: {server_message.read()}" }
-        GameState { username, gamestate }
+        {if username() != "" {
+            rsx!(GameState { username, player_secret, gamestate })
+        } else {
+            rsx!(div { "Please choose a username" })
+        }}
     )
 }
 
@@ -417,7 +427,11 @@ fn Home() -> Element {
 }
 
 #[component]
-fn GameState(username: Signal<String>, gamestate: Signal<GameState>) -> Element {
+fn GameState(
+    username: Signal<String>,
+    player_secret: Signal<String>,
+    gamestate: Signal<GameState>,
+) -> Element {
     let myusername = username.read().clone();
     fn create_action(username: String, action: GameAction) -> GameMessage {
         return GameMessage {
@@ -427,6 +441,14 @@ fn GameState(username: Signal<String>, gamestate: Signal<GameState>) -> Element 
         };
     };
 
+    let curr_hand = gamestate
+        .read()
+        .players
+        .get(&myusername)
+        .unwrap()
+        .encrypted_hand
+        .clone();
+    let decrypted_hand = GameState::decrypt_player_hand(curr_hand, &player_secret.read().clone());
     rsx!(
         div { class: "bg-green-300 w-full h-full",
             div { "This is the game" }
@@ -441,13 +463,16 @@ fn GameState(username: Signal<String>, gamestate: Signal<GameState>) -> Element 
         }
         div { class: "bg-blue-300 w-full h-full",
             "Play area"
-            {gamestate.read().curr_played_cards.iter().map(|card| rsx!(li { "{card}" }))}
+            div {
+                "Cards"
+                {gamestate.read().curr_played_cards.iter().map(|card| rsx!(li { "{card}" }))}
+            }
         }
         div { class: "bg-red-300 w-full h-full",
             "Action area"
             div {
-                "Cards"
-                {gamestate.read().curr_played_cards.iter().map(|card| rsx!(li { "{card}" }))}
+                "My cards"
+                {decrypted_hand.iter().map(|card| rsx!(li { "{card:?}" }))}
             }
         }
     )

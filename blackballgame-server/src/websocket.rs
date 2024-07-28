@@ -58,64 +58,6 @@ impl ServerMessage {
         }
     }
 }
-// #[derive(Deserialize)]
-// struct Params(String);
-
-// #[derive(Deserialize)]
-// struct Params {
-//     name: String,
-//     age: i32,
-// }
-
-// #[axum::debug_handler]
-// pub async fn ws_handler(
-//     Query(room_code): Query<Params>,
-//     ws: WebSocketUpgrade,
-//     // user_agent: Option<TypedHeader<headers::UserAgent>>,
-//     ConnectInfo(addr): ConnectInfo<SocketAddr>,
-//     State(state): State<Arc<AppState>>,
-// ) -> impl IntoResponse {
-//     // let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
-//     //     user_agent.to_string()
-//     // } else {
-//     //     String::from("Unknown browser")
-//     // };
-//     // info!("`{user_agent}` at {addr} connected.");
-//     // finalize the upgrade process by returning upgrade callback.
-//     // we can customize the callback by sending additional info such as address.
-//     ws.on_upgrade(move |socket| {
-//         handle_socket(
-//             room_code, socket, // addr,
-//             state,
-//         )
-//     })
-// }
-// #[axum::debug_handler]
-// pub async fn ws_handler(
-//     ws: WebSocketUpgrade,
-//     // user_agent: Option<TypedHeader<headers::UserAgent>>,
-//     // ConnectInfo(addr): ConnectInfo<SocketAddr>,
-//     State(state): State<Arc<AppState>>,
-//     // room_code: Path<String>,
-//     // Query(room_code): Query<Params>,
-// ) -> impl IntoResponse {
-//     let connect_room: String = room_code.clone();
-//     // let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
-//     //     user_agent.to_string()
-//     // } else {
-//     //     String::from("Unknown browser")
-//     // };
-//     // info!("`{user_agent}` at {addr} connected.");
-//     // finalize the upgrade process by returning upgrade callback.
-//     // we can customize the callback by sending additional info such as address.
-//     ws.on_upgrade(move |socket| {
-//         handle_socket(
-//             socket, // addr,
-//             state,  // connect_room,
-//                     // room_code,
-//         )
-//     })
-// }
 
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
@@ -188,18 +130,18 @@ async fn handle_socket(
             message_content = content;
         } else {
             info!("Message from user was not in Text format: {:?}", msg);
-            // let _ = sender
-            //     .send(Message::Text(
-            //         json!(ServerMessage {
-            //             message: format!(
-            //                 "Wrong message format, try to connect again. Message: {:?}",
-            //                 msg
-            //             ),
-            //             from: username.clone()
-            //         })
-            //         .to_string(),
-            //     ))
-            //     .await;
+            let _ = sender
+                .send(Message::Text(
+                    json!(ServerMessage {
+                        message: format!(
+                            "Wrong message format, try to connect again. Message: {:?}",
+                            msg
+                        ),
+                        from: username.clone()
+                    })
+                    .to_string(),
+                ))
+                .await;
             continue;
         };
 
@@ -212,9 +154,22 @@ async fn handle_socket(
             secret: Option<String>,
         }
 
-        let connect: Connect = match serde_json::from_str(&message_content) {
+        let connect: Connect = match serde_json::from_str::<Connect>(&message_content) {
             Ok(connect) => {
                 info!("connect value: {:?}", connect);
+                if connect.username.is_empty() || connect.channel.is_empty() {
+                    info!("Username or channel is empty");
+                    let _ = sender
+                        .send(Message::Text(
+                            json!(ServerMessage {
+                                message: "Username or channel is empty".to_string(),
+                                from: "System".into()
+                            })
+                            .to_string(),
+                        ))
+                        .await;
+                    continue;
+                }
                 connect
             }
             Err(err) => {

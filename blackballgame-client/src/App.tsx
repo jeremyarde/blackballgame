@@ -178,18 +178,6 @@ function App() {
       setMessages((prevMessages) => [...prevMessages, parseddata]);
 
       if (parseddata.players) {
-        // let playerdetails = parseddata.players[username];
-        // console.log("jere/ playerdetails: ", playerdetails);
-
-        // // await decryptHand();
-        // let decryptedHand = decryptHand(
-        //   playerdetails.encrypted_hand,
-        //   playerdetails.nonce
-        // ).then((res) => {
-        //   console.log("jere/ decrypt result: ", res);
-        // });
-
-        // console.log("jere/ decrypted hand: ", decryptedHand);
         setGamestate(parseddata);
       }
 

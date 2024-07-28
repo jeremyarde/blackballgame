@@ -238,6 +238,14 @@ impl GameState {
         player.encrypted_hand = secret_data;
     }
 
+    pub fn decrypt_player_hand(hand: String, player_secret: &String) -> Vec<Card> {
+        // let hand = BASE64.decode(hand.as_bytes()).unwrap();
+        // let str_hand = String::from_utf8(hand).unwrap();
+        let secret_data = xor_encrypt_decrypt(&hand, &player_secret);
+        let actual_hand: Vec<Card> = serde_json::from_slice(&secret_data).unwrap();
+        return actual_hand;
+    }
+
     pub fn get_state(&mut self) -> Self {
         // for player in self.player_order.iter() {
         //     // let hand = player.hand.clone();
