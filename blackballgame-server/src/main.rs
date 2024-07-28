@@ -1,3 +1,4 @@
+use core::error;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -287,10 +288,18 @@ pub async fn main_response_mapper(
     let error_response = client_status_error
         .as_ref()
         .map(|(status_code, client_error)| {
+            let error_message = match client_error {
+                ClientError::LOGIN_FAIL => "Login failed",
+                ClientError::NO_AUTH => "No auth",
+                ClientError::INVALID_PARAMS => "Invalid params",
+                ClientError::SERVICE_ERROR => "Service error",
+                ClientError::NotFound(msg) => msg,
+            };
             let client_error_body = json!({
                 "error": {
                     "type": client_error.as_ref(),
                     "req_uuid": uuid.to_string(),
+                    "message": error_message,
                 }
             });
 
