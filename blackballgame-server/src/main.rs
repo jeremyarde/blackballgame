@@ -290,6 +290,12 @@ pub async fn create_room(
         .await
         .insert(request.lobby_code.clone(), broadcast_channel);
 
+    let (lobby_sender, lobby_reciever) = tokio::sync::mpsc::channel(10);
+    {
+        let mut clientchannels = state.lobby_to_game_channel_send.lock().await;
+        clientchannels.insert(request.lobby_code.clone(), lobby_sender);
+    }
+
     info!("Success. Created lobby: {}", request.lobby_code);
 
     (

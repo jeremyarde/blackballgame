@@ -1,16 +1,20 @@
 #![allow(non_snake_case)]
 
+use core::error;
 use std::{collections::HashMap, path::Path};
 
-use api_types::GetLobbiesResponse;
-use common::{Connect, GameEvent, GameMessage, GameState};
+use api_types::{GetLobbiesResponse, GetLobbyResponse};
+use chrono::Utc;
+use common::{
+    Card, Connect, GameAction, GameClient, GameEvent, GameMessage, GameState, SetupGameOptions,
+};
 use dioxus::prelude::*;
 use dotenvy::dotenv;
 use futures_util::{SinkExt, StreamExt, TryStreamExt};
 use reqwest::Client;
 use reqwest_websocket::{Message, RequestBuilderExt};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 use tracing::{info, Level};
 
 #[derive(Clone, Debug)]
@@ -33,7 +37,10 @@ impl FrontendAppState {
 }
 
 // static APP_STATE: OnceLock<FrontendAppState> = OnceLock::new();
-static APP_STATE: GlobalSignal<FrontendAppState> = Signal::global(|| FrontendAppState::new());
+// static APP_STATE: GlobalSignal<FrontendAppState> = Signal::global(|| FrontendAppState::new());
+// const STYLE: &str = manganis::mg!(file("./assets/main.css")); // this works but does not reload nicely
+
+const STYLE: &str = include_str!("../assets/main.css");
 
 // pub fn get_app_state() -> &'static FrontendAppState {
 //     APP_STATE().unwrap()
@@ -63,7 +70,15 @@ fn main() {
 
     // Init logger
     dioxus_logger::init(Level::INFO).expect("failed to init logger");
-    launch(App);
+    // launch(App);
+    launch(|| {
+        rsx! {
+            head {
+                link { rel: "stylesheet", href: STYLE }
+            }
+            Router::<Route> {}
+        }
+    });
 }
 
 #[derive(Clone, Debug)]
@@ -79,13 +94,195 @@ enum WsAction {
     Resume,
 }
 
-static GAMESTATE: GlobalSignal<GameState> = Signal::global(|| GameState::new());
+// static GAMESTATE: GlobalSignal<GameState> = Signal::global(|| GameState::new());
 
 #[component]
-fn App() -> Element {
+fn Admin() -> Element {
     let mut ws_url = use_signal(|| String::from("ws://0.0.0.0:8080/ws"));
+    let mut ws_action = use_signal(|| WsAction::Pause);
     let mut server_url = use_signal(|| String::from("http://0.0.0.0:8080/"));
     let mut test_ws = use_signal(|| String::from("test ws"));
+
+    let mut username = use_signal(|| String::new());
+    let mut lobby = use_signal(|| String::new());
+    // let mut lobbies = use_signal(|| String::new());
+    let mut connect_response = use_signal(|| String::from("..."));
+    let mut lobbies = use_signal(|| GetLobbiesResponse { lobbies: vec![] });
+
+    let create_lobby = move |_| {
+        #[derive(Deserialize, Serialize)]
+        pub struct CreateGameRequest {
+            lobby_code: String,
+        }
+
+        spawn(async move {
+            let resp = reqwest::Client::new()
+                .post("http://localhost:8080/rooms")
+                .json(&CreateGameRequest {
+                    lobby_code: lobby().clone(),
+                })
+                .send()
+                .await;
+
+            match resp {
+                Ok(data) => {
+                    // log::info!("Got response: {:?}", resp);
+                    connect_response.set(format!("response: {:?}", data).into());
+                }
+                Err(err) => {
+                    // log::info!("Request failed with error: {err:?}")
+                    connect_response.set(format!("{err}").into());
+                }
+            }
+        });
+    };
+
+    let refresh_lobbies = move |_| {
+        spawn(async move {
+            let resp = reqwest::Client::new()
+                .get("http://localhost:8080/rooms")
+                .send()
+                .await;
+
+            match resp {
+                Ok(data) => {
+                    // log::info!("Got response: {:?}", resp);
+                    lobbies.set(data.json::<GetLobbiesResponse>().await.unwrap());
+                }
+                Err(err) => {
+                    // log::info!("Request failed with error: {err:?}")
+                    lobbies.set(GetLobbiesResponse {
+                        lobbies: vec![format!("{err}")],
+                    });
+                }
+            }
+        });
+    };
+
+    rsx! {
+        div { class: "flex flex-col",
+            div { "websocket state: {test_ws}" }
+            label { "username" }
+            input {
+                r#type: "text",
+                value: "{username}",
+                oninput: move |event| username.set(event.value())
+            }
+            label { "lobby" }
+            input {
+                r#type: "text",
+                value: "{lobby}",
+                oninput: move |event| lobby.set(event.value()),
+                "lobby"
+            }
+        }
+        // button { onclick: join_lobby, "Join" }
+        div { class: "flex flex-col",
+            "create lobby"
+            input {
+                r#type: "text",
+                value: "{lobby}",
+                oninput: move |event| lobby.set(event.value())
+            }
+            button { onclick: create_lobby, "Create lobby" }
+            div { "results: {connect_response}" }
+        }
+        button { onclick: refresh_lobbies, "Refresh lobbies" }
+        div {
+            "Ongoing games"
+            {if lobbies.read().lobbies.len() == 0 {
+                rsx!(div { "No games" })
+            } else {
+                rsx!({
+                    lobbies.read().lobbies.iter().map(|lobby| rsx!(LobbyComponent {lobby: lobby}))
+                })
+            }}
+        }
+    }
+}
+
+#[component]
+fn LobbyComponent(lobby: String) -> Element {
+    // let mut lobby = use_signal(|| lobby);
+    rsx!(
+        div { class: "flex flex-row justify-between",
+            div { "{lobby}" }
+            button {
+                class: "shadow-sm p-6 rounded-md bg-slate-200 hover:bg-slate-300 w-1/2",
+                onclick: move |_| {
+                    info!("Join {lobby}");
+                },
+                "Join"
+            }
+            Link {
+                class: "shadow-sm p-6 rounded-md bg-slate-200 hover:bg-slate-300 w-1/2",
+                to: Route::GameRoom {
+                    room_code: lobby.clone(),
+                }
+            }
+        }
+    )
+}
+
+// All of our routes will be a variant of this Route enum
+#[derive(Routable, PartialEq, Clone)]
+#[rustfmt::skip]
+enum Route {
+    #[route("/")]
+    //  if the current location doesn't match any of the other routes, redirect to "/home"
+    #[redirect("/:..segments", |segments: Vec<String>| Route::Home {})]
+    Home {},
+    #[route("/rooms/:room_code")]
+    GameRoom { room_code: String },
+    #[route("/admin")]
+    Admin {},
+    // #[route("/game/:room_code")]
+    // Game { room_code: String },
+}
+
+#[component]
+fn GameRoom(room_code: String) -> Element {
+    info!("GameRoom: {room_code}");
+
+    let mut server_message = use_signal(|| Value::Null);
+    let mut gamestate = use_signal(|| GameState::new());
+    let mut ws_url =
+        use_signal(|| String::from(format!("ws://0.0.0.0:8080/rooms/{}/ws", room_code.clone())));
+    let mut server_url = use_signal(|| String::from("http://0.0.0.0:8080/"));
+    let mut lobby = use_signal(|| GetLobbyResponse {
+        lobby_code: room_code.clone(),
+        players: vec![],
+    });
+    let mut username = use_signal(|| String::new());
+    let mut error = use_signal(|| Value::Null);
+    let get_game_details = move |room_code: String| {
+        spawn(async move {
+            let resp = reqwest::Client::new()
+                .get(format!("http://localhost:8080/rooms/{}", room_code))
+                .send()
+                .await;
+
+            match resp {
+                Ok(data) => {
+                    // log::info!("Got response: {:?}", resp);
+                    match data.json::<GetLobbyResponse>().await {
+                        Ok(resp) => lobby.set(resp),
+                        Err(err) => error.set(json!("Failed to parse lobby: {err}")),
+                    }
+                }
+                Err(err) => {
+                    // log::info!("Request failed with error: {err:?}")
+                    lobby.set(GetLobbyResponse {
+                        lobby_code: room_code.clone(),
+                        players: vec![format!("{err}")],
+                    });
+                }
+            }
+        });
+    };
+
+    let mut ws_url =
+        use_signal(|| String::from(format!("ws://0.0.0.0:8080/rooms/{}/ws", room_code.clone())));
     let mut ws_action = use_signal(|| WsAction::Pause);
 
     let ws: Coroutine<InternalMessage> = use_coroutine(|mut rx| async move {
@@ -137,131 +334,132 @@ fn App() -> Element {
         while let Some(message) = websocket.try_next().await.unwrap() {
             if let Message::Text(text) = message {
                 info!("received: {text}");
-                test_ws.set(text);
+
+                let mut is_gamestate = false;
+                match serde_json::from_str::<GameState>(&text) {
+                    Ok(x) => {
+                        is_gamestate = true;
+                        gamestate.set(x);
+                    }
+                    Err(_) => {}
+                };
+
+                if is_gamestate {
+                    return;
+                }
+                match serde_json::from_str::<Value>(&text) {
+                    Ok(x) => server_message.set(x),
+                    Err(err) => info!("Failed to parse server message: {}", err),
+                };
             }
         }
     });
 
-    let mut username = use_signal(|| String::new());
-    let mut lobby = use_signal(|| String::new());
-    // let mut lobbies = use_signal(|| String::new());
-    let mut connect_response = use_signal(|| String::from("..."));
-    let mut lobbies = use_signal(|| GetLobbiesResponse { lobbies: vec![] });
-
-    // Build cool things ✌️
-    let mut get_games_future = use_resource(|| async move {
-        reqwest::get("http://0.0.0.0:8080/rooms")
-            .await
-            .unwrap()
-            .json::<HashMap<String, GameState>>()
-            .await
-    });
-
-    let create_lobby = move |_| {
-        #[derive(Deserialize, Serialize)]
-        pub struct CreateGameRequest {
-            lobby_code: String,
-        }
-
-        spawn(async move {
-            let resp = reqwest::Client::new()
-                .post("http://localhost:8080/rooms")
-                .json(&CreateGameRequest {
-                    lobby_code: lobby().clone(),
-                })
-                .send()
-                .await;
-
-            match resp {
-                Ok(data) => {
-                    // log::info!("Got response: {:?}", resp);
-                    connect_response.set(format!("response: {:?}", data).into());
-                }
-                Err(err) => {
-                    // log::info!("Request failed with error: {err:?}")
-                    connect_response.set(format!("{err}").into());
-                }
-            }
-        });
-    };
-
-    let join_lobby = move |_| {
+    let room_code_clone = room_code.clone();
+    let join_lobby = move |room_code_clone: String| {
+        ws.send(InternalMessage::WsAction(WsAction::Resume));
         ws.send(InternalMessage::Server(Connect {
             username: username(),
-            channel: lobby(),
+            channel: room_code_clone,
             secret: None,
         }));
     };
 
-    let refresh_lobbies = move |_| {
-        spawn(async move {
-            let resp = reqwest::Client::new()
-                .get("http://localhost:8080/rooms")
-                .send()
-                .await;
+    // get_game_details(room_code.clone());
 
-            match resp {
-                Ok(data) => {
-                    // log::info!("Got response: {:?}", resp);
-                    lobbies.set(data.json::<GetLobbiesResponse>().await.unwrap());
-                }
-                Err(err) => {
-                    // log::info!("Request failed with error: {err:?}")
-                    lobbies.set(GetLobbiesResponse {
-                        lobbies: vec![format!("{err}")],
-                    });
-                }
-            }
-        });
-    };
-
-    rsx! {
-        div { class: "flex flex-col",
-            div { "websocket state: {test_ws}" }
-            label { "username" }
+    rsx!(
+        {if error().is_null() {rsx!()} else {error.read().as_str().map(|err| rsx!(div { "{err}" }))}},
+        button {
+            class: "h-full w-full bg-blue-500",
+            onclick: move |evt| get_game_details(room_code_clone.clone()),
+            "Refresh"
+        }
+        div { class: "flex flex-row",
+            label { "Username" }
             input {
                 r#type: "text",
                 value: "{username}",
                 oninput: move |event| username.set(event.value())
             }
-            label { "lobby" }
-            input {
-                r#type: "text",
-                value: "{lobby}",
-                oninput: move |event| lobby.set(event.value()),
-                "lobby"
-            }
         }
-        button { onclick: join_lobby, "Join" }
-        div { class: "flex flex-col",
-            "create lobby"
-            input {
-                r#type: "text",
-                value: "{lobby}",
-                oninput: move |event| lobby.set(event.value())
-            }
-            button { onclick: create_lobby, "Create lobby" }
-            div { "results: {connect_response}" }
+        button {
+            class: "h-full w-full bg-blue-500",
+            onclick: move |evt| join_lobby(room_code.clone()),
+            "Join this game"
         }
-        button { onclick: refresh_lobbies, "Refresh lobbies" }
-        div {
-            "Ongoing games"
-            {lobbies.read().lobbies.iter().map(|lobby| rsx!(LobbyComponent {lobby: lobby}))}
-        }
-    }
+        div { "lobby: {lobby.read().lobby_code}" }
+        div { "Players ({lobby.read().players.len()})" }
+        {lobby.read().players.iter().enumerate().map(|(i, player)| rsx!(div { "{i}: {player}" }))},
+        // div { "{gamestate.read():?}" }
+        div { "Server message: {server_message.read()}" }
+        GameState { username, gamestate }
+    )
 }
 
 #[component]
-fn LobbyComponent(lobby: String) -> Element {
-    // let mut lobby = use_signal(|| lobby);
+fn Home() -> Element {
+    // let mut ws_url =
+    //     use_signal(|| String::from(format!("ws://0.0.0.0:8080/rooms/{}/ws", room_code)));
+    // let mut server_url = use_signal(|| String::from("http://0.0.0.0:8080/"));
+
     rsx!(
-        div { class: "flex flex-row justify-between",
-            div { "{lobby}" }
-            button {
-                class: "shadow-sm p-6 rounded-md bg-slate-200 hover:bg-slate-300 w-1/2",
-                onclick: move |_| println!("Join {lobby}"),
-                "Join"
+        div { class: "bg-slate-200 w-full h-full", "Home" }
+
+        Link { class: "bg-orange-300 w-full h-full", to: Route::Admin {}, "Admin" }
+        Link {
+            class: "bg-orange-300 w-full h-full",
+            to: Route::GameRoom {
+                room_code: String::new(),
+            },
+            "GameRoom"
+        }
+    )
+}
+
+#[component]
+fn GameState(username: Signal<String>, gamestate: Signal<GameState>) -> Element {
+    let myusername = username.read().clone();
+    fn create_action(username: String, action: GameAction) -> GameMessage {
+        return GameMessage {
+            username: username,
+            message: GameEvent { action },
+            timestamp: Utc::now(),
+        };
+    };
+
+    rsx!(
+        div { class: "bg-green-300 w-full h-full",
+            div { "This is the game" }
+            div { "State: {gamestate.read().gameplay_state:?}" }
+            div { "Trump: {gamestate.read().trump:?}" }
+            div {
+                ol { {gamestate.read().player_order.iter().map(|player| rsx!(li { "{player}" }))} }
             }
+            div { "Round: {gamestate.read().curr_round}" }
+            div { "Dealer: {gamestate.read().curr_dealer}" }
+            div { "Player turn: {gamestate.read().curr_player_turn:?}" }
+        }
+        div { class: "bg-blue-300 w-full h-full",
+            "Play area"
+            {gamestate.read().curr_played_cards.iter().map(|card| rsx!(li { "{card}" }))}
+        }
+        div { class: "bg-red-300 w-full h-full",
+            "Action area"
+            div {
+                "Cards"
+                {gamestate.read().curr_played_cards.iter().map(|card| rsx!(li { "{card}" }))}
+            }
+        }
+    )
+}
+
+#[component]
+fn PlayerComponent(player: GameClient) -> Element {
+    info!("PlayerComponent: {}", player.id);
+    rsx!(
+        div { class: "bg-blue-300 w-full h-full",
+            div { "this is a player" }
+            div { "{player.id}" }
         }
     )
 }

@@ -8,16 +8,16 @@ version = "0.1.0"
 
 [dependencies]
 
-dioxus = {version = "0.5", features = ["web"]}
-
-# Debug
 api_types = {path = "../api_types"}
+chrono = "0.4.38"
 common = {path = "../common"}
+dioxus = {version = "0.5", features = ["web", "router"]}
 dioxus-logger = "0.5.0"
+dotenvy = "0.15.7"
 futures-util = "0.3.30"
+manganis = "0.2.2"
 reqwest = {version = "0.12.5", features = ["json"]}
 reqwest-websocket = "0.4.1"
 serde = {version = "1.0.204", features = ["derive"]}
 serde_json = "1.0.120"
 tracing = "0.1.40"
-dotenvy = "0.15.7"

@@ -31,7 +31,7 @@ impl PlayState {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PlayerRole {
     Leader,
     Player,
@@ -41,7 +41,7 @@ enum GameError {
     InternalIssue(String),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GameClient {
     pub id: String,
     #[serde(skip)]
@@ -74,7 +74,7 @@ pub struct GameState {
     #[serde(skip)]
     curr_player_turn_idx: usize,
     pub curr_winning_card: Option<Card>,
-    curr_dealer: String,
+    pub curr_dealer: String,
     #[serde(skip)]
     pub curr_dealer_idx: usize,
     pub bids: HashMap<String, i32>,
@@ -91,9 +91,9 @@ pub struct GameState {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SetupGameOptions {
-    rounds: usize,
-    deterministic: bool,
-    start_round: Option<usize>,
+    pub rounds: usize,
+    pub deterministic: bool,
+    pub start_round: Option<usize>,
 }
 
 impl SetupGameOptions {

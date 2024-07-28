@@ -1,5 +1,5 @@
 body {
-    background-color: #111216;
+    background-color: #d5eddc;
 }
 
 #main {
@@ -9,6 +9,10 @@ body {
     justify-content: center;
     align-items: center;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif
+}
+
+#input {
+    border: 1px solid #ccc;
 }
 
 #links {
@@ -31,7 +35,7 @@ body {
 }
 
 #links a:hover {
-    background-color: #1f1f1f;
+    background-color: red;
     cursor: pointer;
 }
 

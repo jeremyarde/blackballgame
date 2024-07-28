@@ -2,6 +2,7 @@ use axum::extract::ws::Message;
 use axum::extract::Path;
 use axum::extract::Query;
 use tower_http::timeout::ResponseBodyTimeout;
+use tracing::error;
 
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -187,18 +188,18 @@ async fn handle_socket(
             message_content = content;
         } else {
             info!("Message from user was not in Text format: {:?}", msg);
-            let _ = sender
-                .send(Message::Text(
-                    json!(ServerMessage {
-                        message: format!(
-                            "Wrong message format, try to connect again. Message: {:?}",
-                            msg
-                        ),
-                        from: username.clone()
-                    })
-                    .to_string(),
-                ))
-                .await;
+            // let _ = sender
+            //     .send(Message::Text(
+            //         json!(ServerMessage {
+            //             message: format!(
+            //                 "Wrong message format, try to connect again. Message: {:?}",
+            //                 msg
+            //             ),
+            //             from: username.clone()
+            //         })
+            //         .to_string(),
+            //     ))
+            //     .await;
             continue;
         };
 
@@ -407,14 +408,24 @@ async fn handle_socket(
 
     info!("Subscribing to game messages...");
 
-    let mut rx = tx_from_game_to_client.as_ref().unwrap().subscribe();
+    let mut rx = match tx_from_game_to_client.as_ref() {
+        Some(x) => x.subscribe(),
+        None => {
+            error!("tx_from_game_to_client is None for user {}", username);
+            return;
+        }
+    };
+
     info!("Subscribed to game messages - SUCCESS");
     // Recieve messages from client
     let username_for_recv = username.clone();
     let lobby_sender;
     {
         let channels = state.lobby_to_game_channel_send.lock().await;
-
+        info!(
+            "Attempting to get lobby_sender for lobby {}, user {}",
+            lobby_code, username
+        );
         let mysender = match channels.get(&lobby_code) {
             Some(x) => x,
             None => panic!("Can't join a game that doesn't exist"),
