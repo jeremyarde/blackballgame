@@ -1,4 +1,5 @@
 #![allow(non_snake_case)]
+#![allow(warnings)]
 
 use std::{collections::HashMap, path::Path};
 
@@ -9,8 +10,12 @@ use common::{
 };
 use dioxus::prelude::*;
 use dotenvy::dotenv;
-use futures_util::{SinkExt, StreamExt, TryStreamExt};
+
+use futures_util::stream::{SplitSink, SplitStream};
+use futures_util::TryStreamExt;
+use futures_util::{SinkExt, StreamExt};
 use reqwest::Client;
+use reqwest_websocket::WebSocket;
 use reqwest_websocket::{Message, RequestBuilderExt};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -87,7 +92,7 @@ enum InternalMessage {
     WsAction(WsAction),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum WsAction {
     Pause,
     Resume,
@@ -96,7 +101,7 @@ enum WsAction {
 // static GAMESTATE: GlobalSignal<GameState> = Signal::global(|| GameState::new());
 
 #[component]
-fn Admin() -> Element {
+fn Explorer() -> Element {
     let mut ws_url = use_signal(|| String::from("ws://0.0.0.0:8080/ws"));
     let mut ws_action = use_signal(|| WsAction::Pause);
     let mut server_url = use_signal(|| String::from("http://0.0.0.0:8080/"));
@@ -234,7 +239,7 @@ enum Route {
     #[route("/rooms/:room_code")]
     GameRoom { room_code: String },
     #[route("/admin")]
-    Admin {},
+    Explorer {},
     // #[route("/game/:room_code")]
     // Game { room_code: String },
 }
@@ -255,6 +260,16 @@ fn GameRoom(room_code: String) -> Element {
     let mut username = use_signal(|| String::new());
     let mut error = use_signal(|| Value::Null);
     let mut player_secret = use_signal(|| String::new());
+    let mut num_rounds = use_signal(|| 9);
+    // let mut server_websocket_listener: Signal<Option<SplitStream<WebSocket>>> = use_signal(|| None);
+    // let mut server_websocket_sender: Signal<Option<SplitSink<WebSocket, Message>>> =
+    //     use_signal(|| None);
+    let mut server_websocket_listener: Signal<Option<SplitStream<WebSocket>>> = use_signal(|| None);
+    let mut server_websocket_sender: Signal<Option<SplitSink<WebSocket, Message>>> =
+        use_signal(|| None);
+    let mut ws_url =
+        use_signal(|| String::from(format!("ws://0.0.0.0:8080/rooms/{}/ws", room_code.clone())));
+    let mut ws_action = use_signal(|| WsAction::Pause);
 
     let get_game_details = move |room_code: String| {
         spawn(async move {
@@ -282,57 +297,15 @@ fn GameRoom(room_code: String) -> Element {
         });
     };
 
-    let mut ws_url =
-        use_signal(|| String::from(format!("ws://0.0.0.0:8080/rooms/{}/ws", room_code.clone())));
-    let mut ws_action = use_signal(|| WsAction::Pause);
-
-    let ws: Coroutine<InternalMessage> = use_coroutine(|mut rx| async move {
-        info!("ws coroutine started - action: {:?}", &ws_action);
-
-        'pauseloop: while let Some(internal_msg) = rx.next().await {
-            match internal_msg {
-                InternalMessage::Game(_) => break,
-                InternalMessage::Server(_) => break,
-                InternalMessage::WsAction(action) => match action {
-                    WsAction::Pause => {
-                        continue 'pauseloop;
-                    }
-                    WsAction::Resume => {
-                        break;
-                    }
-                },
-            }
+    let listen_for_server_messages = use_coroutine(|rx: UnboundedReceiver<String>| async move {
+        if server_websocket_listener.read().is_none() {
+            info!("No websocket listener");
+            return;
         }
-
-        // Connect to some sort of service
-        // Creates a GET request, upgrades and sends it.
-        let response = Client::default()
-            .get(ws_url())
-            .upgrade() // Prepares the WebSocket upgrade.
-            .send()
-            .await
-            .unwrap();
-
-        // Turns the response into a WebSocket stream.
-        let mut websocket = response.into_websocket().await.unwrap();
-
-        // wait for connection message
-        let connection_details: InternalMessage = rx.next().await.unwrap();
-
-        match connection_details {
-            InternalMessage::Game(x) => {
-                let msg = Message::Text(json!(x).to_string());
-                websocket.send(msg).await.unwrap();
-            }
-            InternalMessage::Server(x) => {
-                let msg = Message::Text(json!(x).to_string());
-                websocket.send(msg).await.unwrap();
-            }
-            InternalMessage::WsAction(_) => {}
-        }
-
-        // The WebSocket is also a `TryStream` over `Message`s.
-        while let Some(message) = websocket.try_next().await.unwrap() {
+        info!("Ready to listen to messages from server");
+        let mut ws_server_listener = server_websocket_listener.as_mut().unwrap();
+        // update gamestate in response to server messages
+        while let Some(message) = ws_server_listener.try_next().await.unwrap() {
             if let Message::Text(text) = message {
                 info!("received: {text}");
 
@@ -361,21 +334,103 @@ fn GameRoom(room_code: String) -> Element {
         }
     });
 
-    let room_code_clone = room_code.clone();
-    let join_lobby = move |room_code_clone: String| {
-        ws.send(InternalMessage::WsAction(WsAction::Resume));
-        ws.send(InternalMessage::Server(Connect {
-            username: username(),
-            channel: room_code_clone,
-            secret: None,
-        }));
+    // this is internal messaging, between frontend to connection websocket
+    let ws_send: Coroutine<InternalMessage> = use_coroutine(|mut rx| async move {
+        if server_websocket_sender.read().is_none() {
+            info!("No websocket sender");
+            return;
+        }
+        info!("Ready to listen to player actions");
+        let mut ws_server_sender = server_websocket_sender.as_mut().unwrap();
+
+        'pauseloop: while let Some(internal_msg) = rx.next().await {
+            info!("Received internal message: {:?}", internal_msg);
+            match internal_msg {
+                InternalMessage::Game(x) => {
+                    if ws_action() == WsAction::Pause {
+                        continue 'pauseloop;
+                    }
+                    let msg = Message::Text(json!(x).to_string());
+                    ws_server_sender.send(msg).await.unwrap();
+                }
+                InternalMessage::Server(x) => {
+                    if ws_action() == WsAction::Pause {
+                        continue 'pauseloop;
+                    }
+                    let msg = Message::Text(json!(x).to_string());
+                    ws_server_sender.send(msg).await.unwrap();
+                }
+                InternalMessage::WsAction(_) => {}
+                InternalMessage::WsAction(action) => match action {
+                    WsAction::Pause => {
+                        continue 'pauseloop;
+                    }
+                    WsAction::Resume => {
+                        ws_action.set(WsAction::Resume);
+                    }
+                },
+                _ => {}
+            }
+        }
+        info!("Finished listening to player actions");
+    });
+
+    let start_ws = move || async move {
+        info!("Attempting to connect to websocket server");
+        // Connect to some sort of service
+        // Creates a GET request, upgrades and sends it.
+        let response = Client::default()
+            .get(ws_url())
+            .upgrade() // Prepares the WebSocket upgrade.
+            .send()
+            .await
+            .unwrap();
+
+        // Turns the response into a WebSocket stream.
+        let mut websocket = response.into_websocket().await.unwrap();
+        let (mut ws_tx, mut ws_rx) = websocket.split();
+        server_websocket_listener.set(Some(ws_rx));
+        server_websocket_sender.set(Some(ws_tx));
+        info!("Successfully connected to server");
     };
+
+    let room_code_clone = room_code.clone();
+
+    // let ue = use_resource(future)
+    // let join_lobby = use_resource(move || async move {
+    //     start_ws.await;
+    //     ws_send.send(InternalMessage::WsAction(WsAction::Resume));
+    //     ws_send.send(InternalMessage::Server(Connect {
+    //         username: username(),
+    //         channel: room_code_clone,
+    //         secret: None,
+    //     }));
+    // });
+    // async fn join_lobby() {
+    //     start_ws.await;
+    //     ws_send.send(InternalMessage::WsAction(WsAction::Resume));
+    //     ws_send.send(InternalMessage::Server(Connect {
+    //         username: username(),
+    //         channel: room_code_clone,
+    //         secret: None,
+    //     }));
+    // }
+    // let join_lobby = move |evt| async move {
+    //     start_ws().await;
+    //     ws_send.send(InternalMessage::WsAction(WsAction::Resume));
+    //     ws_send.send(InternalMessage::Server(Connect {
+    //         username: username(),
+    //         channel: room_code_clone,
+    //         secret: None,
+    //     }));
+    // };
 
     rsx!(
         {if error().is_null() {rsx!()} else {error.read().as_str().map(|err| rsx!(div { "{err}" }))}},
+        Link { class: "bg-orange-300 w-full h-full", to: Route::Explorer {}, "Explorer" }
         button {
             class: "h-full w-full bg-blue-500",
-            onclick: move |evt| get_game_details(room_code_clone.clone()),
+            onclick: move |evt| get_game_details(room_code.clone()),
             "Refresh"
         }
         div { class: "flex flex-row",
@@ -390,7 +445,21 @@ fn GameRoom(room_code: String) -> Element {
         }
         button {
             class: "h-full w-full bg-blue-500",
-            onclick: move |evt| join_lobby(room_code.clone()),
+            onclick: move |evt| {
+                let room_code_clone = room_code_clone.clone();
+                async move {
+                    start_ws().await;
+                    ws_send.send(InternalMessage::WsAction(WsAction::Resume));
+                    ws_send
+                        .send(
+                            InternalMessage::Server(Connect {
+                                username: username(),
+                                channel: room_code_clone,
+                                secret: None,
+                            }),
+                        );
+                }
+            },
             "Join this game"
         }
         div { "lobby: {lobby.read().lobby_code}" }
@@ -398,11 +467,41 @@ fn GameRoom(room_code: String) -> Element {
         {lobby.read().players.iter().enumerate().map(|(i, player)| rsx!(div { "{i}: {player}" }))},
         // div { "{gamestate.read():?}" }
         div { "Server message: {server_message.read()}" }
-        {if username() != "" {
+        {if gamestate.read().players.get(&username()).is_some() {
             rsx!(GameState { username, player_secret, gamestate })
         } else {
-            rsx!(div { "Please choose a username" })
-        }}
+            rsx!(div { "Press start when all players have joined to begin" })
+        }},
+        div { class: "flex flex-row bg-purple-300 h-full w-full",
+            "Game options:"
+            label { "Rounds" }
+            input {
+                r#type: "number",
+                onchange: move |evt| num_rounds.set(evt.value().parse::<usize>().unwrap()),
+                value: "{num_rounds}"
+            }
+        }
+        button {
+            class: "h-full w-full bg-blue-500",
+            onclick: move |evt| {
+                info!("Starting game");
+                ws_send
+                    .send(
+                        InternalMessage::Game(GameMessage {
+                            username: username(),
+                            message: GameEvent {
+                                action: GameAction::StartGame(SetupGameOptions {
+                                    rounds: gamestate.read().setup_game_options.rounds,
+                                    deterministic: false,
+                                    start_round: None,
+                                }),
+                            },
+                            timestamp: Utc::now(),
+                        }),
+                    );
+            },
+            "Start game"
+        }
     )
 }
 
@@ -415,7 +514,7 @@ fn Home() -> Element {
     rsx!(
         div { class: "bg-slate-200 w-full h-full", "Home" }
 
-        Link { class: "bg-orange-300 w-full h-full", to: Route::Admin {}, "Admin" }
+        Link { class: "bg-orange-300 w-full h-full", to: Route::Explorer {}, "Explorer" }
         Link {
             class: "bg-orange-300 w-full h-full",
             to: Route::GameRoom {
@@ -440,7 +539,7 @@ fn GameState(
             timestamp: Utc::now(),
         };
     };
-
+    info!("GameState: {gamestate:?}");
     let curr_hand = gamestate
         .read()
         .players

@@ -1,3 +1,5 @@
+#![allow(warnings)]
+
 use core::error;
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -128,96 +130,6 @@ async fn serve_asset(path: Option<Path<String>>) -> impl IntoResponse {
     }
 }
 
-#[tokio::main]
-async fn main() {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            EnvFilter::from_default_env()
-                .add_directive("blackballgame=debug".parse().unwrap())
-                .add_directive("blackballgame-server=debug".parse().unwrap())
-                .add_directive("common=debug".parse().unwrap()),
-        )
-        .with_span_events(FmtSpan::FULL)
-        // .with_thread_names(true) // only says "tokio-runtime-worker"
-        .with_thread_ids(true)
-        .finish()
-        .init();
-
-    let cors = CorsLayer::new()
-        // allow `GET` and `POST` when accessing the resource
-        .allow_methods([Method::GET, Method::POST])
-        // allow requests from any origin
-        .allow_headers([axum::http::header::CONTENT_TYPE])
-        .allow_origin(Any);
-
-    // let corslayer = CorsLayer::new()
-    // .allow_methods([Method::POST, Method::GET])
-    // .allow_headers([
-    //     axum::http::header::CONTENT_TYPE,
-    //     axum::http::header::ACCEPT,
-    //     // axum::http::header::AUTHORIZATION,
-    //     // axum::http::header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
-    //     // axum::http::header::ACCESS_CONTROL_REQUEST_METHOD,
-    //     // axum::http::HeaderName::from_static("x-auth-token"),
-    //     // axum::http::HeaderName::from_static("x-sid"),
-    //     axum::http::HeaderName::from_static("session_id"),
-    //     // axum::http::HeaderName::from_static("credentials"),
-    // ])
-    // // .allow_headers(Any)
-    // // .allow_credentials(true)
-    // .allow_origin(origins)
-    // // .allow_origin(Any)
-    // .expose_headers([
-    //     axum::http::header::CONTENT_ENCODING,
-    //     axum::http::HeaderName::from_static("session_id"),
-    // ]);
-
-    // let assets_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets");
-    let assets_dir =
-        PathBuf::from("/Users/jarde/Documents/code/blackballgame/blackballgame-client/dist");
-
-    // let serverstate: Arc<AppState> = Arc::new(allgames);
-    let serverstate = Arc::new(AppState {
-        rooms: Mutex::new(HashMap::new()),
-        // players: Mutex::new(HashMap::new()),
-        room_broadcast_channel: Mutex::new(HashMap::new()),
-        lobby_to_game_channel_send: Mutex::new(HashMap::new()),
-        // lobby_to_game_channel_recv: Mutex::new(HashMap::new()),
-    });
-
-    let app = Router::new()
-        // .route("/rooms/ws", get(ws_handler))
-        .route("/ws", get(ws_handler))
-        .route("/rooms", get(get_rooms).post(create_room))
-        .route("/rooms/:room_code", get(get_room))
-        .route("/rooms/:room_code/ws", get(ws_handler))
-        .route("/health", get(|| async { "ok" }))
-        // .route(
-        //     "/*path",
-        //     get(|path| async { serve_asset(Some(path)).await }),
-        // )
-        .route(
-            "/",
-            get(|| async { serve_asset(Some(Path("index.html".to_string()))).await }),
-        )
-        .layer(cors)
-        .layer(middleware::map_response(main_response_mapper))
-        // .route("/ui".get(ServeDir::new(assets_dir).append_index_html_on_directories(true)))
-        // .route("/game", get(Game))
-        .with_state(serverstate);
-
-    // run our app with hyper, listening globally on port 3000
-    let port = "0.0.0.0:8080";
-    info!("Serving application on {}", port);
-    let listener = tokio::net::TcpListener::bind(port).await.unwrap();
-    axum::serve(
-        listener,
-        app.into_make_service_with_connect_info::<SocketAddr>(),
-    )
-    .await
-    .unwrap();
-}
-
 #[axum::debug_handler]
 pub async fn get_rooms(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let rooms = match state.rooms.try_lock() {
@@ -247,7 +159,7 @@ enum ClientError {
 
 impl IntoResponse for ServerError {
     fn into_response(self) -> axum::response::Response {
-        println!("->> {:<12} - {self:?}", "INTO_RES");
+        // println!("->> {:<12} - {self:?}", "INTO_RES");
 
         let mut response = StatusCode::INTERNAL_SERVER_ERROR.into_response();
         response.extensions_mut().insert(self);
@@ -277,7 +189,7 @@ pub async fn main_response_mapper(
     req_method: Method,
     res: Response,
 ) -> Response {
-    println!("->> {:<12} - main_response_mapper", "RES_MAPPER");
+    // println!("->> {:<12} - main_response_mapper", "RES_MAPPER");
     let uuid = nanoid_gen(10);
 
     // -- Get the eventual response error.
@@ -303,7 +215,7 @@ pub async fn main_response_mapper(
                 }
             });
 
-            println!("    ->> client_error_body: {client_error_body}");
+            info!("client_error_body: {client_error_body}");
 
             // Build the new response from the client_error_body
             (*status_code, Json(client_error_body)).into_response()
@@ -375,32 +287,42 @@ pub async fn create_room(
 ) -> impl IntoResponse {
     info!("Creating a new lobby");
     // check if lobby code already exists and don't create a new game
-
+    let channel = request.lobby_code.clone();
     let mut rooms = state.rooms.lock().await;
-    if rooms.contains_key(&request.lobby_code) {
-        info!("Room \"{}\" already exists.", request.lobby_code);
+    if rooms.contains_key(&channel) {
+        info!("Room \"{}\" already exists.", channel);
         return (
             StatusCode::BAD_REQUEST,
             Json(CreateGameResponse {
-                lobby_code: request.lobby_code,
+                lobby_code: channel,
             }),
         );
     }
 
     let newgame = GameState::new();
-    rooms.insert(request.lobby_code.clone(), newgame);
+    rooms.insert(channel.clone(), newgame);
 
     let broadcast_channel = tokio::sync::broadcast::channel(10).0;
     state
         .room_broadcast_channel
         .lock()
         .await
-        .insert(request.lobby_code.clone(), broadcast_channel);
+        .insert(channel.clone(), broadcast_channel);
 
-    let (lobby_sender, lobby_reciever) = tokio::sync::mpsc::channel(10);
     {
         let mut clientchannels = state.lobby_to_game_channel_send.lock().await;
-        clientchannels.insert(request.lobby_code.clone(), lobby_sender);
+        match clientchannels.get(&channel) {
+            Some(snd) => {
+                // info!("Client channel already exists");
+                // recv_channel = Some(rcv);
+            }
+            None => {
+                let (lobby_sender, lobby_reciever) = tokio::sync::mpsc::channel(10);
+
+                clientchannels.insert(channel, lobby_sender);
+                // recv_channel = Some(lobby_reciever);
+            }
+        }
     }
 
     info!("Success. Created lobby: {}", request.lobby_code);
@@ -411,4 +333,71 @@ pub async fn create_room(
             lobby_code: request.lobby_code.clone(),
         }),
     )
+}
+
+#[tokio::main]
+async fn main() {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::from_default_env()
+                .add_directive("blackballgame=debug".parse().unwrap())
+                .add_directive("blackballgame-server=debug".parse().unwrap())
+                .add_directive("common=debug".parse().unwrap()),
+        )
+        .with_span_events(FmtSpan::FULL)
+        // .with_thread_names(true) // only says "tokio-runtime-worker"
+        .with_thread_ids(true)
+        .finish()
+        .init();
+
+    let cors = CorsLayer::new()
+        // allow `GET` and `POST` when accessing the resource
+        .allow_methods([Method::GET, Method::POST])
+        // allow requests from any origin
+        .allow_headers([axum::http::header::CONTENT_TYPE])
+        .allow_origin(Any);
+
+    // let assets_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets");
+    let assets_dir =
+        PathBuf::from("/Users/jarde/Documents/code/blackballgame/blackballgame-client/dist");
+
+    // let serverstate: Arc<AppState> = Arc::new(allgames);
+    let serverstate = Arc::new(AppState {
+        rooms: Mutex::new(HashMap::new()),
+        room_broadcast_channel: Mutex::new(HashMap::new()),
+        lobby_to_game_channel_send: Mutex::new(HashMap::new()),
+        game_threads: Mutex::new(HashMap::new()),
+    });
+
+    let app = Router::new()
+        // .route("/rooms/ws", get(ws_handler))
+        .route("/ws", get(ws_handler))
+        .route("/rooms", get(get_rooms).post(create_room))
+        .route("/rooms/:room_code", get(get_room))
+        .route("/rooms/:room_code/ws", get(ws_handler))
+        .route("/health", get(|| async { "ok" }))
+        // .route(
+        //     "/*path",
+        //     get(|path| async { serve_asset(Some(path)).await }),
+        // )
+        .route(
+            "/",
+            get(|| async { serve_asset(Some(Path("index.html".to_string()))).await }),
+        )
+        .layer(cors)
+        // .layer(middleware::map_response(main_response_mapper)) // does not behave nicely
+        // .route("/ui".get(ServeDir::new(assets_dir).append_index_html_on_directories(true)))
+        // .route("/game", get(Game))
+        .with_state(serverstate);
+
+    // run our app with hyper, listening globally on port 3000
+    let port = "0.0.0.0:8080";
+    info!("Serving application on {}", port);
+    let listener = tokio::net::TcpListener::bind(port).await.unwrap();
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .unwrap();
 }

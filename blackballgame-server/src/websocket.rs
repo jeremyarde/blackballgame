@@ -1,6 +1,7 @@
 use axum::extract::ws::Message;
 use axum::extract::Path;
 use axum::extract::Query;
+use tokio::task::JoinHandle;
 use tower_http::timeout::ResponseBodyTimeout;
 use tracing::error;
 
@@ -23,8 +24,9 @@ use futures_util::StreamExt;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::json;
+use tokio::sync::broadcast::Sender;
+use tokio::sync::mpsc::Receiver;
 use tokio::sync::Mutex;
-
 use tokio::time::sleep;
 use tracing::info;
 
@@ -37,11 +39,9 @@ pub type SharedState = Arc<RwLock<AppState>>;
 #[derive(Debug)]
 pub struct AppState {
     pub rooms: Mutex<HashMap<String, GameState>>,
-    // players: Mutex<HashMap<(String, String), SplitSink<WebSocket, axum::extract::ws::Message>>>, // gameid, playerid
     pub room_broadcast_channel: Mutex<HashMap<String, tokio::sync::broadcast::Sender<GameState>>>,
     pub lobby_to_game_channel_send: Mutex<HashMap<String, tokio::sync::mpsc::Sender<GameMessage>>>,
-    // lobby_to_game_channel_recv: Mutex<HashMap<String, tokio::sync::mpsc::Receiver<GameMessage>>>,
-    // lobby_message_queue
+    pub game_threads: Mutex<HashMap<String, tokio::task::JoinHandle<()>>>,
 }
 
 #[derive(Serialize)]
@@ -87,7 +87,7 @@ async fn handle_socket(
 ) {
     let mut username = String::new();
     let mut lobby_code = String::new();
-    let mut created_new_game = false;
+    let mut game_thread_running = false;
     // let mut tx = None::<Sender<String>>;
     let mut tx_from_game_to_client = None::<tokio::sync::broadcast::Sender<GameState>>;
     let mut recv_channel: Option<tokio::sync::mpsc::Receiver<GameMessage>> = None;
@@ -205,8 +205,19 @@ async fn handle_socket(
             let game = match rooms.get_mut(&connect.channel) {
                 Some(gamestate) => {
                     info!("Game already ongoing, joining");
-                    created_new_game = false;
+                    game_thread_running = false;
                     player_role = PlayerRole::Player;
+                    // We may have already created the lobby
+                    {
+                        let (lobby_sender, lobby_reciever) = tokio::sync::mpsc::channel(10);
+                        let mut clientchannels = state.lobby_to_game_channel_send.lock().await;
+                        if clientchannels.contains_key(&connect.channel) {
+                            info!("Client channel already exists");
+                        } else {
+                            clientchannels.insert(connect.channel.clone(), lobby_sender);
+                        }
+                        recv_channel = Some(lobby_reciever);
+                    }
 
                     // if player name is chosen and secret
                     let saved_secret = gamestate.players_secrets.get(&connect.username);
@@ -310,7 +321,7 @@ async fn handle_socket(
                             .to_string(),
                         ))
                         .await;
-                    created_new_game = true;
+                    game_thread_running = true;
                     player_role = PlayerRole::Leader;
                     let server = GameState::new();
                     rooms.insert(connect.channel.clone(), server);
@@ -324,13 +335,10 @@ async fn handle_socket(
                     tx_from_game_to_client = Some(broadcast_channel);
 
                     // setting up
-                    let (lobby_sender, lobby_reciever) = tokio::sync::mpsc::channel(10);
                     {
+                        let (lobby_sender, lobby_reciever) = tokio::sync::mpsc::channel(10);
                         let mut clientchannels = state.lobby_to_game_channel_send.lock().await;
                         clientchannels.insert(connect.channel.clone(), lobby_sender);
-
-                        // let mut clientchannels = state.lobby_to_game_channel_recv.lock().await;
-                        // clientchannels.insert(connect.channel.clone(), lobby_reciever);
                         recv_channel = Some(lobby_reciever);
                     }
 
@@ -366,7 +374,7 @@ async fn handle_socket(
     let mut rx = match tx_from_game_to_client.as_ref() {
         Some(x) => x.subscribe(),
         None => {
-            error!("tx_from_game_to_client is None for user {}", username);
+            error!("tx_from_game_to_client is None for user \"{}\"", username);
             return;
         }
     };
@@ -382,7 +390,7 @@ async fn handle_socket(
             lobby_code, username
         );
         let mysender = match channels.get(&lobby_code) {
-            Some(x) => x,
+            Some(snd) => snd.clone(),
             None => panic!("Can't join a game that doesn't exist"),
         };
 
@@ -435,51 +443,85 @@ async fn handle_socket(
 
     // GAME SERVER THREAD, updates state from user input
     // only create a new thread when the first person has created a game
-    if created_new_game && recv_channel.is_some() {
-        let mut recv_channel_inner = recv_channel.unwrap();
-        let internal_broadcast_clone = tx_from_game_to_client.unwrap().clone();
-        let mut game_loop = {
-            tokio::spawn(async move {
-                let event_cap = 5;
-                info!("Starting up game");
-                loop {
-                    let mut game_messages = Vec::with_capacity(event_cap);
-
-                    info!("Waiting for messages");
-                    recv_channel_inner
-                        .recv_many(&mut game_messages, event_cap)
-                        .await;
-
-                    if game_messages.is_empty() {
-                        sleep(Duration::from_millis(2000)).await;
-                        continue;
-                    }
-
-                    info!("Got messages");
-                    println!("Messages: {:?}", game_messages);
-                    {
-                        let mut rooms = state.rooms.lock().await;
-                        let game = rooms.get_mut(&lobby_code).unwrap();
-
-                        let gamestate = game.process_event(game_messages);
-
-                        let _ = internal_broadcast_clone.send(gamestate);
-                    }
-
-                    sleep(Duration::from_millis(500)).await;
-                }
-            })
-        };
-
-        tokio::select! {
-            _ = (&mut send_messages_to_client) => recv_messages_from_clients.abort(),
-            _ = (&mut recv_messages_from_clients) => send_messages_to_client.abort(),
-            _ = (&mut game_loop) => game_loop.abort(),
-        };
-    } else {
-        tokio::select! {
-            _ = (&mut send_messages_to_client) => recv_messages_from_clients.abort(),
-            _ = (&mut recv_messages_from_clients) => send_messages_to_client.abort(),
-        };
+    {
+        game_thread_running = state.game_threads.lock().await.contains_key(&lobby_code);
     }
+
+    if !game_thread_running && recv_channel.is_some() {
+        let mut recv_channel_inner = recv_channel.unwrap();
+
+        let game_already_started = state.game_threads.lock().await.contains_key(&lobby_code);
+        info!("Game threads: {:?}", state.game_threads.lock().await);
+        info!("Game already started: {game_already_started}");
+
+        if !game_already_started {
+            let internal_broadcast_clone = tx_from_game_to_client.unwrap().clone();
+
+            info!("Starting game thread for lobby {}", lobby_code);
+            let mut game_loop = start_game_thread(
+                state.clone(),
+                lobby_code.clone(),
+                recv_channel_inner,
+                internal_broadcast_clone,
+            )
+            .await;
+
+            state
+                .game_threads
+                .lock()
+                .await
+                .insert(lobby_code.clone(), game_loop);
+        }
+    }
+
+    tokio::select! {
+        _ = (&mut send_messages_to_client) => recv_messages_from_clients.abort(),
+        _ = (&mut recv_messages_from_clients) => send_messages_to_client.abort(),
+    };
+}
+
+pub async fn start_game_thread(
+    state: Arc<AppState>,
+    lobby_code: String,
+    mut recv: tokio::sync::mpsc::Receiver<GameMessage>,
+    broadcast: Sender<GameState>,
+) -> JoinHandle<()> {
+    // let (snd, recv) = state
+    //     .lobby_to_game_channel_send
+    //     .lock()
+    //     .await
+    //     .get(&lobby_code)
+    //     .unwrap();
+    let mut game_loop = {
+        tokio::spawn(async move {
+            let event_cap = 5;
+            info!("Starting up game");
+            loop {
+                let mut game_messages = Vec::with_capacity(event_cap);
+
+                info!("Waiting for messages");
+                recv.recv_many(&mut game_messages, event_cap).await;
+
+                if game_messages.is_empty() {
+                    sleep(Duration::from_millis(2000)).await;
+                    continue;
+                }
+
+                info!("Got messages");
+                println!("Messages: {:?}", game_messages);
+                {
+                    let mut rooms = state.rooms.lock().await;
+                    let game = rooms.get_mut(&lobby_code).unwrap();
+
+                    let gamestate = game.process_event(game_messages);
+
+                    let _ = broadcast.send(gamestate);
+                }
+
+                sleep(Duration::from_millis(500)).await;
+            }
+        })
+    };
+
+    game_loop
 }
