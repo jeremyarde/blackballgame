@@ -29,10 +29,6 @@ struct FrontendAppState {
 
 impl FrontendAppState {
     fn new() -> Self {
-        // Self {
-        //     ws_url: dotenvy::var("WS_URL").unwrap(),
-        //     server_url: dotenvy::var("SERVER_URL").unwrap(),
-        // }
         Self {
             ws_url: String::new(),
             server_url: String::new(),
@@ -46,32 +42,7 @@ impl FrontendAppState {
 
 const STYLE: &str = include_str!("../assets/main.css");
 
-// pub fn get_app_state() -> &'static FrontendAppState {
-//     APP_STATE().unwrap()
-// }
-
 fn main() {
-    // info!("Starting app...");
-    // let feas = FrontendAppState {
-    //     ws_url: dotenvy::var("WS_URL").unwrap(),
-    //     server_url: dotenvy::var("SERVER_URL").unwrap(),
-    // };
-    // APP_STATE.set(feas);
-    // appstate.ws_url = dotenvy::var("WS_URL").unwrap();
-    // appstate.server_url = dotenvy::var("SERVER_URL").unwrap();
-    // let mut appstate = FrontendAppState {
-    //     ws_url: dotenvy::var("WS_URL").unwrap(),
-    //     server_url: dotenvy::var("SERVER_URL").unwrap(),
-    // };
-    // APP_STATE.set(appstate).unwrap();
-
-    // info!("AppState: {:?}", get_app_state());
-
-    // info!("cwd: {:?}", std::env::current_dir());
-    // let va = dotenvy::dotenv().ok(); // load .env file
-    // info!("va: {:?}", va);
-    // info!("server_url: {:?}", dotenvy::var("SERVER_URL"));
-
     // Init logger
     dioxus_logger::init(Level::INFO).expect("failed to init logger");
     // launch(App);
@@ -312,6 +283,8 @@ fn GameRoom(room_code: String) -> Element {
             //     return;
             // }
 
+            info!("Unpaused server websocket listener");
+
             let mut ws_server_listener: Write<SplitStream<WebSocket>> =
                 server_websocket_listener.as_mut().unwrap();
             while let Some(message) = ws_server_listener.try_next().await.unwrap() {
@@ -363,14 +336,14 @@ fn GameRoom(room_code: String) -> Element {
                         continue 'pauseloop;
                     }
                     let msg = Message::Text(json!(x).to_string());
-                    ws_server_sender.send(msg).await.unwrap();
+                    let _ = ws_server_sender.send(msg).await;
                 }
                 InternalMessage::Server(x) => {
                     if ws_action() == WsAction::Pause {
                         continue 'pauseloop;
                     }
                     let msg = Message::Text(json!(x).to_string());
-                    ws_server_sender.send(msg).await.unwrap();
+                    let _ = ws_server_sender.send(msg).await;
                 }
                 InternalMessage::WsAction(_) => {}
                 InternalMessage::WsAction(action) => match action {
@@ -391,6 +364,12 @@ fn GameRoom(room_code: String) -> Element {
         info!("Attempting to connect to websocket server");
         // Connect to some sort of service
         // Creates a GET request, upgrades and sends it.
+
+        if server_websocket_listener.read().is_some() {
+            info!("Server websocket listener already exists");
+            return;
+        }
+
         let response = Client::default()
             .get(ws_url())
             .upgrade() // Prepares the WebSocket upgrade.
@@ -408,35 +387,6 @@ fn GameRoom(room_code: String) -> Element {
     };
 
     let room_code_clone = room_code.clone();
-
-    // let ue = use_resource(future)
-    // let join_lobby = use_resource(move || async move {
-    //     start_ws.await;
-    //     ws_send.send(InternalMessage::WsAction(WsAction::Resume));
-    //     ws_send.send(InternalMessage::Server(Connect {
-    //         username: username(),
-    //         channel: room_code_clone,
-    //         secret: None,
-    //     }));
-    // });
-    // async fn join_lobby() {
-    //     start_ws.await;
-    //     ws_send.send(InternalMessage::WsAction(WsAction::Resume));
-    //     ws_send.send(InternalMessage::Server(Connect {
-    //         username: username(),
-    //         channel: room_code_clone,
-    //         secret: None,
-    //     }));
-    // }
-    // let join_lobby = move |evt| async move {
-    //     start_ws().await;
-    //     ws_send.send(InternalMessage::WsAction(WsAction::Resume));
-    //     ws_send.send(InternalMessage::Server(Connect {
-    //         username: username(),
-    //         channel: room_code_clone,
-    //         secret: None,
-    //     }));
-    // };
 
     rsx!(
         {if error().is_null() {rsx!()} else {error.read().as_str().map(|err| rsx!(div { "{err}" }))}},
@@ -491,7 +441,7 @@ fn GameRoom(room_code: String) -> Element {
             label { "Rounds" }
             input {
                 r#type: "number",
-                onchange: move |evt| num_rounds.set(evt.value().parse::<usize>().unwrap()),
+                onchange: move |evt| num_rounds.set(evt.value().parse::<usize>().unwrap_or(9)),
                 value: "{num_rounds}"
             }
         }
@@ -566,7 +516,9 @@ fn GameState(
         .unwrap()
         .encrypted_hand
         .clone();
+    info!("curr_hand: {curr_hand:?}");
     let decrypted_hand = GameState::decrypt_player_hand(curr_hand, &player_secret.read().clone());
+    info!("decrypted_hand: {decrypted_hand:?}");
     rsx!(
         div { class: "bg-green-300 w-full h-full",
             div { "This is the game" }

@@ -239,9 +239,27 @@ impl GameState {
     }
 
     pub fn decrypt_player_hand(hand: String, player_secret: &String) -> Vec<Card> {
-        // let hand = BASE64.decode(hand.as_bytes()).unwrap();
-        // let str_hand = String::from_utf8(hand).unwrap();
-        let secret_data = xor_encrypt_decrypt(&hand, &player_secret);
+        // function decryptHand(ciphertext) {
+        //     console.log("Attempting to decrypt: ", ciphertext);
+        //     let encoder = new TextEncoder();
+
+        //     let base64_decoded = atob(ciphertext);
+        // function xorEncryptDecrypt(data, key) {
+        //     console.log("xor function: ", data, key);
+        //     return data.map((byte, index) => byte ^ key.charCodeAt(index % key.length));
+        //   }
+        //     let secret_data = xorEncryptDecrypt(
+        //       encoder.encode(base64_decoded),
+        //       secret
+        //     );
+        //     const secretDataString = new TextDecoder().decode(secret_data);
+
+        //     return JSON.parse(secretDataString);
+        //   }
+
+        let hand = BASE64.decode(hand.as_bytes()).unwrap();
+        let str_hand = String::from_utf8(hand).unwrap();
+        let secret_data = xor_encrypt_decrypt(&str_hand, &player_secret);
         let actual_hand: Vec<Card> = serde_json::from_slice(&secret_data).unwrap();
         return actual_hand;
     }
@@ -727,6 +745,17 @@ mod tests {
         let res = find_winning_card(cards, trump);
         println!("Winning: {}", res);
         assert!(res.id == 2)
+    }
+
+    #[test]
+    fn test_decrypt_hand() {
+        let mut game = GameState::new();
+        let hand =
+            "KBBbNhRJS1oFSVBFBRgLBxc0GyZSUVMdFElQRhwQBkBJSQovEQ8UTBpHBFQFDBdASV0EAg==".to_string();
+        let secret = "sky_9mk55malzm8c";
+
+        let decrypted_hand = GameState::decrypt_player_hand(hand, &secret.to_string());
+        println!("Decrypted: {:?}", decrypted_hand);
     }
 
     #[test]
