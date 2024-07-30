@@ -269,7 +269,7 @@ fn GameRoom(room_code: String) -> Element {
         use_signal(|| None);
     let mut ws_url =
         use_signal(|| String::from(format!("ws://0.0.0.0:8080/rooms/{}/ws", room_code.clone())));
-    let mut ws_action = use_signal(|| WsAction::Pause);
+    let mut ws_action = use_signal(|| WsAction::Resume);
 
     let get_game_details = move |room_code: String| {
         spawn(async move {
@@ -336,14 +336,15 @@ fn GameRoom(room_code: String) -> Element {
 
     // this is internal messaging, between frontend to connection websocket
     let ws_send: Coroutine<InternalMessage> = use_coroutine(|mut rx| async move {
-        if server_websocket_sender.read().is_none() {
-            info!("No websocket sender");
-            return;
-        }
-        info!("Ready to listen to player actions");
-        let mut ws_server_sender = server_websocket_sender.as_mut().unwrap();
+        info!("ws_send coroutine starting...");
 
         'pauseloop: while let Some(internal_msg) = rx.next().await {
+            if server_websocket_sender.read().is_none() {
+                info!("No websocket sender");
+                return;
+            }
+            info!("Ready to listen to player actions");
+            let mut ws_server_sender = server_websocket_sender.as_mut().unwrap();
             info!("Received internal message: {:?}", internal_msg);
             match internal_msg {
                 InternalMessage::Game(x) => {
@@ -448,8 +449,9 @@ fn GameRoom(room_code: String) -> Element {
             onclick: move |evt| {
                 let room_code_clone = room_code_clone.clone();
                 async move {
+                    info!("Clicked join game");
                     start_ws().await;
-                    ws_send.send(InternalMessage::WsAction(WsAction::Resume));
+                    info!("Websockets started");
                     ws_send
                         .send(
                             InternalMessage::Server(Connect {

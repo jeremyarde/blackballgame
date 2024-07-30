@@ -309,21 +309,21 @@ pub async fn create_room(
         .await
         .insert(channel.clone(), broadcast_channel);
 
-    {
-        let mut clientchannels = state.lobby_to_game_channel_send.lock().await;
-        match clientchannels.get(&channel) {
-            Some(snd) => {
-                // info!("Client channel already exists");
-                // recv_channel = Some(rcv);
-            }
-            None => {
-                let (lobby_sender, lobby_reciever) = tokio::sync::mpsc::channel(10);
+    // {
+    //     let mut clientchannels = state.lobby_to_game_channel_send.lock().await;
+    //     match clientchannels.get(&channel) {
+    //         Some(snd) => {
+    //             // info!("Client channel already exists");
+    //             // recv_channel = Some(rcv);
+    //         }
+    //         None => {
+    //             let (lobby_sender, lobby_reciever) = tokio::sync::mpsc::channel(10);
 
-                clientchannels.insert(channel, lobby_sender);
-                // recv_channel = Some(lobby_reciever);
-            }
-        }
-    }
+    //             clientchannels.insert(channel, lobby_sender);
+    //             // recv_channel = Some(lobby_reciever);
+    //         }
+    //     }
+    // }
 
     info!("Success. Created lobby: {}", request.lobby_code);
 
