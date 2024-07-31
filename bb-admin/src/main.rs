@@ -6,7 +6,8 @@ use std::{collections::HashMap, path::Path};
 use api_types::{GetLobbiesResponse, GetLobbyResponse};
 use chrono::Utc;
 use common::{
-    Card, Connect, GameAction, GameClient, GameEvent, GameMessage, GameState, SetupGameOptions,
+    Card, Connect, GameAction, GameClient, GameEvent, GameMessage, GameState, GameplayState,
+    PlayState, PlayerSecret, SetupGameOptions,
 };
 use dioxus::prelude::*;
 use dotenvy::dotenv;
@@ -305,12 +306,12 @@ fn GameRoom(room_code: String) -> Element {
                     if is_gamestate {
                         return;
                     }
-                    match serde_json::from_str::<Value>(&text) {
+
+                    match serde_json::from_str::<PlayerSecret>(&text) {
                         Ok(x) => {
-                            if x.get("client_secret").is_some() {
-                                player_secret.set(x.get("client_secret").unwrap().to_string());
-                            }
-                            server_message.set(x);
+                            player_secret.set(x.client_secret);
+                            info!("player_secret: {player_secret}");
+                            // server_message.set(x);
                         }
                         Err(err) => info!("Failed to parse server message: {}", err),
                     };
@@ -429,13 +430,7 @@ fn GameRoom(room_code: String) -> Element {
         div { "lobby: {lobby.read().lobby_code}" }
         div { "Players ({lobby.read().players.len()})" }
         {lobby.read().players.iter().enumerate().map(|(i, player)| rsx!(div { "{i}: {player}" }))},
-        // div { "{gamestate.read():?}" }
         div { "Server message: {server_message.read()}" }
-        {if gamestate.read().players.get(&username()).is_some() {
-            rsx!(GameState { username, player_secret, gamestate })
-        } else {
-            rsx!(div { "Press start when all players have joined to begin" })
-        }},
         div { class: "flex flex-row bg-purple-300 h-full w-full",
             "Game options:"
             label { "Rounds" }
@@ -455,7 +450,7 @@ fn GameRoom(room_code: String) -> Element {
                             username: username(),
                             message: GameEvent {
                                 action: GameAction::StartGame(SetupGameOptions {
-                                    rounds: gamestate.read().setup_game_options.rounds,
+                                    rounds: gamestate().setup_game_options.rounds,
                                     deterministic: false,
                                     start_round: None,
                                 }),
@@ -466,7 +461,7 @@ fn GameRoom(room_code: String) -> Element {
             },
             "Start game"
         }
-        {if gamestate.read().players.get(&username()).is_some() {
+        {if gamestate().players.get(&username()).is_some() {
             rsx!(GameState { username, player_secret, gamestate })
         } else {
             rsx!(div { "Press start when all players have joined to begin" })
@@ -517,25 +512,26 @@ fn GameState(
         .encrypted_hand
         .clone();
     info!("curr_hand: {curr_hand:?}");
+    info!("player_secret: {:?}", player_secret.read());
     let decrypted_hand = GameState::decrypt_player_hand(curr_hand, &player_secret.read().clone());
     info!("decrypted_hand: {decrypted_hand:?}");
     rsx!(
         div { class: "bg-green-300 w-full h-full",
             div { "This is the game" }
-            div { "State: {gamestate.read().gameplay_state:?}" }
-            div { "Trump: {gamestate.read().trump:?}" }
+            div { "State: {gamestate().gameplay_state:?}" }
+            div { "Trump: {gamestate().trump:?}" }
             div {
-                ol { {gamestate.read().player_order.iter().map(|player| rsx!(li { "{player}" }))} }
+                ol { {gamestate().player_order.iter().map(|player| rsx!(li { "{player}" }))} }
             }
-            div { "Round: {gamestate.read().curr_round}" }
-            div { "Dealer: {gamestate.read().curr_dealer}" }
-            div { "Player turn: {gamestate.read().curr_player_turn:?}" }
+            div { "Round: {gamestate().curr_round}" }
+            div { "Dealer: {gamestate().curr_dealer}" }
+            div { "Player turn: {gamestate().curr_player_turn:?}" }
         }
         div { class: "bg-blue-300 w-full h-full",
             "Play area"
             div {
                 "Cards"
-                {gamestate.read().curr_played_cards.iter().map(|card| rsx!(li { "{card}" }))}
+                {gamestate().curr_played_cards.iter().map(|card| rsx!(li { "{card}" }))}
             }
         }
         div { class: "bg-red-300 w-full h-full",
@@ -543,6 +539,27 @@ fn GameState(
             div {
                 "My cards"
                 {decrypted_hand.iter().map(|card| rsx!(li { "{card:?}" }))}
+            }
+            if gamestate().gameplay_state == GameplayState::Bid {
+                div { class: "flex justify-center m-4",
+                    label { "Bid" }
+                    ol { class: "flex flex-row",
+                        {(0..gamestate().curr_round).into_iter().map(|i| {
+                            rsx!(
+                                li { key: "{i}",
+                                    button {
+                                        class: "w-24 h-10 border border-solid rounded-md bg-slate-100",
+                                        onclick: move |_| {
+                                            info!("Clicked on bid {i}");
+                                            // send_bid(*i);
+                                        },
+                                        "{i}"
+                                    }
+                                }
+                            )
+                        })}
+                    }
+                }
             }
         }
     )
@@ -558,3 +575,170 @@ fn PlayerComponent(player: GameClient) -> Element {
         }
     )
 }
+
+// #[component]
+// fn TheGame(gamestate: Signal<GameState>, username: Signal<String>) -> Element {
+//     let bids = (0..gamestate().curr_round).collect();
+
+//     info!("THE GAME COMPONENT: Gamestate: {:?}", gamestate());
+
+//     rsx!(
+//         div { class: "flex flex-col w-full h-full",
+//             if gamestate().gameplay_state == GameplayState::Pregame {
+//                 div {
+//                     "current players listed here"
+//                     button {
+//                         class: "p-2 m-1 outline",
+//                         onclick: move |evt| {
+//                             info!("Clicked start game");
+//                         },
+//                         "Start game"
+//                     }
+//                 }
+//             } else if matches!(gamestate().gameplay_state == GameplayState::Play(_)) {
+//                 div { class: "flex w-full bg-green-300",
+//                     div { class: "flex flex-col w-full p-4",
+//                         div { class: "w-1/4 bg-cyan-200" }
+//                         if gamestate().gameplay_state == GameplayState::Play(_)
+//                             || gamestate().gameplay_state == GameplayState::PostRound
+//                             || gamestate().gameplay_state == GameplayState::PostHand(_)
+//                         {
+//                             div { class: "bg-green-500 h-1/4",
+//                                 h3 { "Played Cards" }
+//                                 // CardArea {
+//                                 //     cards: gamestate().curr_played_cards.clone(),
+//                                 //     play_card: play_card.clone(),
+//                                 //     gamestate: gamestate().clone()
+//                                 // }
+//                                 div { "Card Area placeholder" }
+//                             }
+//                         }
+
+//                         div { class: "flex",
+//                             div { class: "outline-4 m-2 w-full outline flex flex-col",
+//                                 if gamestate().curr_player_turn.unwrap() == username() {
+//                                     div { class: "outline-red-500 bg-red-300",
+//                                         // CardArea {
+//                                         //     cards: player_hand.clone(),
+//                                         //     play_card: play_card.clone(),
+//                                         //     gamestate: gamestate().clone()
+//                                         // }
+//                                         div { "Card Area placeholder" }
+//                                     }
+//                                 }
+//                                 if gamestate().curr_player_turn.unwrap() == username() {
+//                                     h3 { class: "flex self-center mt-3", "Your turn" }
+//                                 }
+//                                 if gamestate().gameplay_state == GameplayState::Bid {
+//                                     div { class: "flex justify-center m-4",
+//                                         label { "Bid" }
+//                                         ol { class: "flex flex-row",
+//                                             {bids.iter().map(|i| {
+//                                                 rsx!(
+//                                                     li { key: "{i}",
+//                                                         button {
+//                                                             class: "w-24 h-10 border border-solid rounded-md bg-slate-100",
+//                                                             onclick: move |_| {
+//                                                                 info!("Clicked on bid {i}");
+//                                                                 // send_bid(*i);
+//                                                             },
+//                                                             "{i}"
+//                                                         }
+//                                                     }
+//                                                 )
+//                                             })}
+//                                         }
+//                                     }
+//                                 }
+//                                 if gamestate().gameplay_state == GameplayState::PostRound {
+//                                     div { class: "w-full p-4 text-center bg-red-300",
+//                                         if gamestate().curr_player_turn.unwrap() == username() {
+//                                             {rsx!(
+//                                                 button {
+//                                                     class: "p-2 bg-red-400 border border-red-500 border-solid rounded-md",
+//                                                     // onclick: deal_card.clone(),
+//                                                     onclick: move |evt|{
+//                                                         info!("Clicked deal card");
+//                                                         // deal_card
+//                                                     },
+//                                                     "Start next round"
+//                                                 }
+//                                             )}
+//                                         } else {
+//                                             {rsx!(
+//                                                 div { class: "p-2",
+//                                                     "Waiting for dealer to start next round"
+//                                                 }
+//                                             )}
+//                                         }
+//                                     }
+//                                 }
+//                                 if gamestate().gameplay_state == GameplayState::PostHand(_) {
+//                                     div { class: "w-full p-4 text-center bg-red-300",
+//                                         button {
+//                                             class: "p-2 bg-red-400 border border-red-500 border-solid rounded-md",
+//                                             // onclick: send_ack.clone(),
+//                                             onclick: move |evt| {
+//                                                 info!("Clicked send ack");
+//                                             },
+//                                             "Go to next hand"
+//                                         }
+//                                         button {
+//                                             class: "p-2 bg-red-400 border border-red-500 border-solid rounded-md",
+//                                             // onclick: deal_card.clone(),
+//                                             onclick: move |evt| {
+//                                                 info!("Clicked deal card");
+//                                             },
+//                                             "Start next round"
+//                                         }
+//                                     }
+//                                 }
+//                             }
+//                         }
+//                         div { class: "w-full bg-cyan-200",
+//                             div { class: "flex flex-row w-full",
+//                                 label { class: "text-center bg-cyan-400",
+//                                     b { "{username} (you)" }
+//                                 }
+//                                 ul { class: "flex flex-row items-stretch content-between justify-between",
+//                                     li {
+//                                         div { "Cards left" }
+//                                         div { "{gamestate().players.get(&username).unwrap().num_cards}" }
+//                                     }
+//                                     li {
+//                                         div { "Hands won" }
+//                                         div { "{gamestate().wins.get(&username).unwrap(0)}" }
+//                                     }
+//                                     li {
+//                                         div { "Bid" }
+//                                     }
+//                                     li {
+//                                         div { "Score" }
+//                                         div { "{gamestate().score.get(&username).unwrap_or(0)}" }
+//                                     }
+//                                 }
+//                             }
+//                         }
+//                     }
+//                     div { class: "flex flex-col bg-orange-200 border border-solid rounded-md shadow-lg drop-shadow-xlbg-background",
+//                         div { class: "flex flex-col",
+//                             h2 { class: "outline", "Game details" }
+//                             label {
+//                                 b { "State: {gamestate().gameplay_state:?}" }
+//                             }
+//                             label {
+//                                 "Trump suit: "
+//                                 Suit { cardsuit: gamestate().trump.clone() }
+//                             }
+//                             label { "Round: {gamestate().curr_round}" }
+//                             label { "Player Turn: {gamestate().curr_player_turn.unwrap()}" }
+//                             ul { class: "flex flex-row space-x-2",
+//                                 label { "Player order:" }
+//                             }
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+//     )
+// }

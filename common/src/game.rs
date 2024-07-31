@@ -57,7 +57,10 @@ impl GameState {
         match event.message.action {
             // GameAction::PlayCard(_) => todo!(),
             // GameAction::Bid(_) => todo!(),
-            GameAction::StartGame(sgo) => self.setup_game(sgo),
+            GameAction::StartGame(sgo) => {
+                let result = self.setup_game(sgo);
+                info!("Setup game result: {:?}", result);
+            }
             // GameAction::Deal => todo!(),
             _ => {}
         }
@@ -239,27 +242,12 @@ impl GameState {
     }
 
     pub fn decrypt_player_hand(hand: String, player_secret: &String) -> Vec<Card> {
-        // function decryptHand(ciphertext) {
-        //     console.log("Attempting to decrypt: ", ciphertext);
-        //     let encoder = new TextEncoder();
-
-        //     let base64_decoded = atob(ciphertext);
-        // function xorEncryptDecrypt(data, key) {
-        //     console.log("xor function: ", data, key);
-        //     return data.map((byte, index) => byte ^ key.charCodeAt(index % key.length));
-        //   }
-        //     let secret_data = xorEncryptDecrypt(
-        //       encoder.encode(base64_decoded),
-        //       secret
-        //     );
-        //     const secretDataString = new TextDecoder().decode(secret_data);
-
-        //     return JSON.parse(secretDataString);
-        //   }
-
         let hand = BASE64.decode(hand.as_bytes()).unwrap();
         let str_hand = String::from_utf8(hand).unwrap();
+        // println!("Decrypting hand: {:?}", str_hand);
         let secret_data = xor_encrypt_decrypt(&str_hand, &player_secret);
+        // let str_hand2 = String::from_utf8(secret_data.clone()).unwrap();
+        // println!("Decrypting hand: {:?}", str_hand2);
         let actual_hand: Vec<Card> = serde_json::from_slice(&secret_data).unwrap();
         return actual_hand;
     }
@@ -380,13 +368,13 @@ impl GameState {
         self.system_status.push(message);
     }
 
-    pub fn setup_game(&mut self, sgo: SetupGameOptions) {
+    pub fn setup_game(&mut self, sgo: SetupGameOptions) -> Result<(), GameError> {
         self.setup_game_options = sgo;
         if self.players.len() == 1 {
             // Should maybe send a better message
             // self.system_status.push("Not enough players".into());
             self.broadcast_message("Not enough players".to_string());
-            return;
+            return Err(GameError::NotEnoughPlayers);
         }
 
         let player_ids: Vec<String> = self
@@ -448,6 +436,7 @@ impl GameState {
             num_players,
             self.setup_game_options
         );
+        Ok(())
     }
 
     fn advance_trump(&mut self) {
@@ -749,10 +738,18 @@ mod tests {
 
     #[test]
     fn test_decrypt_hand() {
-        let mut game = GameState::new();
+        // let mut game = GameState::new();
+        // game.add_player("new_player".to_string(), PlayerRole::Player);
+        // game.add_player("player2".to_string(), PlayerRole::Player);
+        // game.setup_game(SetupGameOptions {
+        //     rounds: 6,
+        //     deterministic: true,
+        //     start_round: Some(5),
+        // });
+
         let hand =
-            "KBBbNhRJS1oFSVBFBRgLBxc0GyZSUVMdFElQRhwQBkBJSQovEQ8UTBpHBFQFDBdASV0EAg==".to_string();
-        let secret = "sky_9mk55malzm8c";
+            "KBBbNhdRSlwFT0MDGVQDEhc0GyZRSVIHURQ+AxlUAxIBSVV9AAYZHRZZQwAFVB4SUUdbKRIfBQwWWVBHCBkBVRoPW2VBRlxLRA8AChBRJRUKSUN9HRYHNkQPAAoQR1hbURgMNgdRSktQCgAeGlseVV9JDz4fBhVLDlJVDllOWB4XSUNqQ19SGVgCGBYRahgOUVFbMRYELxlYAhgWBxdWVQAeECtRSVIaRAIFFlcZWAESBww6UUlBWklPGlEcUVhNQV9VfQMfERBRBz4RDBdAVR0ODgADHxEQURFDX1dGDx4HSUN9FxoRBFsNBVFZFwwWHx4cfUlCQxQYGEMaERdAQ0pHWy8fEgkMUDwDClcPWBkWHCYvHxIJDEZBTVEGQBMDUVFbLAMSFAwWT0MFFFkPElFRSG0OLg==".to_string();
+        let secret = "sky_sspi4casu5zw";
 
         let decrypted_hand = GameState::decrypt_player_hand(hand, &secret.to_string());
         println!("Decrypted: {:?}", decrypted_hand);

@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt, iter::Cycle};
+use std::{collections::HashMap, fmt};
 use tracing::info;
 
 mod client;
@@ -37,8 +37,10 @@ pub enum PlayerRole {
     Player,
 }
 
-enum GameError {
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum GameError {
     InternalIssue(String),
+    NotEnoughPlayers,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -160,6 +162,18 @@ pub struct Connect {
     pub username: String,
     pub channel: String,
     pub secret: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct PlayerSecret {
+    pub client_secret: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub enum AllPossibleMessages {
+    Connect(Connect),
+    PlayerSecret(PlayerSecret),
+    GameState(GameState),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

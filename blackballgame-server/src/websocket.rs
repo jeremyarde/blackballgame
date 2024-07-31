@@ -1,6 +1,7 @@
 use axum::extract::ws::Message;
 use axum::extract::Path;
 use axum::extract::Query;
+use common::PlayerSecret;
 use tokio::task::JoinHandle;
 use tower_http::timeout::ResponseBodyTimeout;
 use tracing::error;
@@ -284,7 +285,10 @@ async fn handle_socket(
 
                             let _ = sender
                                 .send(Message::Text(
-                                    json!({"client_secret": client_secret}).to_string(),
+                                    json!(PlayerSecret {
+                                        client_secret: client_secret.clone(),
+                                    })
+                                    .to_string(),
                                 ))
                                 .await;
 

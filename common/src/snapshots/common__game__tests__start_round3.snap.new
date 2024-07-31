@@ -1,0 +1,51 @@
+---
+source: common/src/game.rs
+assertion_line: 1043
+expression: game
+---
+setup_game_options:
+  rounds: 5
+  deterministic: true
+  start_round: 3
+secret_key: mysecretkey
+players:
+  p1:
+    id: p1
+    encrypted_hand: "[encrypted_hand]"
+    num_cards: 0
+    role: Leader
+  p2:
+    id: p2
+    encrypted_hand: "[encrypted_hand]"
+    num_cards: 0
+    role: Player
+curr_round: 3
+trump: heart
+player_order:
+  - p1
+  - p2
+curr_played_cards: []
+curr_player_turn: p2
+curr_winning_card: ~
+curr_dealer: p1
+bids: {}
+bid_order: []
+wins:
+  p1: 0
+  p2: 0
+score:
+  p1: 0
+  p2: 0
+gameplay_state: Bid
+event_log:
+  - username: p1
+    message:
+      action:
+        startgame:
+          rounds: 5
+          deterministic: true
+          start_round: 3
+    timestamp: "[event_timestamp]"
+system_status: []
+is_public: true
+latest_update: "2024-07-30T23:54:02.563278Z"
