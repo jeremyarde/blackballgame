@@ -258,7 +258,6 @@ fn Explorer() -> Element {
             button { class: "outline bg-green-300", onclick: create_lobby, "Create lobby" }
             {if create_lobby_response_msg() == String::from("") { rsx!() } else { rsx!(div { "{create_lobby_response_msg.read()}" }) }}
         }
-        br { class: "h-4 line-clamp-1" }
         div { class: "flex flex-col bg-green-50",
             button { onclick: refresh_lobbies, "Refresh lobbies" }
             div {
@@ -303,8 +302,6 @@ fn LobbyComponent(lobby: String) -> Element {
 fn GameRoom(room_code: String) -> Element {
     let mut app_props = use_context::<Signal<AppProps>>();
 
-    info!("GameRoom: {room_code}");
-
     let mut server_message = use_signal(|| Value::Null);
     let mut gamestate = use_signal(|| GameState::new());
     let mut ws_url =
@@ -314,13 +311,11 @@ fn GameRoom(room_code: String) -> Element {
         lobby_code: room_code.clone(),
         players: vec![],
     });
-    let mut username = use_signal(|| String::new());
+    // let mut username = use_signal(|| String::new());
     let mut error = use_signal(|| Value::Null);
     let mut player_secret = use_signal(|| String::new());
     let mut num_rounds = use_signal(|| 9);
-    // let mut server_websocket_listener: Signal<Option<SplitStream<WebSocket>>> = use_signal(|| None);
-    // let mut server_websocket_sender: Signal<Option<SplitSink<WebSocket, Message>>> =
-    //     use_signal(|| None);
+
     let mut server_websocket_listener: Signal<Option<SplitStream<WebSocket>>> = use_signal(|| None);
     let mut server_websocket_sender: Signal<Option<SplitSink<WebSocket, Message>>> =
         use_signal(|| None);
@@ -476,20 +471,22 @@ fn GameRoom(room_code: String) -> Element {
 
     rsx!(
         {if error().is_null() {rsx!()} else {error.read().as_str().map(|err| rsx!(div { "{err}" }))}},
-        Link { class: "bg-orange-300 w-full h-full", to: Route::Explorer {}, "Explorer" }
+        // Link { class: "bg-orange-300 w-full h-full", to: Route::Explorer {}, "Back to explorer" }
         button {
             class: "h-full w-full bg-blue-500",
             onclick: move |evt| get_game_details(room_code.clone()),
-            "Refresh"
+            "Refresh player list"
         }
         div { class: "flex flex-row",
-            label { "Username" }
+            label { "app_props.read().username" }
             input {
                 r#type: "text",
-                value: "{username}",
+                value: "{app_props.read().username}",
                 required: true,
                 minlength: 3,
-                oninput: move |event| username.set(event.value())
+                oninput: move |event| {
+                    app_props.write().username = event.value();
+                }
             }
         }
         button {
@@ -503,7 +500,7 @@ fn GameRoom(room_code: String) -> Element {
                     ws_send
                         .send(
                             InternalMessage::Server(Connect {
-                                username: username(),
+                                username: app_props.read().username.clone(),
                                 channel: room_code_clone,
                                 secret: None,
                             }),
@@ -515,14 +512,15 @@ fn GameRoom(room_code: String) -> Element {
         div { "lobby: {lobby.read().lobby_code}" }
         div { "Players ({lobby.read().players.len()})" }
         {lobby.read().players.iter().enumerate().map(|(i, player)| rsx!(div { "{i}: {player}" }))},
-        div { "Server message: {server_message.read()}" }
-        div { class: "flex flex-row bg-purple-300 h-full w-full",
-            "Game options:"
-            label { "Rounds" }
-            input {
-                r#type: "number",
-                onchange: move |evt| num_rounds.set(evt.value().parse::<usize>().unwrap_or(9)),
-                value: "{num_rounds}"
+        div { class: "flex flex-col bg-purple-300 h-full w-full text-center",
+            div { class: "text-4xl", "Game options" }
+            div { class: "flex flex-row align-middle w-full",
+                label { "Rounds" }
+                input {
+                    r#type: "number",
+                    onchange: move |evt| num_rounds.set(evt.value().parse::<usize>().unwrap_or(9)),
+                    value: "{num_rounds}"
+                }
             }
         }
         button {
@@ -532,7 +530,7 @@ fn GameRoom(room_code: String) -> Element {
                 ws_send
                     .send(
                         InternalMessage::Game(GameMessage {
-                            username: username(),
+                            username: app_props.read().username.clone(),
                             message: GameEvent {
                                 action: GameAction::StartGame(SetupGameOptions {
                                     rounds: gamestate().setup_game_options.rounds,
@@ -546,8 +544,8 @@ fn GameRoom(room_code: String) -> Element {
             },
             "Start game"
         }
-        {if gamestate().players.get(&username()).is_some() {
-            rsx!(GameState { username, player_secret, gamestate })
+        {if gamestate().players.get(&app_props.read().username).is_some() {
+            rsx!(GameState { player_secret, gamestate })
         } else {
             rsx!(div { "Press start when all players have joined to begin" })
         }}
@@ -555,17 +553,12 @@ fn GameRoom(room_code: String) -> Element {
 }
 
 #[component]
-fn GameState(
-    username: Signal<String>,
-    player_secret: Signal<String>,
-    gamestate: Signal<GameState>,
-) -> Element {
-    let mut app_props = use_context::<Signal<AppProps>>();
+fn GameState(player_secret: Signal<String>, gamestate: Signal<GameState>) -> Element {
+    let mut app_props: Signal<AppProps> = use_context::<Signal<AppProps>>();
 
-    let myusername = username.read().clone();
     fn create_action(username: String, action: GameAction) -> GameMessage {
         return GameMessage {
-            username: username,
+            username: username.clone(),
             message: GameEvent { action },
             timestamp: Utc::now(),
         };
@@ -574,7 +567,7 @@ fn GameState(
     let curr_hand = gamestate
         .read()
         .players
-        .get(&myusername)
+        .get(&app_props.read().username)
         .unwrap()
         .encrypted_hand
         .clone();
