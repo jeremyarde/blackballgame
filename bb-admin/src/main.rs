@@ -135,12 +135,21 @@ fn Home() -> Element {
                 to: Route::Explorer {},
                 div { class: "", "Start or find a game" }
             }
-            Link { class: "text-center bg-orange-300 w-full h-full", to: Route::Explorer {},
-                div { class: "", "Join an existing game" }
-                input {
-                    r#type: "text",
-                    value: "{app_props.read().lobbyCode}",
-                    oninput: move |event| app_props.write().lobbyCode = event.value()
+            div { class: "flex flex-row",
+                div { class: "flex flex-col",
+                    label { "Lobby code" }
+                    input {
+                        r#type: "text",
+                        value: "{app_props.read().lobbyCode}",
+                        oninput: move |event| app_props.write().lobbyCode = event.value()
+                    }
+                }
+                Link {
+                    class: "text-center bg-orange-300 w-full h-full",
+                    to: Route::GameRoom {
+                        room_code: app_props.read().lobbyCode.clone(),
+                    },
+                    div { class: "text-center bg-orange-300 w-full h-full", "Join an existing game" }
                 }
             }
         }
@@ -255,11 +264,19 @@ fn Explorer() -> Element {
                     }
                 }
             }
-            button { class: "outline bg-green-300", onclick: create_lobby, "Create lobby" }
+            button {
+                class: "bg-green-300 w-full h-full hover:outline-2 hover:outline hover:outline-green-500",
+                onclick: create_lobby,
+                "Create lobby"
+            }
             {if create_lobby_response_msg() == String::from("") { rsx!() } else { rsx!(div { "{create_lobby_response_msg.read()}" }) }}
         }
-        div { class: "flex flex-col bg-green-50",
-            button { onclick: refresh_lobbies, "Refresh lobbies" }
+        div { class: "flex flex-col bg-green-50 w-2/3",
+            button {
+                class: "bg-green-300 w-full h-full hover:outline-2 hover:outline hover:outline-green-500",
+                onclick: refresh_lobbies,
+                "Refresh lobbies"
+            }
             div {
                 "Ongoing games"
                 {if lobbies.read().lobbies.len() == 0 {
@@ -478,7 +495,7 @@ fn GameRoom(room_code: String) -> Element {
             "Refresh player list"
         }
         div { class: "flex flex-row",
-            label { "app_props.read().username" }
+            label { "Username" }
             input {
                 r#type: "text",
                 value: "{app_props.read().username}",
@@ -611,7 +628,7 @@ fn GameState(player_secret: Signal<String>, gamestate: Signal<GameState>) -> Ele
                                         class: "w-24 h-10 border border-solid rounded-md bg-slate-100",
                                         onclick: move |_| {
                                             info!("Clicked on bid {i}");
-                                            // send_bid(*i);
+                                            send_bid(*i);
                                         },
                                         "{i}"
                                     }

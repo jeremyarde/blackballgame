@@ -792,3 +792,19 @@ video {
   --tw-bg-opacity: 1;
   background-color: rgb(203 213 225 / var(--tw-bg-opacity));
 }
+
+.hover\:outline:hover {
+  outline-style: solid;
+}
+
+.hover\:outline-2:hover {
+  outline-width: 2px;
+}
+
+.hover\:outline-offset-2:hover {
+  outline-offset: 2px;
+}
+
+.hover\:outline-green-500:hover {
+  outline-color: #22c55e;
+}

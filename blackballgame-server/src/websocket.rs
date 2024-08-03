@@ -264,7 +264,7 @@ async fn handle_socket(
                             connected = false;
                         }
                         (false, _) => {
-                            println!("Username available in lobby, connecting");
+                            info!("Username available in lobby, connecting");
                             let _ = sender
                                 .send(Message::Text(
                                     json!(ServerMessage {
@@ -512,7 +512,7 @@ pub async fn start_game_thread(
                 }
 
                 info!("Got messages");
-                println!("Messages: {:?}", game_messages);
+                info!("Messages: {:?}", game_messages);
                 {
                     let mut rooms = state.rooms.lock().await;
                     let game = rooms.get_mut(&lobby_code).unwrap();
