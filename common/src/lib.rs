@@ -1,7 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt};
-use tracing::info;
 
 mod client;
 mod game;
@@ -22,12 +21,12 @@ pub struct PlayState {
 
 impl PlayState {
     fn new() -> PlayState {
-        return PlayState { hand_num: 1 };
+        PlayState { hand_num: 1 }
     }
     fn from(new_hand_num: usize) -> PlayState {
-        return PlayState {
+        PlayState {
             hand_num: new_hand_num.try_into().unwrap(),
-        };
+        }
     }
 }
 
@@ -98,13 +97,19 @@ pub struct SetupGameOptions {
     pub start_round: Option<usize>,
 }
 
+impl Default for SetupGameOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SetupGameOptions {
     pub fn new() -> SetupGameOptions {
-        return SetupGameOptions {
+        SetupGameOptions {
             rounds: 99,
             deterministic: false,
             start_round: None,
-        };
+        }
     }
 
     pub fn from(
@@ -112,11 +117,11 @@ impl SetupGameOptions {
         deterministic: bool,
         start_round: Option<usize>,
     ) -> SetupGameOptions {
-        return SetupGameOptions {
+        SetupGameOptions {
             rounds: max_rounds,
-            deterministic: deterministic,
-            start_round: start_round,
-        };
+            deterministic,
+            start_round,
+        }
     }
 }
 

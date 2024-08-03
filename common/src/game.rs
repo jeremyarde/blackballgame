@@ -1,11 +1,11 @@
-use std::{any, collections::HashMap};
+use std::collections::HashMap;
 
 use chrono::Utc;
 use data_encoding::BASE64;
 
 use nanoid::nanoid_gen;
 use serde_json::json;
-use tracing::{debug, info};
+use tracing::info;
 
 use crate::{
     create_deck, Card, GameAction, GameClient, GameError, GameMessage, GameState, GameplayState,
@@ -54,15 +54,9 @@ impl GameState {
     }
 
     pub fn process_event_pregame(&mut self, event: GameMessage) {
-        match event.message.action {
-            // GameAction::PlayCard(_) => todo!(),
-            // GameAction::Bid(_) => todo!(),
-            GameAction::StartGame(sgo) => {
-                let result = self.setup_game(sgo);
-                info!("Setup game result: {:?}", result);
-            }
-            // GameAction::Deal => todo!(),
-            _ => {}
+        if let GameAction::StartGame(sgo) = event.message.action {
+            let result = self.setup_game(sgo);
+            info!("Setup game result: {:?}", result);
         }
     }
 
@@ -85,37 +79,34 @@ impl GameState {
             ));
             return false;
         }
-        return true;
+        true
     }
 
     pub fn process_event_bid(&mut self, event: GameMessage) {
-        if self.is_correct_player_turn(&event) == false {
+        if !self.is_correct_player_turn(&event) {
             return;
         };
 
-        match event.message.action {
-            GameAction::Bid(bid) => {
-                let res = self.update_bid(event.username.clone(), &bid);
-                info!("Bid result: {:?}", res);
-                if res.is_ok() {
-                    let (next_turn_idx, next_turn) =
-                        self.advance_turn(self.curr_player_turn_idx, &self.player_order);
-                    self.curr_player_turn_idx = next_turn_idx;
-                    self.curr_player_turn = Some(next_turn);
-                }
-
-                if self.is_bidding_over() {
-                    let mut curr_highest_bid = self.bid_order[0].clone();
-                    for (player, bid) in self.bid_order.iter() {
-                        if bid > &curr_highest_bid.1 {
-                            curr_highest_bid = (player.to_string(), *bid);
-                        }
-                    }
-                    self.set_curr_player_turn(&curr_highest_bid.0);
-                    self.update_to_next_state();
-                }
+        if let GameAction::Bid(bid) = event.message.action {
+            let res = self.update_bid(event.username.clone(), &bid);
+            info!("Bid result: {:?}", res);
+            if res.is_ok() {
+                let (next_turn_idx, next_turn) =
+                    self.advance_turn(self.curr_player_turn_idx, &self.player_order);
+                self.curr_player_turn_idx = next_turn_idx;
+                self.curr_player_turn = Some(next_turn);
             }
-            _ => {}
+
+            if self.is_bidding_over() {
+                let mut curr_highest_bid = self.bid_order[0].clone();
+                for (player, bid) in self.bid_order.iter() {
+                    if bid > &curr_highest_bid.1 {
+                        curr_highest_bid = (player.to_string(), *bid);
+                    }
+                }
+                self.set_curr_player_turn(&curr_highest_bid.0);
+                self.update_to_next_state();
+            }
         }
     }
 
@@ -133,56 +124,53 @@ impl GameState {
     }
 
     pub fn process_event_play(&mut self, event: GameMessage) {
-        if self.is_correct_player_turn(&event) == false {
+        if !self.is_correct_player_turn(&event) {
             return;
         };
         let player_id = event.username.clone();
 
-        match &event.message.action {
-            GameAction::PlayCard(card) => {
-                let player = self.players.get_mut(&player_id).unwrap();
+        if let GameAction::PlayCard(card) = &event.message.action {
+            let player = self.players.get_mut(&player_id).unwrap();
 
-                match is_played_card_valid(
-                    &self.curr_played_cards.clone(),
-                    &mut player.hand,
-                    &card.clone(),
-                    &self.trump,
-                ) {
-                    Ok(x) => {
-                        tracing::info!("card is valid");
+            match is_played_card_valid(
+                &self.curr_played_cards.clone(),
+                &mut player.hand,
+                &card.clone(),
+                &self.trump,
+            ) {
+                Ok(x) => {
+                    tracing::info!("card is valid");
 
-                        // remove the card from the players hand
-                        let mut cardloc: Option<usize> = None;
-                        player.hand.iter().enumerate().for_each(|(i, c)| {
-                            if c.id == card.id {
-                                cardloc = Some(i)
-                            }
-                        });
-                        player.hand.remove(cardloc.unwrap());
+                    // remove the card from the players hand
+                    let mut cardloc: Option<usize> = None;
+                    player.hand.iter().enumerate().for_each(|(i, c)| {
+                        if c.id == card.id {
+                            cardloc = Some(i)
+                        }
+                    });
+                    player.hand.remove(cardloc.unwrap());
 
-                        // encrypt player hand again
-                        self.encrypt_player_hand(&player_id);
+                    // encrypt player hand again
+                    self.encrypt_player_hand(&player_id);
 
-                        // add card to curr_played_cards
-                        self.curr_played_cards.push(x.clone());
+                    // add card to curr_played_cards
+                    self.curr_played_cards.push(x.clone());
 
-                        self.curr_winning_card = Some(find_winning_card(
-                            self.curr_played_cards.clone(),
-                            self.trump.clone(),
-                        ));
+                    self.curr_winning_card = Some(find_winning_card(
+                        self.curr_played_cards.clone(),
+                        self.trump.clone(),
+                    ));
 
-                        let (next_turn_idx, next_turn) =
-                            self.advance_turn(self.curr_player_turn_idx, &self.player_order);
-                        self.curr_player_turn_idx = next_turn_idx;
-                        self.curr_player_turn = Some(next_turn);
-                    }
-                    Err(e) => {
-                        info!("card is NOT valid: {:?}", e);
-                        self.broadcast_message(format!("Card is not valid: {:?}", e));
-                    }
+                    let (next_turn_idx, next_turn) =
+                        self.advance_turn(self.curr_player_turn_idx, &self.player_order);
+                    self.curr_player_turn_idx = next_turn_idx;
+                    self.curr_player_turn = Some(next_turn);
+                }
+                Err(e) => {
+                    info!("card is NOT valid: {:?}", e);
+                    self.broadcast_message(format!("Card is not valid: {:?}", e));
                 }
             }
-            _ => {}
         }
 
         // in theory everyone played a card
@@ -227,11 +215,11 @@ impl GameState {
             };
         }
 
-        return self.get_state();
+        self.get_state()
     }
 
     pub fn encrypt_player_hand(&mut self, player_id: &String) {
-        let mut player = self.players.get_mut(player_id).unwrap();
+        let player = self.players.get_mut(player_id).unwrap();
         let hand = player.hand.clone();
         let plaintext_hand = json!(hand).to_string();
         let player_secret = self.players_secrets.get(player_id).unwrap();
@@ -245,11 +233,11 @@ impl GameState {
         let hand = BASE64.decode(hand.as_bytes()).unwrap();
         let str_hand = String::from_utf8(hand).unwrap();
         // println!("Decrypting hand: {:?}", str_hand);
-        let secret_data = xor_encrypt_decrypt(&str_hand, &player_secret);
+        let secret_data = xor_encrypt_decrypt(&str_hand, player_secret);
         // let str_hand2 = String::from_utf8(secret_data.clone()).unwrap();
         // println!("Decrypting hand: {:?}", str_hand2);
         let actual_hand: Vec<Card> = serde_json::from_slice(&secret_data).unwrap();
-        return actual_hand;
+        actual_hand
     }
 
     pub fn get_state(&mut self) -> Self {
@@ -266,8 +254,8 @@ impl GameState {
         //     self.encrypt_hand(player);
         // }
 
-        let mut cloned = self.clone();
-        cloned
+        
+        self.clone()
     }
 
     pub fn add_player(&mut self, player_id: String, role: PlayerRole) {
@@ -297,7 +285,7 @@ impl GameState {
     }
 
     pub fn set_curr_player_turn(&mut self, next_player: &String) {
-        let mut next_idx = 0;
+        let next_idx = 0;
         for (i, player) in self.player_order.iter().enumerate() {
             if player == next_player {
                 self.curr_player_turn_idx = i;
@@ -361,7 +349,7 @@ impl GameState {
             next_player_idx += 1;
         }
 
-        return (next_player_idx, player_order[next_player_idx].clone());
+        (next_player_idx, player_order[next_player_idx].clone())
     }
 
     pub fn broadcast_message(&mut self, message: String) {
@@ -379,9 +367,7 @@ impl GameState {
 
         let player_ids: Vec<String> = self
             .players
-            .keys()
-            .into_iter()
-            .map(|id| id.clone())
+            .keys().cloned()
             .collect::<Vec<String>>();
 
         self.player_order = player_ids;
@@ -391,7 +377,7 @@ impl GameState {
         }
 
         let mut deal_play_order: Vec<String> =
-            self.player_order.iter().map(|id| id.clone()).collect();
+            self.player_order.to_vec();
 
         if !self.setup_game_options.deterministic {
             fastrand::shuffle(&mut deal_play_order);
@@ -528,9 +514,9 @@ impl GameState {
     pub fn get_hand_from_encrypted(encrypted_hand: String, secret_key: &String) -> Vec<Card> {
         let hand = BASE64.decode(encrypted_hand.as_bytes()).unwrap();
         let str_hand = String::from_utf8(hand).unwrap();
-        let secret_data = xor_encrypt_decrypt(&str_hand, &secret_key);
+        let secret_data = xor_encrypt_decrypt(&str_hand, secret_key);
         let actual_hand: Vec<Card> = serde_json::from_slice(&secret_data).unwrap();
-        return actual_hand;
+        actual_hand
     }
 
     pub fn new() -> GameState {
@@ -679,12 +665,9 @@ fn xor_encrypt_decrypt(data: &str, key: &str) -> Vec<u8> {
 }
 
 mod tests {
-    use chrono::Utc;
+    
 
-    use crate::{
-        create_deck, game::find_winning_card, Card, GameMessage, GameState, GameplayState,
-        PlayState, PlayerRole, SetupGameOptions, Suit,
-    };
+    
 
     #[test]
     fn test_finding_winning_card() {

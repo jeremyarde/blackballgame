@@ -1,16 +1,15 @@
-use std::{fmt, io};
+use std::io;
 
-use serde::Serialize;
 use tracing::info;
 
-use crate::{Card, GameClient, PlayerRole, Suit};
+use crate::{Card, GameClient, PlayerRole};
 
 impl GameClient {
     pub fn new(id: String, role: PlayerRole) -> Self {
         GameClient {
             id,
             hand: vec![],
-            role: role,
+            role,
             // encrypted_hand: vec![],
             encrypted_hand: String::new(),
             num_cards: 0,
