@@ -628,7 +628,7 @@ fn GameState(player_secret: Signal<String>, gamestate: Signal<GameState>) -> Ele
                                         class: "w-24 h-10 border border-solid rounded-md bg-slate-100",
                                         onclick: move |_| {
                                             info!("Clicked on bid {i}");
-                                            send_bid(*i);
+                                            // send_bid(*i);
                                         },
                                         "{i}"
                                     }
