@@ -12,6 +12,7 @@ use api_types::CreateGameResponse;
 use api_types::GetLobbiesResponse;
 use api_types::GetLobbyResponse;
 use axum::body::Body;
+use axum::extract::ws::Message;
 use axum::extract::Path;
 use axum::extract::State;
 use axum::http::header;
@@ -25,6 +26,8 @@ use axum::routing::get;
 use axum::routing::post;
 use axum::Json;
 use axum::Router;
+use common::Connect;
+use common::GameMessage;
 use common::GameState;
 use dioxus::prelude::server_fn::client::browser;
 use futures_util::StreamExt;
@@ -36,8 +39,11 @@ use nanoid::nanoid_gen;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::json;
+use serde_json::Value;
 use tokio::sync::Mutex;
 
+use tokio::sync::RwLock;
+use tokio::time::sleep;
 use tower_http::cors::Any;
 use tower_http::cors::CorsLayer;
 use tracing::info;
@@ -48,11 +54,20 @@ use tracing_subscriber::EnvFilter;
 
 use websocket::ws_handler;
 use websocket::AppState;
+// use websocket::GameRoomState;
 
 mod admin;
+mod game;
 mod websocket;
 
 static FRONTEND_DIR: Dir = include_dir::include_dir!("$CARGO_MANIFEST_DIR/dist");
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+enum InternalMessage {
+    Game(GameMessage),
+    Server(Connect),
+    // WsAction(WsAction),
+}
 
 const ROOT: &str = "";
 const DEFAULT_FILES: [&str; 1] = ["index.html"];
@@ -131,13 +146,27 @@ async fn serve_asset(path: Option<Path<String>>) -> impl IntoResponse {
 }
 
 #[axum::debug_handler]
-pub async fn get_rooms(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let rooms = match state.rooms.try_lock() {
-        Ok(rooms) => rooms.keys().cloned().collect::<Vec<String>>(),
-        Err(_) => vec![String::from("Could not get rooms")],
-    };
-    (StatusCode::OK, Json(GetLobbiesResponse { lobbies: rooms }))
-    // rooms
+pub async fn get_rooms(
+    // State(Arc(AppState { rooms, .. })): State<Arc<Mutex<AppState>>>,
+    // State(state): State<GameRoomState>,
+    State(state): State<Arc<RwLock<AppState>>>,
+) -> impl IntoResponse {
+    // let rooms = match state.rooms.try_lock() {
+    //     Ok(rooms) => rooms.keys().cloned().collect::<Vec<String>>(),
+    //     Err(_) => vec![String::from("Could not get rooms")],
+    // };
+    (
+        StatusCode::OK,
+        Json(GetLobbiesResponse {
+            lobbies: state
+                .read()
+                .await
+                .rooms
+                .keys()
+                .cloned()
+                .collect::<Vec<String>>(),
+        }),
+    )
 }
 
 #[derive(Debug, strum_macros::AsRefStr, Serialize, Clone)]
@@ -256,92 +285,93 @@ pub async fn log_request(
 
 #[axum::debug_handler]
 pub async fn get_room(
-    State(state): State<Arc<AppState>>,
+    // State(Arc(AppState { rooms, .. })): State<Arc<Mutex<AppState>>>,
+    // State(state): State<GameRoomState>,
+    State(state): State<Arc<RwLock<AppState>>>,
     Path(room_code): Path<String>,
 ) -> anyhow::Result<Json<GetLobbyResponse>, ServerError> {
-    let rooms = match state.rooms.try_lock() {
-        Ok(rooms) => rooms,
-        Err(_) => return Err(ServerError::InternalServerError),
-    };
+    // let rooms = match state.rooms.try_lock() {
+    //     Ok(rooms) => rooms,
+    //     Err(_) => return Err(ServerError::InternalServerError),
+    // };
+    {
+        let state = state.read().await;
+        let room = match state.rooms.get(&room_code) {
+            Some(room) => room,
+            None => {
+                return Err(ServerError::NotFound(format!(
+                    "Room \"{}\" not found",
+                    room_code
+                )))
+            }
+        };
+        let players = room.players.keys().cloned().collect::<Vec<String>>();
+        return Ok(Json(GetLobbyResponse {
+            lobby_code: room_code,
+            players: players,
+        }));
+    }
 
-    let room = match rooms.get(&room_code) {
-        Some(room) => room,
-        None => {
-            return Err(ServerError::NotFound(format!(
-                "Room \"{}\" not found",
-                room_code
-            )))
-        }
-    };
-
-    Ok(Json(GetLobbyResponse {
-        lobby_code: room_code,
-        players: room.players.keys().cloned().collect::<Vec<String>>(),
-    }))
     // rooms
 }
 
 pub async fn create_room(
-    State(state): State<Arc<AppState>>,
+    // State(Arc(Mutex(AppState { rooms, .. }))): State<Arc<Mutex<AppState>>>,
+    // State(state): State<GameRoomState>,
+    State(state): State<Arc<RwLock<AppState>>>,
+
     Json(request): Json<CreateGameRequest>,
 ) -> impl IntoResponse {
     info!("Creating a new lobby");
     // check if lobby code already exists and don't create a new game
+
     let channel = request.lobby_code.clone();
-    let mut rooms = state.rooms.lock().await;
-    if rooms.contains_key(&channel) {
-        info!("Room \"{}\" already exists.", channel);
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(CreateGameResponse {
-                lobby_code: channel,
-            }),
-        );
+    {
+        match state.try_write() {
+            Ok(mut appstate) => {
+                if appstate.rooms.contains_key(&channel) {
+                    info!("Room \"{}\" already exists.", channel);
+                    return (
+                        StatusCode::BAD_REQUEST,
+                        Json(json!(CreateGameResponse {
+                            lobby_code: channel,
+                        })),
+                    );
+                }
+
+                let newgame = GameState::new();
+                appstate.rooms.insert(channel.clone(), newgame);
+                info!("Success. Created lobby: {}", request.lobby_code);
+                return (
+                    StatusCode::CREATED,
+                    Json(json!(CreateGameResponse {
+                        lobby_code: request.lobby_code.clone(),
+                    })),
+                );
+            }
+            Err(err) => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!("[DEBUG] Not able to get rooms lock")),
+                )
+            }
+        };
     }
-
-    let newgame = GameState::new();
-    rooms.insert(channel.clone(), newgame);
-
-    let broadcast_channel = tokio::sync::broadcast::channel(10).0;
-    state
-        .room_broadcast_channel
-        .lock()
-        .await
-        .insert(channel.clone(), broadcast_channel);
-
-    // {
-    //     let mut clientchannels = state.lobby_to_game_channel_send.lock().await;
-    //     match clientchannels.get(&channel) {
-    //         Some(snd) => {
-    //             // info!("Client channel already exists");
-    //             // recv_channel = Some(rcv);
-    //         }
-    //         None => {
-    //             let (lobby_sender, lobby_reciever) = tokio::sync::mpsc::channel(10);
-
-    //             clientchannels.insert(channel, lobby_sender);
-    //             // recv_channel = Some(lobby_reciever);
-    //         }
-    //     }
-    // }
-
-    info!("Success. Created lobby: {}", request.lobby_code);
-
-    (
-        StatusCode::CREATED,
-        Json(CreateGameResponse {
-            lobby_code: request.lobby_code.clone(),
-        }),
-    )
 }
 
 #[tokio::main]
 async fn main() {
+    // console_subscriber::init();
+
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::from_default_env()
                 .add_directive("blackballgame=debug".parse().unwrap())
                 .add_directive("blackballgame-server=debug".parse().unwrap())
+                // .add_directive("tokio=debug".parse().unwrap())
+                .add_directive("axum::rejection=trace".parse().unwrap())
+                .add_directive("axum=debug".parse().unwrap())
+                // .add_directive("runtime=trace".parse().unwrap())
                 .add_directive("common=debug".parse().unwrap()),
         )
         .with_span_events(FmtSpan::FULL)
@@ -362,16 +392,116 @@ async fn main() {
         PathBuf::from("/Users/jarde/Documents/code/blackballgame/blackballgame-client/dist");
 
     // let serverstate: Arc<AppState> = Arc::new(allgames);
-    let serverstate = Arc::new(AppState {
-        rooms: Mutex::new(HashMap::new()),
-        room_broadcast_channel: Mutex::new(HashMap::new()),
-        lobby_to_game_channel_send: Mutex::new(HashMap::new()),
-        game_threads: Mutex::new(HashMap::new()),
-    });
+    // let serverstate = Arc::new(AppState {
+    //     rooms: Mutex::new(HashMap::new()),
+    //     room_broadcast_channel: Mutex::new(HashMap::new()),
+    //     lobby_to_game_channel_send: Mutex::new(HashMap::new()),
+    //     // game_threads: Mutex::new(HashMap::new()),
+    // });
+
+    // get to the game thread
+    let (gamechannel_send, mut gamechannel_recv) =
+        tokio::sync::mpsc::unbounded_channel::<Message>();
+    // let (gamechannel_broadcast_send, mut gamechannel_broadcast_recv) =
+    //     tokio::sync::broadcast::channel::<Value>(10);
+    let (gamechannel_broadcast_send, mut gamechannel_broadcast_recv) =
+        tokio::sync::mpsc::unbounded_channel::<Value>();
+
+    let serverstate = Arc::new(RwLock::new(AppState {
+        // rooms: HashMap::new(),
+        room_broadcast_channel: HashMap::new(),
+        lobby_to_game_channel_send: HashMap::new(),
+        game_thread_channel: gamechannel_send,
+        rooms: HashMap::new(),
+    }));
+
+    let mut stateclone = Arc::clone(&serverstate);
+
+    let mut game_to_client_loop = {
+        tokio::spawn(async move {
+            // let mut messages = Vec::with_capacity(event_cap);
+
+            info!("Game to client - Waiting for messages");
+            // gamechannel_broadcast_recv
+            //     .recv_many(&mut game_messages, event_cap)
+            //     .await;
+
+            while let Ok((msg)) = gamechannel_broadcast_recv.try_recv() {
+                info!("Got message: {}", msg);
+                // messages.push(msg);
+            }
+            info!("[GAME-CLIENT] done recieving messages from game");
+        })
+    };
+
+    let mut game_loop = {
+        tokio::spawn(async move {
+            let event_cap = 5;
+            // let mut rooms: HashMap<String, GameState> = HashMap::new();
+            info!("[GAME] - starting thread");
+            while let Some(Message::Text(msg)) = gamechannel_recv.recv().await {
+                info!("[GAME]: Got message: {}", msg);
+            }
+            info!("[GAME]: Failed to get message");
+            // let mut game_messages = Vec::with_capacity(event_cap);
+
+            // info!("Waiting for messages");
+            // gamechannel_recv
+            //     .recv_many(&mut game_messages, event_cap)
+            //     .await;
+
+            // #[derive(Deserialize, Debug)]
+            // struct MyGameMessage {
+            //     lobby_code: String,
+            //     message: GameMessage,
+            // }
+
+            // let mygamemessages = game_messages
+            //     .iter()
+            //     .map(|val| {
+            //         let v = match val {
+            //             Message::Text(x) => x,
+            //             _ => {}
+            //         };
+            //         serde_json::from_str::<InternalMessage>(v.as_str()).unwrap()
+            //     })
+            //     .collect::<Vec<InternalMessage>>();
+
+            // info!("Got messages in game thread: {:?}", mygamemessages);
+
+            // let game_messages: Vec<MyGameMessage> =
+            //     match serde_json::from_str::<Vec<MyGameMessage>>(&game_messages) {
+            //         Ok(x) => x,
+            //         Err(err) => {
+            //             info!("Error deserializing GameMessage: {}", err);
+            //             continue;
+            //         }
+            //     };
+
+            // if mygamemessages.is_empty() {
+            //     sleep(Duration::from_millis(2000)).await;
+            //     continue;
+            // }
+
+            // info!("Got messages");
+            // info!("Messages: {:?}", mygamemessages);
+            // {
+            //     for message in mygamemessages {
+            //         let rooms = &mut stateclone.write().await.rooms;
+            //         let game = rooms.get_mut(&message.lobby_code).unwrap();
+            //         let gamestate = game.process_event(vec![message.message]);
+            //         let _ = gamechannel_broadcast_send.send(json!(gamestate));
+            //     }
+            // }
+
+            // sleep(Duration::from_millis(500)).await;
+            info!("[GAME]: Exited?");
+        })
+    };
 
     let app = Router::new()
-        // .route("/rooms/ws", get(ws_handler))
         .route("/ws", get(ws_handler))
+        .route("/games/ws", get(ws_handler))
         .route("/rooms", get(get_rooms).post(create_room))
         .route("/rooms/:room_code", get(get_room))
         .route("/rooms/:room_code/ws", get(ws_handler))
@@ -380,10 +510,10 @@ async fn main() {
         //     "/*path",
         //     get(|path| async { serve_asset(Some(path)).await }),
         // )
-        .route(
-            "/",
-            get(|| async { serve_asset(Some(Path("index.html".to_string()))).await }),
-        )
+        // .route(
+        //     "/",
+        //     get(|| async { serve_asset(Some(Path("index.html".to_string()))).await }),
+        // )
         .layer(cors)
         // .layer(middleware::map_response(main_response_mapper)) // does not behave nicely
         // .route("/ui".get(ServeDir::new(assets_dir).append_index_html_on_directories(true)))

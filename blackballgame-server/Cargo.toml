@@ -19,6 +19,7 @@ api_types = {path = "../api_types"}
 chrono = {version = "0.4.38", features = ["serde"]}
 common = {path = "../common"}
 # fastrand = "2.0.2"
+anyhow = "1.0.86"
 dioxus-fullstack = "0.5.2"
 dioxus-ssr = "0.5.1"
 futures-util = {version = "0.3", default-features = false, features = ["sink", "std"]}
@@ -28,11 +29,11 @@ mime_guess = "2.0.5"
 nanoid = {git = "https://github.com/jeremyarde/nanoid"}
 serde = {version = "1.0.198", features = ["derive"]}
 serde_json = "1.0.116"
-tokio = {version = "1.37.0", features = ["full"]}
+strum_macros = "0.26.4"
+tokio = {version = "1.37.0", features = ["full", "tracing"]}
 tokio-tungstenite = "0.21"
 tower = {version = "0.4", features = ["util"]}
 tower-http = {version = "0.5.0", features = ["full"]}
 tracing = "0.1.40"
 tracing-subscriber = {version = "0.3.18", default-features = false, features = ["fmt", "ansi", "env-filter", "tracing-log"]}
-anyhow = "1.0.86"
-strum_macros = "0.26.4"
+console-subscriber = "0.4.0"

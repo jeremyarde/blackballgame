@@ -151,7 +151,7 @@ fn Game(
         // }
 
         info!("Start polling");
-        while let Some(action) = rx.next().await {
+        while let Some(action) = rx.try_next().await {
             info!("rx recieved: {}", action);
         }
         info!("Ended polling");

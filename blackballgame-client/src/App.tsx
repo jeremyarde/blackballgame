@@ -63,7 +63,7 @@ const ws_url = {
 // const buttonStyle =
 //   "w-24 h-10 border border-solid rounded-md  bg-background  ";
 
-function App() {
+function Lobby() {
   console.log(`Mode: ${mode}`);
   console.log(
     `Host: ${window.location.host}, hostname: ${window.location.hostname}`
@@ -81,7 +81,7 @@ function App() {
   // const [hideState, setHideState] = useState(true);
 
   const [url, setUrl] = useState(ws_url[mode]);
-  const [ws, setWs] = useState<WebSocket | undefined>(undefined);
+  const [ws, setWs] = useState<WebSocket | undefined>(new WebSocket(url));
   const [gamestate, setGamestate] = useState<GameState | undefined>(
     TEST ? EXAMPLE : undefined
   );
@@ -89,24 +89,24 @@ function App() {
   const [connected, setConnected] = useState(false);
   const [debug, setDebug] = useState(false);
 
-  useEffect(() => {
-    if (localStorage.getItem(USERNAME_KEY)) {
-      setUsername(localStorage.getItem(USERNAME_KEY) || "");
-    }
-    if (localStorage.getItem(LOBBYCODE_KEY)) {
-      setLobbyCode(localStorage.getItem(LOBBYCODE_KEY) || "");
-    }
-    if (localStorage.getItem(SECRET_KEY)) {
-      setSecret(localStorage.getItem(SECRET_KEY) || "");
-    }
+  // useEffect(() => {
+  //   if (localStorage.getItem(USERNAME_KEY)) {
+  //     setUsername(localStorage.getItem(USERNAME_KEY) || "");
+  //   }
+  //   if (localStorage.getItem(LOBBYCODE_KEY)) {
+  //     setLobbyCode(localStorage.getItem(LOBBYCODE_KEY) || "");
+  //   }
+  //   if (localStorage.getItem(SECRET_KEY)) {
+  //     setSecret(localStorage.getItem(SECRET_KEY) || "");
+  //   }
 
-    console.log("Connecting to WS at ", url);
-    const ws = new WebSocket(url);
-    setWs(ws);
-    return () => {
-      ws.close();
-    };
-  }, [url]);
+  //   console.log("Connecting to WS at ", url);
+  //   const ws = new WebSocket(url);
+  //   setWs(ws);
+  //   return () => {
+  //     ws.close();
+  //   };
+  // }, [url]);
 
   function xorEncryptDecrypt(data, key) {
     console.log("xor function: ", data, key);
@@ -144,59 +144,59 @@ function App() {
     }
   }, [gamestate]);
 
-  useEffect(() => {
-    if (!ws) {
-      console.log("Already connected");
-      return;
-    }
+  // useEffect(() => {
+  //   if (!ws) {
+  //     console.log("Already connected");
+  //     return;
+  //   }
 
-    ws.onopen = () => {
-      setConnected(true);
-      console.log("WebSocket connected");
-    };
+  //   ws.onopen = () => {
+  //     setConnected(true);
+  //     console.log("WebSocket connected");
+  //   };
 
-    ws.onmessage = (message) => {
-      console.log(`Message from server: ${message.data}`);
-      let parseddata = JSON.parse(message.data);
+  //   ws.onmessage = (message) => {
+  //     console.log(`Message from server: ${message.data}`);
+  //     let parseddata = JSON.parse(message.data);
 
-      if (parseddata.client_secret) {
-        console.log("setting secret value", parseddata.client_secret);
-        setSecret(parseddata.client_secret);
+  //     if (parseddata.client_secret) {
+  //       console.log("setting secret value", parseddata.client_secret);
+  //       setSecret(parseddata.client_secret);
 
-        console.log("setting connection details in onmessage: ", {
-          currLobbyCode: lobbyCode,
-          currUsername: username,
-          currSecret: parseddata.client_secret,
-        });
-        setConnectionDetails({
-          currLobbyCode: lobbyCode,
-          currUsername: username,
-          currSecret: parseddata.client_secret,
-        });
-      }
+  //       console.log("setting connection details in onmessage: ", {
+  //         currLobbyCode: lobbyCode,
+  //         currUsername: username,
+  //         currSecret: parseddata.client_secret,
+  //       });
+  //       setConnectionDetails({
+  //         currLobbyCode: lobbyCode,
+  //         currUsername: username,
+  //         currSecret: parseddata.client_secret,
+  //       });
+  //     }
 
-      setMessages((prevMessages) => [...prevMessages, parseddata]);
+  //     setMessages((prevMessages) => [...prevMessages, parseddata]);
 
-      if (parseddata.players) {
-        setGamestate(parseddata);
-      }
+  //     if (parseddata.players) {
+  //       setGamestate(parseddata);
+  //     }
 
-      console.log("all messages");
-      console.log(messages);
-    };
+  //     console.log("all messages");
+  //     console.log(messages);
+  //   };
 
-    ws.onclose = () => {
-      setConnected(false);
-      console.log("WebSocket disconnected");
-      setMessages([]);
+  //   ws.onclose = () => {
+  //     setConnected(false);
+  //     console.log("WebSocket disconnected");
+  //     setMessages([]);
 
-      // setWs(null);
-    };
+  //     // setWs(null);
+  //   };
 
-    return () => {
-      ws.close();
-    };
-  }, [ws]); // adding messages causes the ws to close
+  //   return () => {
+  //     ws.close();
+  //   };
+  // }, [ws]); // adding messages causes the ws to close
 
   function sendMessage(message) {
     if (ws && ws.readyState === 1) {
@@ -253,6 +253,8 @@ function App() {
       currLobbyCode: lobbyCode,
       currSecret: secret,
     });
+
+    // connectToWs();
 
     setAppState(GAME_STATE.LOBBY);
   }
@@ -608,6 +610,16 @@ function App() {
         )}
       </div>
     </>
+  );
+}
+
+function App() {
+  const [showLobby, setShowLobby] = useState(false);
+  return (
+    <div>
+      <button onClick={() => setShowLobby(true)}>Show lobby</button>
+      {showLobby && <Lobby></Lobby>}
+    </div>
   );
 }
 

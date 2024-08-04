@@ -158,7 +158,6 @@ fn Home() -> Element {
 
 #[component]
 fn Explorer() -> Element {
-    let mut ws_url = use_signal(|| String::from("ws://0.0.0.0:8080/ws"));
     let mut ws_action = use_signal(|| WsAction::Pause);
     let mut server_url = use_signal(|| String::from("http://0.0.0.0:8080/"));
     let mut create_lobby_response_msg = use_signal(|| String::from(""));
@@ -245,12 +244,7 @@ fn Explorer() -> Element {
                         r#type: "text",
                         value: "{app_props.read().username}",
                         oninput: move |event| {
-                            let lc = app_props.read().lobbyCode.clone();
-                            app_props
-                                .set(AppProps {
-                                    username: event.value(),
-                                    lobbyCode: lc,
-                                })
+                            app_props.write().username = event.value();
                         }
                     }
                 }
@@ -323,6 +317,8 @@ fn GameRoom(room_code: String) -> Element {
     let mut gamestate = use_signal(|| GameState::new());
     let mut ws_url =
         use_signal(|| String::from(format!("ws://0.0.0.0:8080/rooms/{}/ws", room_code.clone())));
+    // use_signal(|| String::from(format!("ws://0.0.0.0:8080/games/ws")));
+
     let mut server_url = use_signal(|| String::from("http://0.0.0.0:8080/"));
     let mut lobby = use_signal(|| GetLobbyResponse {
         lobby_code: room_code.clone(),
@@ -336,8 +332,6 @@ fn GameRoom(room_code: String) -> Element {
     let mut server_websocket_listener: Signal<Option<SplitStream<WebSocket>>> = use_signal(|| None);
     let mut server_websocket_sender: Signal<Option<SplitSink<WebSocket, Message>>> =
         use_signal(|| None);
-    let mut ws_url =
-        use_signal(|| String::from(format!("ws://0.0.0.0:8080/rooms/{}/ws", room_code.clone())));
     let mut ws_action = use_signal(|| WsAction::Resume);
 
     let get_game_details = move |room_code: String| {
@@ -487,85 +481,167 @@ fn GameRoom(room_code: String) -> Element {
     let room_code_clone = room_code.clone();
 
     rsx!(
-        {if error().is_null() {rsx!()} else {error.read().as_str().map(|err| rsx!(div { "{err}" }))}},
-        // Link { class: "bg-orange-300 w-full h-full", to: Route::Explorer {}, "Back to explorer" }
-        button {
-            class: "h-full w-full bg-blue-500",
-            onclick: move |evt| get_game_details(room_code.clone()),
-            "Refresh player list"
-        }
-        div { class: "flex flex-row",
-            label { "Username" }
-            input {
-                r#type: "text",
-                value: "{app_props.read().username}",
-                required: true,
-                minlength: 3,
-                oninput: move |event| {
-                    app_props.write().username = event.value();
+        {
+            if error().is_null() {
+                rsx!()
+            } else {
+                error.read().as_str().map(|err| rsx!(div { "{err}" }))
+            }
+        },
+        {
+            if gamestate().gameplay_state == GameplayState::Pregame {
+                rsx!(
+                    button {
+                        class: "h-full w-full bg-blue-500",
+                        onclick: move |evt| get_game_details(room_code.clone()),
+                        "Refresh player list"
+                    }
+                    div { class: "flex flex-row",
+                        label { "Username" }
+                        input {
+                            r#type: "text",
+                            value: "{app_props.read().username}",
+                            required: true,
+                            minlength: 3,
+                            oninput: move |event| {
+                                app_props.write().username = event.value();
+                            }
+                        }
+                    }
+                    button {
+                        class: "h-full w-full bg-blue-500",
+                        onclick: move |evt| {
+                            let room_code_clone = room_code_clone.clone();
+                            async move {
+                                info!("Clicked join game");
+                                start_ws().await;
+                                info!("Websockets started");
+                                ws_send
+                                    .send(
+                                        InternalMessage::Server(Connect {
+                                            username: app_props.read().username.clone(),
+                                            channel: room_code_clone,
+                                            secret: None,
+                                        }),
+                                    );
+                            }
+                        },
+                        "Join this game"
+                    }
+                    div { "lobby: {lobby.read().lobby_code}" }
+                    div { "Players ({lobby.read().players.len()})" }
+                    {lobby.read().players.iter().enumerate().map(|(i, player)| rsx!(div { "{i}: {player}" }))},
+                    div { class: "flex flex-col bg-purple-300 h-full w-full text-center",
+                        div { class: "text-4xl", "Game options" }
+                        div { class: "flex flex-row align-middle w-full",
+                            label { "Rounds" }
+                            input {
+                                r#type: "number",
+                                onchange: move |evt| num_rounds.set(evt.value().parse::<usize>().unwrap_or(9)),
+                                value: "{num_rounds}"
+                            }
+                        }
+                    }
+                    button {
+                        class: "h-full w-full bg-blue-500",
+                        onclick: move |evt| {
+                            info!("Starting game");
+                            ws_send
+                                .send(
+                                    InternalMessage::Game(GameMessage {
+                                        username: app_props.read().username.clone(),
+                                        message: GameEvent {
+                                            action: GameAction::StartGame(SetupGameOptions {
+                                                rounds: gamestate().setup_game_options.rounds,
+                                                deterministic: false,
+                                                start_round: None,
+                                            }),
+                                        },
+                                        timestamp: Utc::now(),
+                                    }),
+                                );
+                        },
+                        "Start game"
+                    }
+                )
+            } else {
+                rsx!(div { "Game is not in pregame state" })
+            }
+        },
+        {
+            if gamestate()
+                .players
+                .get(&app_props.read().username)
+                .is_some()
+            {
+                let curr_hand = gamestate
+                    .read()
+                    .players
+                    .get(&app_props.read().username)
+                    .unwrap()
+                    .encrypted_hand
+                    .clone();
+                let decrypted_hand =
+                    GameState::decrypt_player_hand(curr_hand, &player_secret.read().clone());
+                rsx!(
+                        div { class: "bg-green-300 w-full h-full",
+                    div { "This is the game" }
+                    div { "State: {gamestate().gameplay_state:?}" }
+                    div { "Trump: {gamestate().trump:?}" }
+                    div {
+                        ol { {gamestate().player_order.iter().map(|player| rsx!(li { "{player}" }))} }
+                    }
+                    div { "Round: {gamestate().curr_round}" }
+                    div { "Dealer: {gamestate().curr_dealer}" }
+                    div { "Player turn: {gamestate().curr_player_turn:?}" }
                 }
+                div { class: "bg-blue-300 w-full h-full",
+                    "Play area"
+                    div {
+                        "Cards"
+                        {gamestate().curr_played_cards.iter().map(|card| rsx!(li { "{card}" }))}
+                    }
+                }
+                div { class: "bg-red-300 w-full h-full",
+                    "Action area"
+                    div {
+                        "My cards"
+                        {decrypted_hand.iter().map(|card| rsx!(li { "{card:?}" }))}
+                    }
+                    if gamestate().gameplay_state == GameplayState::Bid {
+                        div { class: "flex justify-center m-4",
+                            label { "Bid" }
+                            ol { class: "flex flex-row",
+                                {(0..gamestate().curr_round).into_iter().map(|i| {
+                                    rsx!(
+                                        li { key: "{i}",
+                                            button {
+                                                class: "w-24 h-10 border border-solid rounded-md bg-slate-100",
+                                                onclick: move |_| {
+                                                    info!("Clicked on bid {i}");
+                                                    // send_bid(*i);
+                                                    ws_send.send(InternalMessage::Game(GameMessage {
+                                                        username: app_props.read().username.clone(),
+                                                        message: GameEvent {
+                                                            action: GameAction::Bid(i),
+                                                        },
+                                                        timestamp: Utc::now(),
+                                                    }));
+                                                },
+                                                "{i}"
+                                            }
+                                        }
+                                    )
+                                })}
+                            }
+                        }
+                    }
+                }
+                    )
+            } else {
+                rsx!(div { "Press start when all players have joined to begin" })
             }
         }
-        button {
-            class: "h-full w-full bg-blue-500",
-            onclick: move |evt| {
-                let room_code_clone = room_code_clone.clone();
-                async move {
-                    info!("Clicked join game");
-                    start_ws().await;
-                    info!("Websockets started");
-                    ws_send
-                        .send(
-                            InternalMessage::Server(Connect {
-                                username: app_props.read().username.clone(),
-                                channel: room_code_clone,
-                                secret: None,
-                            }),
-                        );
-                }
-            },
-            "Join this game"
-        }
-        div { "lobby: {lobby.read().lobby_code}" }
-        div { "Players ({lobby.read().players.len()})" }
-        {lobby.read().players.iter().enumerate().map(|(i, player)| rsx!(div { "{i}: {player}" }))},
-        div { class: "flex flex-col bg-purple-300 h-full w-full text-center",
-            div { class: "text-4xl", "Game options" }
-            div { class: "flex flex-row align-middle w-full",
-                label { "Rounds" }
-                input {
-                    r#type: "number",
-                    onchange: move |evt| num_rounds.set(evt.value().parse::<usize>().unwrap_or(9)),
-                    value: "{num_rounds}"
-                }
-            }
-        }
-        button {
-            class: "h-full w-full bg-blue-500",
-            onclick: move |evt| {
-                info!("Starting game");
-                ws_send
-                    .send(
-                        InternalMessage::Game(GameMessage {
-                            username: app_props.read().username.clone(),
-                            message: GameEvent {
-                                action: GameAction::StartGame(SetupGameOptions {
-                                    rounds: gamestate().setup_game_options.rounds,
-                                    deterministic: false,
-                                    start_round: None,
-                                }),
-                            },
-                            timestamp: Utc::now(),
-                        }),
-                    );
-            },
-            "Start game"
-        }
-        {if gamestate().players.get(&app_props.read().username).is_some() {
-            rsx!(GameState { player_secret, gamestate })
-        } else {
-            rsx!(div { "Press start when all players have joined to begin" })
-        }}
     )
 }
 
