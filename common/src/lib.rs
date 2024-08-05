@@ -1,5 +1,7 @@
 use chrono::{DateTime, Utc};
+use game::GameEventResult;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::{collections::HashMap, fmt};
 
 mod client;
@@ -12,6 +14,26 @@ pub enum GameplayState {
     Pregame,
     PostRound,           // players played all cards
     PostHand(PlayState), // each player played a card
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum InternalMessage {
+    Game {
+        dest: Destination,
+        msg: GameMessage,
+    },
+    // Server { dest: Destination, msg: Connect },
+    Client {
+        dest: Destination,
+        msg: GameEventResult,
+    }, // from game server to client
+       // WsAction(WsAction),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum Destination {
+    Lobby(String),
+    User { lobby: String, username: String },
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Deserialize)]
@@ -60,6 +82,7 @@ impl fmt::Display for GameClient {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameState {
+    pub lobby_code: String,
     pub setup_game_options: SetupGameOptions,
     secret_key: String,
     pub players: HashMap<String, GameClient>,
@@ -200,6 +223,11 @@ pub enum GameAction {
     StartGame(SetupGameOptions),
     Deal,
     CurrentState,
+    Connect {
+        username: String,
+        channel: String,
+        secret: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, PartialOrd, PartialEq, Ord, Eq, Serialize, Deserialize)]
@@ -260,6 +288,4 @@ pub enum Actioner {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-}
+mod tests {}

@@ -7,7 +7,7 @@ use api_types::{GetLobbiesResponse, GetLobbyResponse};
 use chrono::Utc;
 use common::{
     Card, Connect, GameAction, GameClient, GameEvent, GameMessage, GameState, GameplayState,
-    PlayState, PlayerSecret, SetupGameOptions,
+    InternalMessage, PlayState, PlayerSecret, SetupGameOptions,
 };
 use dioxus::prelude::*;
 use dotenvy::dotenv;
@@ -49,6 +49,13 @@ struct AppProps {
     lobbyCode: String,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+enum InnerMessage {
+    UpdateWsState { new: WsState },
+    GameMessage { msg: GameMessage },
+    Connect(Connect),
+}
+
 #[component]
 fn StateProvider() -> Element {
     let mut app_props = use_context_provider(|| {
@@ -81,15 +88,15 @@ fn main() {
     });
 }
 
-#[derive(Clone, Debug)]
-enum InternalMessage {
-    Game(GameMessage),
-    Server(Connect),
-    WsAction(WsAction),
-}
+// #[derive(Clone, Debug)]
+// enum InternalMessage {
+//     Game(GameMessage),
+//     Server(Connect),
+//     WsAction(WsAction),
+// }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-enum WsAction {
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+enum WsState {
     Pause,
     Resume,
 }
@@ -158,7 +165,7 @@ fn Home() -> Element {
 
 #[component]
 fn Explorer() -> Element {
-    let mut ws_action = use_signal(|| WsAction::Pause);
+    let mut ws_action = use_signal(|| WsState::Pause);
     let mut server_url = use_signal(|| String::from("http://0.0.0.0:8080/"));
     let mut create_lobby_response_msg = use_signal(|| String::from(""));
 
@@ -258,9 +265,19 @@ fn Explorer() -> Element {
                     }
                 }
             }
-            button {
+            // button {
+            //     class: "bg-green-300 w-full h-full hover:outline-2 hover:outline hover:outline-green-500",
+            //     onclick: create_lobby,
+            //     "Create lobby"
+            // }
+            Link {
+                onclick: move |evt| {
+                    create_lobby(evt);
+                },
+                to: Route::GameRoom {
+                    room_code: app_props.read().lobbyCode.clone(),
+                },
                 class: "bg-green-300 w-full h-full hover:outline-2 hover:outline hover:outline-green-500",
-                onclick: create_lobby,
                 "Create lobby"
             }
             {if create_lobby_response_msg() == String::from("") { rsx!() } else { rsx!(div { "{create_lobby_response_msg.read()}" }) }}
@@ -288,13 +305,14 @@ fn Explorer() -> Element {
 #[component]
 fn LobbyComponent(lobby: String) -> Element {
     let mut app_props = use_context::<Signal<AppProps>>();
+
     rsx!(
         div { class: "flex flex-row justify-between",
             div { "{lobby}" }
             button {
                 class: "shadow-sm p-6 rounded-md bg-slate-200 hover:bg-slate-300 w-1/2",
                 onclick: move |_| {
-                    info!("Join {lobby}");
+                    info!("Get details for lobby");
                 },
                 "Game details"
             }
@@ -302,6 +320,10 @@ fn LobbyComponent(lobby: String) -> Element {
                 class: "shadow-sm p-6 rounded-md bg-slate-200 hover:bg-slate-300 w-1/2",
                 to: Route::GameRoom {
                     room_code: lobby.clone(),
+                },
+                onclick: move |_| {
+                    info!("Joining {}", & lobby);
+                    app_props.write().lobbyCode = lobby.clone();
                 },
                 "Join game"
             }
@@ -314,7 +336,7 @@ fn GameRoom(room_code: String) -> Element {
     let mut app_props = use_context::<Signal<AppProps>>();
 
     let mut server_message = use_signal(|| Value::Null);
-    let mut gamestate = use_signal(|| GameState::new());
+    let mut gamestate = use_signal(|| GameState::new(room_code.clone()));
     let mut ws_url =
         use_signal(|| String::from(format!("ws://0.0.0.0:8080/rooms/{}/ws", room_code.clone())));
     // use_signal(|| String::from(format!("ws://0.0.0.0:8080/games/ws")));
@@ -332,7 +354,7 @@ fn GameRoom(room_code: String) -> Element {
     let mut server_websocket_listener: Signal<Option<SplitStream<WebSocket>>> = use_signal(|| None);
     let mut server_websocket_sender: Signal<Option<SplitSink<WebSocket, Message>>> =
         use_signal(|| None);
-    let mut ws_action = use_signal(|| WsAction::Resume);
+    let mut ws_action = use_signal(|| WsState::Resume);
 
     let get_game_details = move |room_code: String| {
         spawn(async move {
@@ -411,7 +433,7 @@ fn GameRoom(room_code: String) -> Element {
         });
 
     // this is internal messaging, between frontend to connection websocket
-    let ws_send: Coroutine<InternalMessage> = use_coroutine(|mut rx| async move {
+    let ws_send: Coroutine<InnerMessage> = use_coroutine(|mut rx| async move {
         info!("ws_send coroutine starting...");
 
         'pauseloop: while let Some(internal_msg) = rx.next().await {
@@ -423,30 +445,31 @@ fn GameRoom(room_code: String) -> Element {
             let mut ws_server_sender = server_websocket_sender.as_mut().unwrap();
             info!("Received internal message: {:?}", internal_msg);
             match internal_msg {
-                InternalMessage::Game(x) => {
-                    if ws_action() == WsAction::Pause {
+                InnerMessage::UpdateWsState { new } => ws_action.set(new),
+                InnerMessage::GameMessage { msg } => {
+                    if ws_action() == WsState::Pause {
                         continue 'pauseloop;
                     }
-                    let msg = Message::Text(json!(x).to_string());
-                    let _ = ws_server_sender.send(msg).await;
+
+                    let im: InternalMessage = InternalMessage::Game {
+                        dest: common::Destination::Lobby(app_props.read().lobbyCode.clone()),
+                        msg: msg,
+                    };
+
+                    let _ = ws_server_sender
+                        .send(Message::Text(json!(im).to_string()))
+                        .await;
                 }
-                InternalMessage::Server(x) => {
-                    if ws_action() == WsAction::Pause {
-                        continue 'pauseloop;
-                    }
-                    let msg = Message::Text(json!(x).to_string());
-                    let _ = ws_server_sender.send(msg).await;
+                InnerMessage::Connect(con) => {
+                    let _ = ws_server_sender
+                        .send(Message::Text(json!(con).to_string()))
+                        .await;
+                    // info!("Connect message received");
+                    // app_props.write().username = username;
+                    // app_props.write().lobbyCode = channel;
+                    // player_secret.set(secret.unwrap());
+                    // get_game_details(channel.clone());
                 }
-                InternalMessage::WsAction(_) => {}
-                InternalMessage::WsAction(action) => match action {
-                    WsAction::Pause => {
-                        continue 'pauseloop;
-                    }
-                    WsAction::Resume => {
-                        ws_action.set(WsAction::Resume);
-                    }
-                },
-                _ => {}
             }
         }
         info!("Finished listening to player actions");
@@ -517,16 +540,10 @@ fn GameRoom(room_code: String) -> Element {
                                 start_ws().await;
                                 info!("Websockets started");
                                 ws_send
-                                    .send(
-                                        InternalMessage::Server(Connect {
-                                            username: app_props.read().username.clone(),
-                                            channel: room_code_clone,
-                                            secret: None,
-                                        }),
-                                    );
-                            }
-                        },
-                        "Join this game"
+                                    .send(InnerMessage::Connect(Connect { username: app_props.read().username.clone(), channel: app_props.read().lobbyCode.clone(), secret: None }));
+                                }
+                            },
+                            "Join this game",
                     }
                     div { "lobby: {lobby.read().lobby_code}" }
                     div { "Players ({lobby.read().players.len()})" }
@@ -548,18 +565,18 @@ fn GameRoom(room_code: String) -> Element {
                             info!("Starting game");
                             ws_send
                                 .send(
-                                    InternalMessage::Game(GameMessage {
-                                        username: app_props.read().username.clone(),
-                                        message: GameEvent {
-                                            action: GameAction::StartGame(SetupGameOptions {
-                                                rounds: gamestate().setup_game_options.rounds,
-                                                deterministic: false,
-                                                start_round: None,
-                                            }),
-                                        },
-                                        timestamp: Utc::now(),
-                                    }),
-                                );
+                                    InnerMessage::GameMessage {
+                                        msg: GameMessage {
+                                            username: app_props.read().username.clone(),
+                                            message: GameEvent {
+                                                action: GameAction::StartGame(SetupGameOptions {
+                                                    rounds: gamestate().setup_game_options.rounds,
+                                                    deterministic: false,
+                                                    start_round: None,
+                                                }),
+                                            },
+                                            timestamp: Utc::now(),
+                                    }});
                         },
                         "Start game"
                     }
@@ -620,14 +637,22 @@ fn GameRoom(room_code: String) -> Element {
                                                 onclick: move |_| {
                                                     info!("Clicked on bid {i}");
                                                     // send_bid(*i);
-                                                    ws_send.send(InternalMessage::Game(GameMessage {
-                                                        username: app_props.read().username.clone(),
-                                                        message: GameEvent {
-                                                            action: GameAction::Bid(i),
-                                                        },
-                                                        timestamp: Utc::now(),
-                                                    }));
-                                                },
+                                                    // ws_send.send(InternalMessage::Game(GameMessage {
+                                                    //     username: app_props.read().username.clone(),
+                                                    //     message: GameEvent {
+                                                    //         action: GameAction::Bid(i),
+                                                    //     },
+                                                    //     timestamp: Utc::now(),
+                                                    // }));
+                                                    ws_send.send(InnerMessage::GameMessage {
+                                                        msg: GameMessage {
+                                                            username: app_props.read().username.clone(),
+                                                            message: GameEvent {
+                                                                action: GameAction::Bid(i),
+                                                            },
+                                                            timestamp: Utc::now(),
+                                                }});
+                                            },
                                                 "{i}"
                                             }
                                         }

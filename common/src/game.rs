@@ -4,13 +4,21 @@ use chrono::Utc;
 use data_encoding::BASE64;
 
 use nanoid::nanoid_gen;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tracing::info;
 
 use crate::{
-    create_deck, Card, GameAction, GameClient, GameError, GameMessage, GameState, GameplayState,
-    PlayState, PlayerRole, SetupGameOptions, Suit,
+    create_deck, Card, Destination, GameAction, GameClient, GameError, GameMessage, GameState,
+    GameplayState, PlayState, PlayerRole, SetupGameOptions, Suit,
 };
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GameEventResult {
+    pub dest: Destination,
+    pub msg: Option<String>,
+    pub game_state: Option<GameState>,
+}
 
 impl GameState {
     pub fn update_to_next_state(&mut self) {
@@ -186,13 +194,26 @@ impl GameState {
         events: Vec<GameMessage>,
         // sender: &Sender<GameServer>,
         // player_id: String,
-    ) -> GameState {
-        info!("[TODO] Processing an event");
+    ) -> GameEventResult {
+        // info!("[TODO] Processing an event");
         self.event_log.extend(events.clone());
-
         for event in events {
-            if event.message.action == GameAction::CurrentState {
-                continue;
+            info!("Processing event: {:?}", event);
+            match &event.message.action {
+                // GameAction::PlayCard(_) => todo!(),
+                // GameAction::Bid(_) => todo!(),
+                // GameAction::Ack => todo!(),
+                // GameAction::StartGame(_) => todo!(),
+                // GameAction::Deal => todo!(),
+                // GameAction::CurrentState => todo!(),
+                GameAction::Connect {
+                    username,
+                    channel,
+                    secret,
+                } => {
+                    self.add_player(username.clone(), PlayerRole::Player);
+                }
+                _ => {}
             }
 
             match &self.gameplay_state {
@@ -215,7 +236,11 @@ impl GameState {
             };
         }
 
-        self.get_state()
+        return GameEventResult {
+            dest: Destination::Lobby(self.lobby_code.clone()),
+            msg: None,
+            game_state: Some(self.get_state()),
+        };
     }
 
     pub fn encrypt_player_hand(&mut self, player_id: &String) {
@@ -254,7 +279,6 @@ impl GameState {
         //     self.encrypt_hand(player);
         // }
 
-        
         self.clone()
     }
 
@@ -358,17 +382,14 @@ impl GameState {
 
     pub fn setup_game(&mut self, sgo: SetupGameOptions) -> Result<(), GameError> {
         self.setup_game_options = sgo;
-        if self.players.len() == 1 {
+        if self.players.len() <= 1 {
             // Should maybe send a better message
             // self.system_status.push("Not enough players".into());
             self.broadcast_message("Not enough players".to_string());
             return Err(GameError::NotEnoughPlayers);
         }
 
-        let player_ids: Vec<String> = self
-            .players
-            .keys().cloned()
-            .collect::<Vec<String>>();
+        let player_ids: Vec<String> = self.players.keys().cloned().collect::<Vec<String>>();
 
         self.player_order = player_ids;
 
@@ -376,8 +397,7 @@ impl GameState {
             self.player_order.sort();
         }
 
-        let mut deal_play_order: Vec<String> =
-            self.player_order.to_vec();
+        let mut deal_play_order: Vec<String> = self.player_order.to_vec();
 
         if !self.setup_game_options.deterministic {
             fastrand::shuffle(&mut deal_play_order);
@@ -519,10 +539,11 @@ impl GameState {
         actual_hand
     }
 
-    pub fn new() -> GameState {
+    pub fn new(lobby_code: String) -> GameState {
         // let (tx, rx) = broadcast::channel(10);
 
         GameState {
+            lobby_code: lobby_code,
             players: HashMap::new(),
             deck: create_deck(),
             curr_round: 1,
@@ -665,9 +686,12 @@ fn xor_encrypt_decrypt(data: &str, key: &str) -> Vec<u8> {
 }
 
 mod tests {
-    
+    use chrono::Utc;
 
-    
+    use crate::{
+        game::find_winning_card, Card, GameMessage, GameState, GameplayState, PlayState,
+        PlayerRole, SetupGameOptions, Suit,
+    };
 
     #[test]
     fn test_finding_winning_card() {

@@ -2,9 +2,16 @@ use axum::extract::ws::Message;
 use axum::extract::FromRef;
 use axum::extract::Path;
 use axum::extract::Query;
+use chrono::Utc;
+// use common::Connect;
+use common::Destination;
+use common::GameAction;
+use common::GameEvent;
+use common::InternalMessage;
 use common::PlayerSecret;
 use futures_util::TryStreamExt;
 use serde_json::Value;
+use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 use tower_http::timeout::ResponseBodyTimeout;
 use tracing::error;
@@ -53,7 +60,8 @@ pub struct AppState {
     pub rooms: HashMap<String, GameState>,
     pub room_broadcast_channel: HashMap<String, tokio::sync::broadcast::Sender<GameState>>,
     pub lobby_to_game_channel_send: HashMap<String, tokio::sync::mpsc::Sender<GameMessage>>,
-    pub game_thread_channel: tokio::sync::mpsc::UnboundedSender<Message>,
+    pub game_thread_channel: tokio::sync::mpsc::UnboundedSender<InternalMessage>,
+    pub game_to_client_sender: tokio::sync::broadcast::Sender<InternalMessage>,
     // pub game_threads: HashMap<String, tokio::task::JoinHandle<()>>,
 }
 
@@ -471,7 +479,7 @@ async fn handle_socket(
                 connect
             }
             Err(err) => {
-                info!("{} had error: {}", &message_content, err);
+                info!("[SOCKET-HANDLE] {} had error: {}", &message_content, err);
                 let _ = sender
                     .send(Message::Text(
                         json!(ServerMessage {
@@ -495,40 +503,100 @@ async fn handle_socket(
     let bcast_channel: Sender<Value> = tokio::sync::broadcast::channel(10).0;
 
     let username_for_send = username.clone();
+    let lobby_code_for_send = lobby_code.clone();
     // recieving messages from clients, passing to game
     let gamesender = state.write().await.game_thread_channel.clone();
     let mut recv_messages_from_clients = tokio::spawn(async move {
         info!(
-            "Reciever for user={} is now ready to accept messages.",
+            "[CLIENT-RECEIVER] Reciever for user={} is now ready to accept messages.",
             "username_for_recv"
         );
-        loop {
-            // let Some(Ok(Message::Text(msg))) = receiver.next().await {
-            //     info!("Reciever got message");
-            // };
-            while let Some(Ok(msg)) = receiver.next().await {
-                info!("Client: reciever got message");
 
-                // info!("Attempt to deserialize GameMessage: {:?}", msg);
-                // let gamemessage: GameMessage = match serde_json::from_str(&msg) {
-                //     Ok(x) => x,
-                //     Err(err) => {
-                //         info!("Error deserializing GameMessage: {}", err);
-                //         continue;
-                //     }
-                // };
-                let _ = gamesender.send(msg);
-                info!("[CLIENT] Sent message to game thread");
-            }
-            info!("[CLIENT] failed to get message");
+        let _ = gamesender.send(InternalMessage::Game {
+            dest: Destination::Lobby(lobby_code_for_send),
+            msg: GameMessage {
+                username: username_for_send.clone(),
+                message: GameEvent {
+                    action: GameAction::Connect {
+                        username: username_for_send.clone(),
+                        channel: username_for_send.clone(),
+                        secret: None,
+                    },
+                },
+                timestamp: Utc::now(),
+            },
+        });
+
+        while let Some(Ok(Message::Text(msg))) = receiver.next().await {
+            info!("[CLIENT-RECEIVER] reciever got message");
+            // info!("Attempt to deserialize GameMessage: {:?}", msg);
+            // let gamemessage: GameMessage = match serde_json::from_str(&msg) {
+            //     Ok(x) => x,
+            //     Err(err) => {
+            //         info!("Error deserializing GameMessage: {}", err);
+            //         continue;
+            //     }
+            // };
+            let internalmsg = match serde_json::from_str::<InternalMessage>(&msg) {
+                Ok(im) => {
+                    let _ = gamesender.send(im);
+                }
+                Err(err) => info!("[CLIENT-RECEIVER] Error deserializing GameMessage: {}", err),
+            };
+
+            // info!("[CLIENT-RECEIVER] Sent message to game thread");
         }
+        info!("[CLIENT-RECEIVER] failed to get message");
+        // }
         info!(
-            "[CLIENT] Exiting reciever thread for user={}",
-            username.clone()
+            "[CLIENT-RECEIVER] Exiting reciever thread for user={}",
+            username_for_send.clone()
         );
     });
 
-    let username_for_send = username_for_send.clone();
+    let mut broadcast_channel = state.read().await.game_to_client_sender.subscribe();
+    // let from_game_broadcast = &state.read().await.gamechannel_broadcast_send.clone();
+
+    let this_username = username.clone();
+    let this_lobby_code = lobby_code.clone();
+    let mut send_messages_to_client = tokio::spawn(async move {
+        info!(
+            "[CLIENT-SENDER] Sender for user={} is now ready to accept messages.",
+            this_username
+        );
+
+        while let Ok(msg) = broadcast_channel.recv().await {
+            info!("Got a message from broadcast channel: {:?}", msg);
+            match msg {
+                // InternalMessage::Game { dest, msg } => todo!(),
+                // InternalMessage::Server { dest, msg } => todo!(),
+                InternalMessage::Client { dest, msg } => match dest {
+                    Destination::Lobby(lobby) => {
+                        if lobby == this_lobby_code {
+                            let _ = sender
+                                .send(Message::Text(json!(msg.clone()).to_string()))
+                                .await;
+                        }
+                    }
+                    Destination::User { lobby, username } => {
+                        if this_username == username && lobby == this_lobby_code {
+                            let _ = sender
+                                .send(Message::Text(json!(msg.clone()).to_string()))
+                                .await;
+                        }
+                    }
+                },
+                _ => {}
+            }
+        }
+
+        info!(
+            "[CLIENT-SENDER] Exiting sender thread for user={}",
+            this_username
+        );
+    });
+
+    // let username_for_send = username_for_send.clone();
 
     // sending messages to client
     // let mut send_messages_to_client = {
