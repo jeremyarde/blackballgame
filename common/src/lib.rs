@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use game::GameEventResult;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{collections::HashMap, fmt};
+use std::{collections::HashMap, fmt, net::SocketAddr};
 
 mod client;
 mod game;
@@ -33,7 +33,7 @@ pub enum InternalMessage {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Destination {
     Lobby(String),
-    User { lobby: String, username: String },
+    User(PlayerDetails),
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Deserialize)]
@@ -67,6 +67,8 @@ pub enum GameError {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GameClient {
     pub id: String,
+    #[serde(skip)]
+    pub user_ip: String,
     #[serde(skip)]
     pub hand: Vec<Card>, // we don't want everyone getting this information
     pub encrypted_hand: String,
@@ -228,6 +230,13 @@ pub enum GameAction {
         channel: String,
         secret: Option<String>,
     },
+    JoinGame(PlayerDetails),
+}
+
+#[derive(Debug, Clone, PartialOrd, PartialEq, Ord, Eq, Serialize, Deserialize)]
+pub struct PlayerDetails {
+    pub username: String,
+    pub ip: String,
 }
 
 #[derive(Debug, Clone, PartialOrd, PartialEq, Ord, Eq, Serialize, Deserialize)]

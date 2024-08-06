@@ -5,7 +5,7 @@ use tracing::info;
 use crate::{Card, GameClient, PlayerRole};
 
 impl GameClient {
-    pub fn new(id: String, role: PlayerRole) -> Self {
+    pub fn new(id: String, role: PlayerRole, user_ip: String) -> Self {
         GameClient {
             id,
             hand: vec![],
@@ -13,6 +13,7 @@ impl GameClient {
             // encrypted_hand: vec![],
             encrypted_hand: String::new(),
             num_cards: 0,
+            user_ip,
             // nonce: vec![],
         }
     }

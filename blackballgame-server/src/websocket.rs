@@ -112,7 +112,7 @@ pub async fn ws_handler(
     ws.on_upgrade(move |socket| {
         handle_socket(
             socket, addr, // room_code,
-            state,
+            user_agent, state,
         )
     })
 }
@@ -120,14 +120,15 @@ pub async fn ws_handler(
 async fn handle_socket(
     mut socket: WebSocket,
     who: SocketAddr,
+    user_agent: String,
     // room_code: Params,
     // room_code: Option<String>,
     State(state): State<Arc<RwLock<AppState>>>,
     // Path(room_code): Path<String>,
 ) {
-    let mut username = String::new();
-    let mut lobby_code = String::new();
-    let mut game_thread_running = false;
+    // let mut username = String::new();
+    // let mut lobby_code = String::new();
+    // let mut game_thread_running = false;
     // let mut tx = None::<Sender<String>>;
     let mut tx_from_game_to_client = None::<tokio::sync::broadcast::Sender<GameState>>;
     let mut recv_channel: Option<tokio::sync::mpsc::Receiver<GameMessage>> = None;
@@ -429,81 +430,81 @@ async fn handle_socket(
     }
 
     // initial connection and game setup
-    while let Ok(Some(msg)) = receiver.try_next().await {
-        info!("Recieved: {:?}", msg);
+    // while let Ok(Some(msg)) = receiver.try_next().await {
+    //     info!("Recieved: {:?}", msg);
 
-        let mut message_content = String::new();
-        if let Message::Text(content) = msg {
-            message_content = content;
-        } else {
-            info!("Message from user was not in Text format: {:?}", msg);
-            let _ = sender
-                .send(Message::Text(
-                    json!(ServerMessage {
-                        message: format!(
-                            "Wrong message format, try to connect again. Message: {:?}",
-                            msg
-                        ),
-                        from: username.clone()
-                    })
-                    .to_string(),
-                ))
-                .await;
-            continue;
-        };
+    //     let mut message_content = String::new();
+    //     if let Message::Text(content) = msg {
+    //         message_content = content;
+    //     } else {
+    //         info!("Message from user was not in Text format: {:?}", msg);
+    //         let _ = sender
+    //             .send(Message::Text(
+    //                 json!(ServerMessage {
+    //                     message: format!(
+    //                         "Wrong message format, try to connect again. Message: {:?}",
+    //                         msg
+    //                     ),
+    //                     from: username.clone()
+    //                 })
+    //                 .to_string(),
+    //             ))
+    //             .await;
+    //         continue;
+    //     };
 
-        #[derive(Deserialize, Debug)]
-        struct Connect {
-            username: String,
-            channel: String,
-            secret: Option<String>,
-        }
+    //     #[derive(Deserialize, Debug)]
+    //     struct Connect {
+    //         username: String,
+    //         channel: String,
+    //         secret: Option<String>,
+    //     }
 
-        let connect: Connect = match serde_json::from_str::<Connect>(&message_content) {
-            Ok(connect) => {
-                info!("connect value: {:?}", connect);
-                if connect.username.is_empty() || connect.channel.is_empty() {
-                    info!("Username or channel is empty");
-                    let _ = sender
-                        .send(Message::Text(
-                            json!(ServerMessage {
-                                message: "Username or channel is empty".to_string(),
-                                from: "System".into()
-                            })
-                            .to_string(),
-                        ))
-                        .await;
-                    info!("Waiting for new connect message");
-                    continue;
-                }
-                connect
-            }
-            Err(err) => {
-                info!("[SOCKET-HANDLE] {} had error: {}", &message_content, err);
-                let _ = sender
-                    .send(Message::Text(
-                        json!(ServerMessage {
-                            message: "Failed to connect".into(),
-                            from: "Server".into()
-                        })
-                        .to_string(),
-                    ))
-                    .await;
-                continue;
-            }
-        };
+    //     let connect: Connect = match serde_json::from_str::<Connect>(&message_content) {
+    //         Ok(connect) => {
+    //             info!("connect value: {:?}", connect);
+    //             if connect.username.is_empty() || connect.channel.is_empty() {
+    //                 info!("Username or channel is empty");
+    //                 let _ = sender
+    //                     .send(Message::Text(
+    //                         json!(ServerMessage {
+    //                             message: "Username or channel is empty".to_string(),
+    //                             from: "System".into()
+    //                         })
+    //                         .to_string(),
+    //                     ))
+    //                     .await;
+    //                 info!("Waiting for new connect message");
+    //                 continue;
+    //             }
+    //             connect
+    //         }
+    //         Err(err) => {
+    //             info!("[SOCKET-HANDLE] {} had error: {}", &message_content, err);
+    //             let _ = sender
+    //                 .send(Message::Text(
+    //                     json!(ServerMessage {
+    //                         message: "Failed to connect".into(),
+    //                         from: "Server".into()
+    //                     })
+    //                     .to_string(),
+    //                 ))
+    //                 .await;
+    //             continue;
+    //         }
+    //     };
 
-        username = connect.username.clone();
-        lobby_code = connect.channel.clone();
-        break;
-    }
+    //     username = connect.username.clone();
+    //     lobby_code = connect.channel.clone();
+    //     break;
+    // }
 
-    info!("Connected successfully to lobby {}", lobby_code);
+    // info!("Connected successfully to lobby {}", lobby_code);
 
     let bcast_channel: Sender<Value> = tokio::sync::broadcast::channel(10).0;
 
-    let username_for_send = username.clone();
-    let lobby_code_for_send = lobby_code.clone();
+    // let username_for_send = username.clone();
+    // let lobby_code_for_send = lobby_code.clone();
     // recieving messages from clients, passing to game
     let gamesender = state.write().await.game_thread_channel.clone();
     let mut recv_messages_from_clients = tokio::spawn(async move {
@@ -512,20 +513,20 @@ async fn handle_socket(
             "username_for_recv"
         );
 
-        let _ = gamesender.send(InternalMessage::Game {
-            dest: Destination::Lobby(lobby_code_for_send),
-            msg: GameMessage {
-                username: username_for_send.clone(),
-                message: GameEvent {
-                    action: GameAction::Connect {
-                        username: username_for_send.clone(),
-                        channel: username_for_send.clone(),
-                        secret: None,
-                    },
-                },
-                timestamp: Utc::now(),
-            },
-        });
+        // let _ = gamesender.send(InternalMessage::Game {
+        //     dest: Destination::Lobby(lobby_code_for_send),
+        //     msg: GameMessage {
+        //         username: username_for_send.clone(),
+        //         message: GameEvent {
+        //             action: GameAction::Connect {
+        //                 username: username_for_send.clone(),
+        //                 channel: username_for_send.clone(),
+        //                 secret: None,
+        //             },
+        //         },
+        //         timestamp: Utc::now(),
+        //     },
+        // });
 
         while let Some(Ok(Message::Text(msg))) = receiver.next().await {
             info!("[CLIENT-RECEIVER] reciever got message");
@@ -550,19 +551,19 @@ async fn handle_socket(
         // }
         info!(
             "[CLIENT-RECEIVER] Exiting reciever thread for user={}",
-            username_for_send.clone()
+            who.clone()
         );
     });
 
     let mut broadcast_channel = state.read().await.game_to_client_sender.subscribe();
     // let from_game_broadcast = &state.read().await.gamechannel_broadcast_send.clone();
 
-    let this_username = username.clone();
-    let this_lobby_code = lobby_code.clone();
+    // let this_username = username.clone();
+    // let this_lobby_code = lobby_code.clone();
     let mut send_messages_to_client = tokio::spawn(async move {
         info!(
             "[CLIENT-SENDER] Sender for user={} is now ready to accept messages.",
-            this_username
+            who
         );
 
         while let Ok(msg) = broadcast_channel.recv().await {
@@ -572,28 +573,27 @@ async fn handle_socket(
                 // InternalMessage::Server { dest, msg } => todo!(),
                 InternalMessage::Client { dest, msg } => match dest {
                     Destination::Lobby(lobby) => {
-                        if lobby == this_lobby_code {
-                            let _ = sender
-                                .send(Message::Text(json!(msg.clone()).to_string()))
-                                .await;
-                        }
+                        info!("[CLIENT-SENDER] Lobby: {:?}", lobby);
+                        // if lobby == this_lobby_code {
+                        // }
+                        let _ = sender
+                            .send(Message::Text(json!(msg.clone()).to_string()))
+                            .await;
                     }
-                    Destination::User { lobby, username } => {
-                        if this_username == username && lobby == this_lobby_code {
-                            let _ = sender
-                                .send(Message::Text(json!(msg.clone()).to_string()))
-                                .await;
-                        }
+                    Destination::User(playerdetails) => {
+                        info!("[CLIENT-SENDER] Player details: {:?}", playerdetails);
+                        let _ = sender
+                            .send(Message::Text(json!(msg.clone()).to_string()))
+                            .await;
+                        // if this_username == username && lobby == this_lobby_code {
+                        // }
                     }
                 },
                 _ => {}
             }
         }
 
-        info!(
-            "[CLIENT-SENDER] Exiting sender thread for user={}",
-            this_username
-        );
+        info!("[CLIENT-SENDER] Exiting sender thread for user={}", who);
     });
 
     // let username_for_send = username_for_send.clone();

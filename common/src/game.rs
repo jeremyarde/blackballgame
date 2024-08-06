@@ -211,9 +211,25 @@ impl GameState {
                     channel,
                     secret,
                 } => {
-                    self.add_player(username.clone(), PlayerRole::Player);
+                    self.add_player(
+                        username.clone(),
+                        PlayerRole::Player,
+                        "Connect action".to_string(),
+                    );
                 }
-                _ => {}
+                GameAction::PlayCard(_) => {}
+                GameAction::Bid(_) => {}
+                GameAction::Ack => {}
+                GameAction::StartGame(_) => {}
+                GameAction::Deal => {}
+                GameAction::CurrentState => {}
+                GameAction::JoinGame(player) => {
+                    self.add_player(
+                        player.username.clone(),
+                        PlayerRole::Player,
+                        player.ip.clone(),
+                    );
+                }
             }
 
             match &self.gameplay_state {
@@ -282,14 +298,14 @@ impl GameState {
         self.clone()
     }
 
-    pub fn add_player(&mut self, player_id: String, role: PlayerRole) {
+    pub fn add_player(&mut self, player_id: String, role: PlayerRole, ip: String) {
         let client_secret = format!("sky_{}", nanoid_gen(12));
 
         self.players_secrets
             .insert(player_id.clone(), client_secret.clone());
 
         self.players
-            .insert(player_id.clone(), GameClient::new(player_id, role));
+            .insert(player_id.clone(), GameClient::new(player_id, role, ip));
     }
 
     pub fn end_hand(&mut self) {

@@ -283,28 +283,29 @@ pub async fn get_room(
     // State(state): State<GameRoomState>,
     State(state): State<Arc<RwLock<AppState>>>,
     Path(room_code): Path<String>,
-) -> anyhow::Result<Json<GetLobbyResponse>, ServerError> {
-    // let rooms = match state.rooms.try_lock() {
-    //     Ok(rooms) => rooms,
-    //     Err(_) => return Err(ServerError::InternalServerError),
-    // };
+) -> impl IntoResponse {
     {
         info!("[API] get_room");
         let state = state.read().await;
         let room = match state.rooms.get(&room_code) {
             Some(room) => room,
             None => {
-                return Err(ServerError::NotFound(format!(
-                    "Room \"{}\" not found",
-                    room_code
-                )))
+                info!("Room \"{}\" not found", room_code);
+                return (StatusCode::NOT_FOUND, Json(json!({
+                    "error": {
+                        "type": "NotFound",
+                        "req_uuid": nanoid_gen(10).to_string(),
+                        "message": format!("Room \"{}\" not found", room_code),
+                    }
+                })));
             }
         };
+        info!("Room \"{}\" found", room_code);
         let players = room.players.keys().cloned().collect::<Vec<String>>();
-        return Ok(Json(GetLobbyResponse {
+        return (StatusCode::OK, Json(json!(GetLobbyResponse {
             lobby_code: room_code,
             players: players,
-        }));
+        })));
     }
 
     // rooms

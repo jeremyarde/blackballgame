@@ -173,34 +173,6 @@ fn Explorer() -> Element {
 
     let mut lobbies = use_signal(|| GetLobbiesResponse { lobbies: vec![] });
 
-    let create_lobby = move |_| {
-        #[derive(Deserialize, Serialize)]
-        pub struct CreateGameRequest {
-            lobby_code: String,
-        }
-
-        spawn(async move {
-            let resp = reqwest::Client::new()
-                .post("http://localhost:8080/rooms")
-                .json(&CreateGameRequest {
-                    lobby_code: app_props.read().lobbyCode.clone(),
-                })
-                .send()
-                .await;
-
-            match resp {
-                Ok(data) => {
-                    // log::info!("Got response: {:?}", resp);
-                    create_lobby_response_msg.set(format!("response: {:?}", data).into());
-                }
-                Err(err) => {
-                    // log::info!("Request failed with error: {err:?}")
-                    create_lobby_response_msg.set(format!("{err}").into());
-                }
-            }
-        });
-    };
-
     use_effect(move || {
         spawn(async move {
             let resp = reqwest::Client::new()
@@ -267,13 +239,15 @@ fn Explorer() -> Element {
             }
             // button {
             //     class: "bg-green-300 w-full h-full hover:outline-2 hover:outline hover:outline-green-500",
-            //     onclick: create_lobby,
+            //     onclick: move |evt| {
+            //         create_lobby(evt.clone());
+            //         info!("create_lobby called");
+            //         refresh_lobbies(evt);
+            //         info!("refresh_lobbies called");
+            //     },
             //     "Create lobby"
             // }
             Link {
-                onclick: move |evt| {
-                    create_lobby(evt);
-                },
                 to: Route::GameRoom {
                     room_code: app_props.read().lobbyCode.clone(),
                 },
@@ -305,6 +279,7 @@ fn Explorer() -> Element {
 #[component]
 fn LobbyComponent(lobby: String) -> Element {
     let mut app_props = use_context::<Signal<AppProps>>();
+    let mut create_lobby_response_msg = use_signal(|| String::from(""));
 
     rsx!(
         div { class: "flex flex-row justify-between",
@@ -356,6 +331,39 @@ fn GameRoom(room_code: String) -> Element {
         use_signal(|| None);
     let mut ws_action = use_signal(|| WsState::Resume);
 
+    let mut create_lobby_response_msg = use_signal(|| String::from(""));
+
+    use_effect(move || {
+        info!("create_lobby on lobby creation");
+        #[derive(Deserialize, Serialize)]
+        pub struct CreateGameRequest {
+            lobby_code: String,
+        }
+
+        spawn(async move {
+            let resp = reqwest::Client::new()
+                .post("http://localhost:8080/rooms")
+                .json(&CreateGameRequest {
+                    lobby_code: app_props.read().lobbyCode.clone(),
+                })
+                .send()
+                .await;
+
+            match resp {
+                Ok(data) => {
+                    info!("create_lobby success");
+                    // log::info!("Got response: {:?}", resp);
+                    create_lobby_response_msg.set(format!("response: {:?}", data).into());
+                }
+                Err(err) => {
+                    info!("create_lobby failed");
+                    // log::info!("Request failed with error: {err:?}")
+                    create_lobby_response_msg.set(format!("{err}").into());
+                }
+            }
+        });
+    });
+
     let get_game_details = move |room_code: String| {
         spawn(async move {
             let resp = reqwest::Client::new()
@@ -399,9 +407,13 @@ fn GameRoom(room_code: String) -> Element {
 
             info!("Unpaused server websocket listener");
 
+            // if server_websocket_listener.read().is_some() {
+            //     info!("Server websocket listener already exists");
+            // }
+
             let mut ws_server_listener: Write<SplitStream<WebSocket>> =
                 server_websocket_listener.as_mut().unwrap();
-            while let Some(message) = ws_server_listener.try_next().await.unwrap() {
+            while let Ok(message) = ws_server_listener.next().await.unwrap() {
                 info!("Ready to listen to messages from server");
 
                 if let Message::Text(text) = message {
@@ -437,10 +449,10 @@ fn GameRoom(room_code: String) -> Element {
         info!("ws_send coroutine starting...");
 
         'pauseloop: while let Some(internal_msg) = rx.next().await {
-            if server_websocket_sender.read().is_none() {
-                info!("No websocket sender");
-                return;
-            }
+            // if server_websocket_sender.read().is_none() {
+            //     info!("No websocket sender");
+            //     return;
+            // }
             info!("Ready to listen to player actions");
             let mut ws_server_sender = server_websocket_sender.as_mut().unwrap();
             info!("Received internal message: {:?}", internal_msg);
@@ -538,9 +550,17 @@ fn GameRoom(room_code: String) -> Element {
                             async move {
                                 info!("Clicked join game");
                                 start_ws().await;
-                                info!("Websockets started");
+                                // info!("Websockets started");
                                 ws_send
-                                    .send(InnerMessage::Connect(Connect { username: app_props.read().username.clone(), channel: app_props.read().lobbyCode.clone(), secret: None }));
+                                    .send(InnerMessage::GameMessage {
+                                        msg: GameMessage {
+                                            username: app_props().username.clone(),
+                                            message: GameEvent {
+                                                action: GameAction::JoinGame(app_props().username.clone()),
+                                            },
+                                            timestamp: Utc::now(),
+                                        },
+                                    });
                                 }
                             },
                             "Join this game",
