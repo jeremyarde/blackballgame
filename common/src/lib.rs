@@ -18,12 +18,12 @@ pub enum GameplayState {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum InternalMessage {
-    Game {
+    ToGame {
         dest: Destination,
         msg: GameMessage,
     },
     // Server { dest: Destination, msg: Connect },
-    Client {
+    ToClient {
         dest: Destination,
         msg: GameEventResult,
     }, // from game server to client

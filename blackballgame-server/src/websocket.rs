@@ -16,6 +16,7 @@ use tokio::task::JoinHandle;
 use tower_http::timeout::ResponseBodyTimeout;
 use tracing::error;
 
+use core::error;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -527,28 +528,35 @@ async fn handle_socket(
         //         timestamp: Utc::now(),
         //     },
         // });
+        let mut error_counter = 0;
+        while error_counter < 10 {
+            info!("[CLIENT-RECEIVER] looping over messages now");
+            while let Some(Ok(Message::Text(msg))) = receiver.next().await {
+                info!("[CLIENT-RECEIVER] reciever got message");
+                // info!("Attempt to deserialize GameMessage: {:?}", msg);
+                // let gamemessage: GameMessage = match serde_json::from_str(&msg) {
+                //     Ok(x) => x,
+                //     Err(err) => {
+                //         info!("Error deserializing GameMessage: {}", err);
+                //         continue;
+                //     }
+                // };
+                let internalmsg = match serde_json::from_str::<InternalMessage>(&msg) {
+                    Ok(im) => {
+                        let _ = gamesender.send(im);
+                    }
+                    Err(err) => info!("[CLIENT-RECEIVER] Error deserializing GameMessage: {}", err),
+                };
 
-        while let Some(Ok(Message::Text(msg))) = receiver.next().await {
-            info!("[CLIENT-RECEIVER] reciever got message");
-            // info!("Attempt to deserialize GameMessage: {:?}", msg);
-            // let gamemessage: GameMessage = match serde_json::from_str(&msg) {
-            //     Ok(x) => x,
-            //     Err(err) => {
-            //         info!("Error deserializing GameMessage: {}", err);
-            //         continue;
-            //     }
-            // };
-            let internalmsg = match serde_json::from_str::<InternalMessage>(&msg) {
-                Ok(im) => {
-                    let _ = gamesender.send(im);
-                }
-                Err(err) => info!("[CLIENT-RECEIVER] Error deserializing GameMessage: {}", err),
-            };
-
-            // info!("[CLIENT-RECEIVER] Sent message to game thread");
+                // info!("[CLIENT-RECEIVER] Sent message to game thread");
+                error_counter = 0;
+            }
+            info!(
+                "[CLIENT-RECEIVER] message loop exited. Error count: {}",
+                error_counter
+            );
+            error_counter += 1;
         }
-        info!("[CLIENT-RECEIVER] failed to get message");
-        // }
         info!(
             "[CLIENT-RECEIVER] Exiting reciever thread for user={}",
             who.clone()
@@ -567,11 +575,14 @@ async fn handle_socket(
         );
 
         while let Ok(msg) = broadcast_channel.recv().await {
-            info!("Got a message from broadcast channel: {:?}", msg);
+            info!(
+                "[CLIENT-SENDER] Got a message from broadcast channel: {:?}",
+                msg
+            );
             match msg {
                 // InternalMessage::Game { dest, msg } => todo!(),
                 // InternalMessage::Server { dest, msg } => todo!(),
-                InternalMessage::Client { dest, msg } => match dest {
+                InternalMessage::ToClient { dest, msg } => match dest {
                     Destination::Lobby(lobby) => {
                         info!("[CLIENT-SENDER] Lobby: {:?}", lobby);
                         // if lobby == this_lobby_code {
@@ -620,12 +631,11 @@ async fn handle_socket(
     //     })
     // };
 
-    // tokio::select! {
-    //     _ = (&mut send_messages_to_client) => recv_messages_from_clients.abort(),
-    //     _ = (&mut recv_messages_from_clients) => send_messages_to_client.abort(),
-    // };
-
-    info!("Waiting for joining thread to finish");
-    tokio::join!(recv_messages_from_clients);
+    info!("Threads are now running...");
+    tokio::select! {
+        _ = (&mut send_messages_to_client) => recv_messages_from_clients.abort(),
+        _ = (&mut recv_messages_from_clients) => send_messages_to_client.abort(),
+    };
+    // tokio::join!(recv_messages_from_clients);
     info!("We lost the listening thread");
 }

@@ -299,6 +299,7 @@ impl GameState {
     }
 
     pub fn add_player(&mut self, player_id: String, role: PlayerRole, ip: String) {
+        info!("Adding player: {}", player_id);
         let client_secret = format!("sky_{}", nanoid_gen(12));
 
         self.players_secrets

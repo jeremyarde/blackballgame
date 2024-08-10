@@ -301,6 +301,7 @@ pub async fn get_room(
             }
         };
         info!("Room \"{}\" found", room_code);
+        info!("Room players \"{:?}\"", room.players.keys());  
         let players = room.players.keys().cloned().collect::<Vec<String>>();
         return (StatusCode::OK, Json(json!(GetLobbyResponse {
             lobby_code: room_code,
@@ -448,35 +449,40 @@ async fn main() {
     let mut game_loop = {
         tokio::spawn(async move {
             let event_cap = 5;
-            let mut rooms: HashMap<String, GameState> = HashMap::new();
+            // let mut rooms: HashMap<String, GameState> = HashMap::new();
             info!("[GAME] - starting thread");
             while let Some(msg) = gamechannel_recv.recv().await {
                 info!("[GAME]: Got message: {:?}", msg);
-                info!("[GAME]: doing some processing....");
-
+                // info!("[GAME]: doing some processing....");
+                
                 // let msg = InternalMessage::Game(Destination::Lobby(lobby_code.clone()), msg);
-
+                
+                let mut state_guard = stateclone.write().await; 
+                let mut rooms = &mut state_guard.rooms;
                 match msg {
-                    InternalMessage::Game {  dest, msg } => {
+                    InternalMessage::ToGame {  dest, msg } => {
                         let lc = if let Destination::Lobby(x) = dest {
                             x
                         } else {
                             continue;
                         };
 
-                        let game = match rooms.get_mut(&lc) {
+                        let mut game = match rooms.get_mut(&lc) {
                             Some(x) => x,
                             None => {
-                                let newgame = GameState::new(lc.clone());
+                                info!("[GAME] Creating new game");
+                                let mut newgame = GameState::new(lc.clone());
                                 rooms.insert(lc.clone(), newgame);
                                 rooms.get_mut(&lc).unwrap()
                             },
                         }; 
+                        info!("[GAME] jere/ game before: {:?}", game);
                         let eventresult = game.process_event(vec![msg]);
+                        info!("[GAME] jere/ game after: {:?}", game);
 
                         // info!("[GAME]: Finished processing: {:?}", eventresult);
                         info!("[GAME]: Finished processing");
-                        let _ = toclient_send.send(InternalMessage::Client { dest: eventresult.dest.clone(), msg: eventresult });
+                        let _ = toclient_send.send(InternalMessage::ToClient { dest: eventresult.dest.clone(), msg: eventresult });
                     },
                     _ => {}
                 }

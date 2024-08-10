@@ -6,8 +6,8 @@ use std::{collections::HashMap, path::Path};
 use api_types::{GetLobbiesResponse, GetLobbyResponse};
 use chrono::Utc;
 use common::{
-    Card, Connect, GameAction, GameClient, GameEvent, GameMessage, GameState, GameplayState,
-    InternalMessage, PlayState, PlayerSecret, SetupGameOptions,
+    Card, Connect, Destination, GameAction, GameClient, GameEvent, GameMessage, GameState,
+    GameplayState, InternalMessage, PlayState, PlayerDetails, PlayerSecret, SetupGameOptions,
 };
 use dioxus::prelude::*;
 use dotenvy::dotenv;
@@ -183,7 +183,11 @@ fn Explorer() -> Element {
             match resp {
                 Ok(data) => {
                     // log::info!("Got response: {:?}", resp);
-                    lobbies.set(data.json::<GetLobbiesResponse>().await.unwrap());
+                    lobbies.set(
+                        data.json::<GetLobbiesResponse>()
+                            .await
+                            .expect("Failed to parse lobbies"),
+                    );
                 }
                 Err(err) => {
                     // log::info!("Request failed with error: {err:?}")
@@ -204,7 +208,11 @@ fn Explorer() -> Element {
             match resp {
                 Ok(data) => {
                     // log::info!("Got response: {:?}", resp);
-                    lobbies.set(data.json::<GetLobbiesResponse>().await.unwrap());
+                    lobbies.set(
+                        data.json::<GetLobbiesResponse>()
+                            .await
+                            .expect("Failed to refresh lobbies"),
+                    );
                 }
                 Err(err) => {
                     // log::info!("Request failed with error: {err:?}")
@@ -333,8 +341,14 @@ fn GameRoom(room_code: String) -> Element {
 
     let mut create_lobby_response_msg = use_signal(|| String::from(""));
 
+    let room_code_clone = room_code.clone();
     use_effect(move || {
         info!("create_lobby on lobby creation");
+        info!(
+            "jere/ lobby: {:?}, username: {:?}",
+            app_props.read().lobbyCode,
+            app_props.read().username
+        );
         #[derive(Deserialize, Serialize)]
         pub struct CreateGameRequest {
             lobby_code: String,
@@ -361,6 +375,46 @@ fn GameRoom(room_code: String) -> Element {
                     create_lobby_response_msg.set(format!("{err}").into());
                 }
             }
+
+            info!("Attempting to connect to websocket server during startup");
+            let response = Client::default()
+                .get(ws_url())
+                .upgrade() // Prepares the WebSocket upgrade.
+                .send()
+                .await
+                .expect("Failed to connect to websocket");
+
+            // Turns the response into a WebSocket stream.
+            let mut websocket = response
+                .into_websocket()
+                .await
+                .expect("Failed to upgrade to websocket");
+            let (mut ws_tx, mut ws_rx) = websocket.split();
+            server_websocket_listener.set(Some(ws_rx));
+            server_websocket_sender.set(Some(ws_tx));
+            info!("Successfully connected to websocket server");
+
+            // sending connect message
+            // server_websocket_sender
+            //     .as_mut()
+            //     .expect("Sender not found, but should be")
+            //     .send(Message::Text(
+            //         json!(InternalMessage::ToGame {
+            //             dest: Destination::Lobby(app_props.read().lobbyCode.clone()),
+            //             msg: GameMessage {
+            //                 username: app_props.read().username.clone(),
+            //                 message: GameEvent {
+            //                     action: GameAction::Connect {
+            //                         username: app_props.read().username.clone(),
+            //                         channel: app_props.read().lobbyCode.clone(),
+            //                         secret: None,
+            //                     }
+            //                 },
+            //                 timestamp: todo!()
+            //             }
+            //         })
+            //         .to_string(),
+            //     ));
         });
     });
 
@@ -407,54 +461,58 @@ fn GameRoom(room_code: String) -> Element {
 
             info!("Unpaused server websocket listener");
 
-            // if server_websocket_listener.read().is_some() {
-            //     info!("Server websocket listener already exists");
-            // }
-
-            let mut ws_server_listener: Write<SplitStream<WebSocket>> =
-                server_websocket_listener.as_mut().unwrap();
-            while let Ok(message) = ws_server_listener.next().await.unwrap() {
-                info!("Ready to listen to messages from server");
-
-                if let Message::Text(text) = message {
-                    info!("received: {text}");
-
-                    let mut is_gamestate = false;
-                    match serde_json::from_str::<GameState>(&text) {
-                        Ok(x) => {
-                            is_gamestate = true;
-                            gamestate.set(x);
-                        }
-                        Err(_) => {}
-                    };
-
-                    if is_gamestate {
-                        return;
-                    }
-
-                    match serde_json::from_str::<PlayerSecret>(&text) {
-                        Ok(x) => {
-                            player_secret.set(x.client_secret);
-                            info!("player_secret: {player_secret}");
-                            // server_message.set(x);
-                        }
-                        Err(err) => info!("Failed to parse server message: {}", err),
-                    };
-                }
+            if server_websocket_listener.read().is_some() {
+                info!("Server websocket listener already exists");
             }
+
+            let mut ws_server_listener: Write<SplitStream<WebSocket>> = server_websocket_listener
+                .as_mut()
+                .expect("No websocket listener");
+            while let Some(Ok(message)) = ws_server_listener.next().await {
+                info!("[SERVER-LISTENER] Got messages: {:?}", message);
+
+                // if let Message::Text(text) = message {
+                //     info!("received: {text}");
+
+                //     let mut is_gamestate = false;
+                //     match serde_json::from_str::<GameState>(&text) {
+                //         Ok(x) => {
+                //             is_gamestate = true;
+                //             gamestate.set(x);
+                //         }
+                //         Err(_) => {}
+                //     };
+
+                //     if is_gamestate {
+                //         return;
+                //     }
+
+                //     match serde_json::from_str::<PlayerSecret>(&text) {
+                //         Ok(x) => {
+                //             player_secret.set(x.client_secret);
+                //             info!("player_secret: {player_secret}");
+                //             // server_message.set(x);
+                //         }
+                //         Err(err) => info!("Failed to parse server message: {}", err),
+                //     };
+                // }
+            }
+            info!("[SERVER-LISTENER] ")
         });
 
     // this is internal messaging, between frontend to connection websocket
     let ws_send: Coroutine<InnerMessage> = use_coroutine(|mut rx| async move {
         info!("ws_send coroutine starting...");
 
+        info!("Ready to listen to player actions");
         'pauseloop: while let Some(internal_msg) = rx.next().await {
-            // if server_websocket_sender.read().is_none() {
-            //     info!("No websocket sender");
-            //     return;
-            // }
-            info!("Ready to listen to player actions");
-            let mut ws_server_sender = server_websocket_sender.as_mut().unwrap();
+            if server_websocket_sender.read().is_none() {
+                info!("No websocket sender");
+                return;
+            }
+            let mut ws_server_sender = server_websocket_sender
+                .as_mut()
+                .expect("No websocket sender");
             info!("Received internal message: {:?}", internal_msg);
             match internal_msg {
                 InnerMessage::UpdateWsState { new } => ws_action.set(new),
@@ -463,7 +521,7 @@ fn GameRoom(room_code: String) -> Element {
                         continue 'pauseloop;
                     }
 
-                    let im: InternalMessage = InternalMessage::Game {
+                    let im: InternalMessage = InternalMessage::ToGame {
                         dest: common::Destination::Lobby(app_props.read().lobbyCode.clone()),
                         msg: msg,
                     };
@@ -476,13 +534,9 @@ fn GameRoom(room_code: String) -> Element {
                     let _ = ws_server_sender
                         .send(Message::Text(json!(con).to_string()))
                         .await;
-                    // info!("Connect message received");
-                    // app_props.write().username = username;
-                    // app_props.write().lobbyCode = channel;
-                    // player_secret.set(secret.unwrap());
-                    // get_game_details(channel.clone());
                 }
             }
+            info!("Finished processing action, waiting for next...");
         }
         info!("Finished listening to player actions");
     });
@@ -492,20 +546,23 @@ fn GameRoom(room_code: String) -> Element {
         // Connect to some sort of service
         // Creates a GET request, upgrades and sends it.
 
-        if server_websocket_listener.read().is_some() {
-            info!("Server websocket listener already exists");
-            return;
-        }
+        // if server_websocket_listener.read().is_some() {
+        //     info!("Server websocket listener already exists");
+        //     return;
+        // }
 
         let response = Client::default()
             .get(ws_url())
             .upgrade() // Prepares the WebSocket upgrade.
             .send()
             .await
-            .unwrap();
+            .expect("Failed to connect to websocket");
 
         // Turns the response into a WebSocket stream.
-        let mut websocket = response.into_websocket().await.unwrap();
+        let mut websocket = response
+            .into_websocket()
+            .await
+            .expect("Failed to upgrade to websocket");
         let (mut ws_tx, mut ws_rx) = websocket.split();
         server_websocket_listener.set(Some(ws_rx));
         server_websocket_sender.set(Some(ws_tx));
@@ -513,7 +570,7 @@ fn GameRoom(room_code: String) -> Element {
         info!("Successfully connected to server");
     };
 
-    let room_code_clone = room_code.clone();
+    // let room_code_clone = room_code.clone();
 
     rsx!(
         {
@@ -528,42 +585,32 @@ fn GameRoom(room_code: String) -> Element {
                 rsx!(
                     button {
                         class: "h-full w-full bg-blue-500",
-                        onclick: move |evt| get_game_details(room_code.clone()),
+                        onclick: move |evt| get_game_details(app_props.read().lobbyCode.clone()),
                         "Refresh player list"
-                    }
-                    div { class: "flex flex-row",
-                        label { "Username" }
-                        input {
-                            r#type: "text",
-                            value: "{app_props.read().username}",
-                            required: true,
-                            minlength: 3,
-                            oninput: move |event| {
-                                app_props.write().username = event.value();
-                            }
-                        }
                     }
                     button {
                         class: "h-full w-full bg-blue-500",
                         onclick: move |evt| {
-                            let room_code_clone = room_code_clone.clone();
+                            // let room_code_clone = room_code_clone.clone();
                             async move {
                                 info!("Clicked join game");
-                                start_ws().await;
+                                // start_ws().await;
                                 // info!("Websockets started");
                                 ws_send
                                     .send(InnerMessage::GameMessage {
                                         msg: GameMessage {
                                             username: app_props().username.clone(),
                                             message: GameEvent {
-                                                action: GameAction::JoinGame(app_props().username.clone()),
+                                                action: GameAction::JoinGame(PlayerDetails{ username: app_props.read().username.clone(), ip: String::new() }),
+                                                    // app_props().username.clone()),
                                             },
                                             timestamp: Utc::now(),
                                         },
                                     });
-                                }
-                            },
-                            "Join this game",
+
+                            }
+                        },
+                        "Join this game",
                     }
                     div { "lobby: {lobby.read().lobby_code}" }
                     div { "Players ({lobby.read().players.len()})" }
@@ -615,7 +662,7 @@ fn GameRoom(room_code: String) -> Element {
                     .read()
                     .players
                     .get(&app_props.read().username)
-                    .unwrap()
+                    .expect("Player not found")
                     .encrypted_hand
                     .clone();
                 let decrypted_hand =
@@ -706,7 +753,7 @@ fn GameState(player_secret: Signal<String>, gamestate: Signal<GameState>) -> Ele
         .read()
         .players
         .get(&app_props.read().username)
-        .unwrap()
+        .expect("Player not found")
         .encrypted_hand
         .clone();
     info!("curr_hand: {curr_hand:?}");
