@@ -1,8 +1,9 @@
 ---
 source: common/src/game.rs
-assertion_line: 1043
+assertion_line: 1061
 expression: game
 ---
+lobby_code: lobby
 setup_game_options:
   rounds: 5
   deterministic: true
@@ -37,15 +38,7 @@ score:
   p1: 0
   p2: 0
 gameplay_state: Bid
-event_log:
-  - username: p1
-    message:
-      action:
-        startgame:
-          rounds: 5
-          deterministic: true
-          start_round: 3
-    timestamp: "[event_timestamp]"
+event_log: []
 system_status: []
 is_public: true
-latest_update: "2024-07-30T23:54:02.563278Z"
+latest_update: "2024-08-11T13:52:08.588983Z"

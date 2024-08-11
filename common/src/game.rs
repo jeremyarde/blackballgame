@@ -301,7 +301,6 @@ impl GameState {
         }
         let hand = BASE64.decode(hand.as_bytes()).unwrap();
         let str_hand = String::from_utf8(hand).unwrap();
-        // println!("Decrypting hand: {:?}", str_hand);
         let secret_data = xor_encrypt_decrypt(&str_hand, player_secret);
         // let str_hand2 = String::from_utf8(secret_data.clone()).unwrap();
         // println!("Decrypting hand: {:?}", str_hand2);
@@ -310,19 +309,6 @@ impl GameState {
     }
 
     pub fn get_state(&mut self) -> Self {
-        // for player in self.player_order.iter() {
-        //     // let hand = player.hand.clone();
-        //     // let plaintext_hand = json!(hand).to_string();
-        //     // let player_secret = self.players_secrets.get(key).unwrap();
-        //     // let encoded = xor_encrypt_decrypt(&plaintext_hand, player_secret);
-        //     // let secret_data = BASE64.encode(&encoded);
-
-        //     // player.encrypted_hand = secret_data;
-        //     // // player.nonce = nonce.to_vec();
-        //     // self.encrypt_hand(&key);
-        //     self.encrypt_hand(player);
-        // }
-
         self.clone()
     }
 
@@ -561,22 +547,6 @@ impl GameState {
         return self.bids.keys().len() == self.players.len();
     }
 
-    // fn advance_dealer(&mut self) -> Result<String, GameError> {
-    //     for (i, player) in self.player_order.iter().enumerate() {
-    //         if player.eq(&self.curr_dealer) {
-    //             let nextdealer = match self.player_order.get(i + 1) {
-    //                 Some(x) => x,
-    //                 None => &self.player_order[0],
-    //             };
-    //             self.curr_dealer = nextdealer.clone();
-    //             return Ok(self.curr_dealer.clone());
-    //         }
-    //     }
-    //     return Err(GameError::InternalIssue(String::from(
-    //         "Could not advance dealer",
-    //     )));
-    // }
-
     pub fn get_hand_from_encrypted(encrypted_hand: String, secret_key: &String) -> Vec<Card> {
         let hand = BASE64.decode(encrypted_hand.as_bytes()).unwrap();
         let str_hand = String::from_utf8(hand).unwrap();
@@ -735,8 +705,8 @@ mod tests {
     use chrono::Utc;
 
     use crate::{
-        game::find_winning_card, Card, GameMessage, GameState, GameplayState, PlayState,
-        PlayerRole, SetupGameOptions, Suit,
+        create_deck, game::find_winning_card, Card, GameMessage, GameState, GameplayState,
+        PlayState, PlayerRole, SetupGameOptions, Suit,
     };
 
     #[test]
@@ -800,6 +770,20 @@ mod tests {
     }
 
     #[test]
+    fn test_decrypt_hand_2() {
+        let hand =
+            "KBBbNl1SS1YJWlUWD1JLBxc0GyYbSlMCG1pVFRZaRkBJSQovWBQUQRVUAQcPRldASVpKImQ=".to_string();
+        let secret = "sky_sw9cezjdtbwi";
+
+        // let decrypted_hand = GameState::decrypt_player_hand(hand, &secret.to_string());
+
+        let decrypted_hand =
+            GameState::get_hand_from_encrypted(hand.to_string(), &secret.to_string());
+
+        println!("Decrypted: {:?}", decrypted_hand);
+    }
+
+    #[test]
     fn test_finding_winning_card_no_trump_first_suit_wins() {
         let cards = vec![
             Card {
@@ -829,7 +813,7 @@ mod tests {
 
     #[test]
     fn test_advance_player_turn() {
-        let game = GameState::new();
+        let game = GameState::new("lobby".to_string());
         let players = vec![
             "P1".to_string(),
             "P2".to_string(),
@@ -845,7 +829,7 @@ mod tests {
     }
     #[test]
     fn test_advance_player_turn_end_player() {
-        let game = GameState::new();
+        let game = GameState::new("lobby".to_string());
         let players = vec![
             "P1".to_string(),
             "P2".to_string(),
@@ -865,18 +849,18 @@ mod tests {
         let PLAYER_ONE = "p1".to_string();
         let PLAYER_TWO = "p2".to_string();
 
-        let mut game = GameState::new();
-        game.add_player(PLAYER_ONE.clone(), PlayerRole::Leader);
-        game.add_player(PLAYER_TWO.clone(), PlayerRole::Player);
+        let mut game = GameState::new("lobby".to_string());
+        game.add_player(PLAYER_ONE.clone(), PlayerRole::Leader, "ip".to_string());
+        game.add_player(PLAYER_TWO.clone(), PlayerRole::Player, "ip".to_string());
 
-        game.process_event(vec![GameMessage {
+        game.process_event(GameMessage {
             username: PLAYER_ONE.clone(),
             message: crate::GameEvent {
                 action: crate::GameAction::StartGame(SetupGameOptions::from(5, true, Some(1))),
                 // origin: crate::Actioner::Player(PLAYER_ONE.clone()),
             },
             timestamp: Utc::now(),
-        }]);
+        });
 
         let first_dealer = game.curr_dealer.clone();
         let has_first_turn = game.player_order[1].clone(); // person after dealer
@@ -887,25 +871,25 @@ mod tests {
         assert_eq!(game.curr_player_turn.clone().unwrap(), has_first_turn);
         assert_eq!(game.gameplay_state, GameplayState::Bid);
 
-        game.process_event(vec![GameMessage {
+        game.process_event(GameMessage {
             username: has_first_turn.clone(),
             message: crate::GameEvent {
                 action: crate::GameAction::Bid(0),
             },
             timestamp: Utc::now(),
-        }]);
+        });
 
         assert_eq!(game.bids[&has_first_turn], 0);
         assert_eq!(game.curr_player_turn.clone().unwrap(), has_second_turn);
 
-        game.process_event(vec![GameMessage {
+        game.process_event(GameMessage {
             username: has_second_turn.clone(),
             message: crate::GameEvent {
                 action: crate::GameAction::Bid(0),
                 // origin: crate::Actioner::Player(has_second_turn.clone()),
             },
             timestamp: Utc::now(),
-        }]);
+        });
         assert_eq!(game.bids[&has_second_turn], 0);
 
         // insta::assert_yaml_snapshot!(game, {
@@ -944,14 +928,14 @@ mod tests {
             .clone();
 
         assert_eq!(game.curr_player_turn.clone().unwrap(), has_first_turn);
-        game.process_event(vec![GameMessage {
+        game.process_event(GameMessage {
             username: has_first_turn.clone(),
             message: crate::GameEvent {
                 action: crate::GameAction::PlayCard(p1_card.clone()),
                 // origin: crate::Actioner::Player(has_first_turn.clone()),
             },
             timestamp: Utc::now(),
-        }]);
+        });
 
         assert_eq!(game.curr_player_turn.clone().unwrap(), has_second_turn);
         assert_eq!(game.curr_played_cards.len(), 1);
@@ -961,14 +945,14 @@ mod tests {
         );
         assert_eq!(game.gameplay_state, GameplayState::Play(PlayState::from(1)));
 
-        game.process_event(vec![GameMessage {
+        game.process_event(GameMessage {
             username: has_second_turn.clone(),
             message: crate::GameEvent {
                 action: crate::GameAction::PlayCard(p2_card.clone()),
                 // origin: crate::Actioner::Player(has_second_turn.clone()),
             },
             timestamp: Utc::now(),
-        }]);
+        });
 
         assert_eq!(
             game.gameplay_state,
@@ -977,25 +961,25 @@ mod tests {
         assert_eq!(game.curr_played_cards.len(), 2);
 
         // Send "start next round" message
-        game.process_event(vec![GameMessage {
+        game.process_event(GameMessage {
             username: has_first_turn.clone(),
             message: crate::GameEvent {
                 action: crate::GameAction::Ack,
                 // origin: crate::Actioner::Player(has_first_turn.clone()),
             },
             timestamp: Utc::now(),
-        }]);
+        });
 
         assert_eq!(game.gameplay_state, GameplayState::PostRound);
 
-        game.process_event(vec![GameMessage {
+        game.process_event(GameMessage {
             username: has_first_turn.clone(),
             message: crate::GameEvent {
                 action: crate::GameAction::Deal,
                 // origin: crate::Actioner::Player(has_first_turn.clone()),
             },
             timestamp: Utc::now(),
-        }]);
+        });
 
         // insta::assert_yaml_snapshot!(game, {
         //     ".timestamp" => "[utc]",
@@ -1031,7 +1015,7 @@ mod tests {
 
     #[test]
     fn test_get_hand_from_encrypted() {
-        let mut game = GameState::new();
+        let mut game = GameState::new("lobby".to_string());
 
         let res = GameState::get_hand_from_encrypted(
             "KBBbNg5WXlVATUQGGgZNVhc0GyZITkYGGUNKVAUSXUdRUVs7AxUJCB4FRFpUEVVfBg5bZVMJOQ=="
@@ -1065,18 +1049,18 @@ mod tests {
         let player_one = "p1".to_string();
         let player_two = "p2".to_string();
 
-        let mut game = GameState::new();
-        game.add_player(player_one.clone(), PlayerRole::Leader);
-        game.add_player(player_two.clone(), PlayerRole::Player);
+        let mut game = GameState::new("lobby".to_string());
+        game.add_player(player_one.clone(), PlayerRole::Leader, "ip".to_string());
+        game.add_player(player_two.clone(), PlayerRole::Player, "ip".to_string());
 
-        game.process_event(vec![GameMessage {
+        game.process_event(GameMessage {
             username: player_one.clone(),
             message: crate::GameEvent {
                 action: crate::GameAction::StartGame(SetupGameOptions::from(5, true, Some(3))),
                 // origin: crate::Actioner::Player(PLAYER_ONE.clone()),
             },
             timestamp: Utc::now(),
-        }]);
+        });
 
         insta::assert_yaml_snapshot!(game, {
             ".timestamp" => "[utc]",
@@ -1088,59 +1072,55 @@ mod tests {
             ".players" => insta::sorted_redaction(),
         });
 
-        game.process_event(vec![
-            GameMessage {
-                username: player_two.clone(),
-                message: crate::GameEvent {
-                    action: crate::GameAction::Bid(0),
-                },
-                timestamp: Utc::now(),
+        game.process_event(GameMessage {
+            username: player_two.clone(),
+            message: crate::GameEvent {
+                action: crate::GameAction::Bid(0),
             },
-            GameMessage {
-                username: player_one.clone(),
-                message: crate::GameEvent {
-                    action: crate::GameAction::Bid(0), // origin: crate::Actioner::Player(has_second_turn.clone()),
-                },
-                timestamp: Utc::now(),
+            timestamp: Utc::now(),
+        });
+        game.process_event(GameMessage {
+            username: player_one.clone(),
+            message: crate::GameEvent {
+                action: crate::GameAction::Bid(0), // origin: crate::Actioner::Player(has_second_turn.clone()),
             },
-        ]);
+            timestamp: Utc::now(),
+        });
 
         // two players play cards, go into post hand state
-        game.process_event(vec![
-            GameMessage {
-                username: player_two.clone(),
-                message: crate::GameEvent {
-                    action: crate::GameAction::PlayCard(
-                        game.players
-                            .get(&player_two)
-                            .unwrap()
-                            .hand
-                            .first()
-                            .clone()
-                            .unwrap()
-                            .clone(),
-                    ),
-                    // origin: crate::Actioner::Player(has_second_turn.clone()),
-                },
-                timestamp: Utc::now(),
+        game.process_event(GameMessage {
+            username: player_two.clone(),
+            message: crate::GameEvent {
+                action: crate::GameAction::PlayCard(
+                    game.players
+                        .get(&player_two)
+                        .unwrap()
+                        .hand
+                        .first()
+                        .clone()
+                        .unwrap()
+                        .clone(),
+                ),
+                // origin: crate::Actioner::Player(has_second_turn.clone()),
             },
-            GameMessage {
-                username: player_one.clone(),
-                message: crate::GameEvent {
-                    action: crate::GameAction::PlayCard(
-                        game.players
-                            .get(&player_one)
-                            .unwrap()
-                            .hand
-                            .first()
-                            .clone()
-                            .unwrap()
-                            .clone(),
-                    ), // origin: crate::Actioner::Player(has_second_turn.clone()),
-                },
-                timestamp: Utc::now(),
+            timestamp: Utc::now(),
+        });
+        game.process_event(GameMessage {
+            username: player_one.clone(),
+            message: crate::GameEvent {
+                action: crate::GameAction::PlayCard(
+                    game.players
+                        .get(&player_one)
+                        .unwrap()
+                        .hand
+                        .first()
+                        .clone()
+                        .unwrap()
+                        .clone(),
+                ), // origin: crate::Actioner::Player(has_second_turn.clone()),
             },
-        ]);
+            timestamp: Utc::now(),
+        });
 
         insta::assert_yaml_snapshot!(game, {
             ".timestamp" => "[utc]",
@@ -1152,12 +1132,12 @@ mod tests {
             ".players" => insta::sorted_redaction(),
         });
 
-        game.process_event(vec![GameMessage {
+        game.process_event(GameMessage {
             username: player_two.clone(),
             message: crate::GameEvent {
                 action: crate::GameAction::Ack,
             },
             timestamp: Utc::now(),
-        }]);
+        });
     }
 }
