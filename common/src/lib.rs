@@ -1,5 +1,4 @@
 use chrono::{DateTime, Utc};
-use game::GameEventResult;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::HashMap, fmt, net::SocketAddr};
@@ -113,6 +112,19 @@ pub struct GameState {
     pub system_status: Vec<String>, // useful to tell players what is going wrong
     is_public: bool,
     latest_update: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GameEventResult {
+    pub dest: Destination,
+    pub msg: GameActionResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum GameActionResponse {
+    Connect(Connect),
+    GameState(GameState),
+    Message(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

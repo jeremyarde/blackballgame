@@ -6,19 +6,13 @@ use data_encoding::BASE64;
 use nanoid::nanoid_gen;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tracing::info;
+use tracing::{error, info};
 
 use crate::{
-    create_deck, Card, Destination, GameAction, GameClient, GameError, GameMessage, GameState,
-    GameplayState, PlayState, PlayerRole, SetupGameOptions, Suit,
+    create_deck, Card, Connect, Destination, GameAction, GameClient, GameError, GameEventResult,
+    GameMessage, GameState, GameplayState, PlayState, PlayerDetails, PlayerRole, SetupGameOptions,
+    Suit,
 };
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GameEventResult {
-    pub dest: Destination,
-    pub msg: Option<String>,
-    pub game_state: Option<GameState>,
-}
 
 impl GameState {
     pub fn update_to_next_state(&mut self) {
@@ -211,11 +205,22 @@ impl GameState {
                     channel,
                     secret,
                 } => {
-                    self.add_player(
+                    let secret = self.add_player(
                         username.clone(),
                         PlayerRole::Player,
                         "Connect action".to_string(),
                     );
+                    return GameEventResult {
+                        dest: Destination::User(PlayerDetails {
+                            username: event.username.clone(),
+                            ip: String::new(),
+                        }),
+                        msg: crate::GameActionResponse::Connect(Connect {
+                            username: event.username.clone(),
+                            channel: self.lobby_code.clone(),
+                            secret: Some(secret),
+                        }),
+                    };
                 }
                 GameAction::PlayCard(_) => {}
                 GameAction::Bid(_) => {}
@@ -254,8 +259,7 @@ impl GameState {
 
         return GameEventResult {
             dest: Destination::Lobby(self.lobby_code.clone()),
-            msg: None,
-            game_state: Some(self.get_state()),
+            msg: crate::GameActionResponse::GameState(self.get_state()),
         };
     }
 
@@ -271,6 +275,10 @@ impl GameState {
     }
 
     pub fn decrypt_player_hand(hand: String, player_secret: &String) -> Vec<Card> {
+        if player_secret.is_empty() {
+            error!("Player secret is empty");
+            return vec![];
+        }
         let hand = BASE64.decode(hand.as_bytes()).unwrap();
         let str_hand = String::from_utf8(hand).unwrap();
         // println!("Decrypting hand: {:?}", str_hand);
@@ -298,7 +306,7 @@ impl GameState {
         self.clone()
     }
 
-    pub fn add_player(&mut self, player_id: String, role: PlayerRole, ip: String) {
+    pub fn add_player(&mut self, player_id: String, role: PlayerRole, ip: String) -> String {
         info!("Adding player: {}", player_id);
         let client_secret = format!("sky_{}", nanoid_gen(12));
 
@@ -307,6 +315,7 @@ impl GameState {
 
         self.players
             .insert(player_id.clone(), GameClient::new(player_id, role, ip));
+        return client_secret;
     }
 
     pub fn end_hand(&mut self) {
@@ -762,15 +771,6 @@ mod tests {
 
     #[test]
     fn test_decrypt_hand() {
-        // let mut game = GameState::new();
-        // game.add_player("new_player".to_string(), PlayerRole::Player);
-        // game.add_player("player2".to_string(), PlayerRole::Player);
-        // game.setup_game(SetupGameOptions {
-        //     rounds: 6,
-        //     deterministic: true,
-        //     start_round: Some(5),
-        // });
-
         let hand =
             "KBBbNhdRSlwFT0MDGVQDEhc0GyZRSVIHURQ+AxlUAxIBSVV9AAYZHRZZQwAFVB4SUUdbKRIfBQwWWVBHCBkBVRoPW2VBRlxLRA8AChBRJRUKSUN9HRYHNkQPAAoQR1hbURgMNgdRSktQCgAeGlseVV9JDz4fBhVLDlJVDllOWB4XSUNqQ19SGVgCGBYRahgOUVFbMRYELxlYAhgWBxdWVQAeECtRSVIaRAIFFlcZWAESBww6UUlBWklPGlEcUVhNQV9VfQMfERBRBz4RDBdAVR0ODgADHxEQURFDX1dGDx4HSUN9FxoRBFsNBVFZFwwWHx4cfUlCQxQYGEMaERdAQ0pHWy8fEgkMUDwDClcPWBkWHCYvHxIJDEZBTVEGQBMDUVFbLAMSFAwWT0MFFFkPElFRSG0OLg==".to_string();
         let secret = "sky_sspi4casu5zw";
