@@ -47,7 +47,8 @@ enum Route {
 #[derive(Clone, Debug)]
 struct AppProps {
     username: String,
-    lobbyCode: String,
+    lobby_code: String,
+    client_secret: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -62,7 +63,8 @@ fn StateProvider() -> Element {
     let mut app_props = use_context_provider(|| {
         Signal::new(AppProps {
             username: String::new(),
-            lobbyCode: String::new(),
+            lobby_code: String::new(),
+            client_secret: String::new(),
         })
     });
 
@@ -107,7 +109,7 @@ fn Home() -> Element {
     // let mut app_props: Signal<AppProps> = use_context_provider(|| {
     //     Signal::new(AppProps {
     //         username: String::new(),
-    //         lobbyCode: String::new(),
+    //         lobby_code: String::new(),
     //     })
     // });
 
@@ -121,13 +123,13 @@ fn Home() -> Element {
     //         label { "Lobby code" }
     //         input {
     //             r#type: "text",
-    //             value: "{app_props.read().lobbyCode}",
-    //             oninput: move |event| app_props.write().lobbyCode = event.value()
+    //             value: "{app_props.read().lobby_code}",
+    //             oninput: move |event| app_props.write().lobby_code = event.value()
     //         }
     //         Link {
     //             class: "bg-orange-300 w-full h-full",
     //             to: Route::GameRoom {
-    //                 room_code: app_props.read().lobbyCode.clone(),
+    //                 room_code: app_props.read().lobby_code.clone(),
     //             },
     //             "Join game"
     //         }
@@ -148,14 +150,14 @@ fn Home() -> Element {
                     label { "Lobby code" }
                     input {
                         r#type: "text",
-                        value: "{app_props.read().lobbyCode}",
-                        oninput: move |event| app_props.write().lobbyCode = event.value()
+                        value: "{app_props.read().lobby_code}",
+                        oninput: move |event| app_props.write().lobby_code = event.value()
                     }
                 }
                 Link {
                     class: "text-center bg-orange-300 w-full h-full",
                     to: Route::GameRoom {
-                        room_code: app_props.read().lobbyCode.clone(),
+                        room_code: app_props.read().lobby_code.clone(),
                     },
                     div { class: "text-center bg-orange-300 w-full h-full", "Join an existing game" }
                 }
@@ -240,8 +242,8 @@ fn Explorer() -> Element {
                     label { "Lobby" }
                     input {
                         r#type: "text",
-                        value: "{app_props.read().lobbyCode}",
-                        oninput: move |event| app_props.write().lobbyCode = event.value(),
+                        value: "{app_props.read().lobby_code}",
+                        oninput: move |event| app_props.write().lobby_code = event.value(),
                         "lobby"
                     }
                 }
@@ -258,7 +260,7 @@ fn Explorer() -> Element {
             // }
             Link {
                 to: Route::GameRoom {
-                    room_code: app_props.read().lobbyCode.clone(),
+                    room_code: app_props.read().lobby_code.clone(),
                 },
                 class: "bg-green-300 w-full h-full hover:outline-2 hover:outline hover:outline-green-500",
                 "Create lobby"
@@ -307,7 +309,7 @@ fn LobbyComponent(lobby: String) -> Element {
                 },
                 onclick: move |_| {
                     info!("Joining {}", & lobby);
-                    app_props.write().lobbyCode = lobby.clone();
+                    app_props.write().lobby_code = lobby.clone();
                 },
                 "Join game"
             }
@@ -347,7 +349,7 @@ fn GameRoom(room_code: String) -> Element {
         info!("create_lobby on lobby creation");
         info!(
             "jere/ lobby: {:?}, username: {:?}",
-            app_props.read().lobbyCode,
+            app_props.read().lobby_code,
             app_props.read().username
         );
         #[derive(Deserialize, Serialize)]
@@ -359,7 +361,7 @@ fn GameRoom(room_code: String) -> Element {
             let resp = reqwest::Client::new()
                 .post("http://localhost:8080/rooms")
                 .json(&CreateGameRequest {
-                    lobby_code: app_props.read().lobbyCode.clone(),
+                    lobby_code: app_props.read().lobby_code.clone(),
                 })
                 .send()
                 .await;
@@ -375,6 +377,11 @@ fn GameRoom(room_code: String) -> Element {
                     // log::info!("Request failed with error: {err:?}")
                     create_lobby_response_msg.set(format!("{err}").into());
                 }
+            }
+
+            if server_websocket_listener.try_read().is_err() {
+                info!("[SERVER-LISTENER] Server websocket listener already exists");
+                return;
             }
 
             info!("Attempting to connect to websocket server during startup");
@@ -443,50 +450,62 @@ fn GameRoom(room_code: String) -> Element {
             info!("[SERVER-LISTENER] Unpaused server websocket listener");
 
             if server_websocket_listener.read().is_some() {
-                info!("Server websocket listener already exists");
+                info!("[SERVER-LISTENER] Server websocket listener already exists");
             }
-
             let mut ws_server_listener: Write<SplitStream<WebSocket>> = server_websocket_listener
                 .as_mut()
                 .expect("[SERVER-LISTENER] No websocket listener");
-            while let Some(Ok(Message::Text(message))) = ws_server_listener.next().await {
-                info!("[SERVER-LISTENER] Got messages: {:?}", message);
+            let mut error_count = 0;
+            while error_count < 10 {
+                while let Some(Ok(Message::Text(message))) = ws_server_listener.next().await {
+                    info!("[SERVER-LISTENER] Got messages: {:?}", message);
 
-                // if let Message::Text(text) = message {
-                //     info!("received: {text}");
+                    // if let Message::Text(text) = message {
+                    //     info!("received: {text}");
 
-                //     let mut is_gamestate = false;
-                match serde_json::from_str::<GameEventResult>(&message) {
-                    Ok(ger) => {
-                        // is_gamestate = true;
-                        if ger.game_state.is_some() {
-                            info!("[SERVER-LISTENING] Got game state: {:?}", ger);
-                            let new_gs = ger.game_state.expect("Was not able to parse game state");
-                            gamestate.set(new_gs);
+                    //     let mut is_gamestate = false;
+                    match serde_json::from_str::<GameEventResult>(&message) {
+                        Ok(ger) => {
+                            // is_gamestate = true;
+                            match ger.msg {
+                                common::GameActionResponse::Connect(con) => {
+                                    info!("Got connect message: {con:?}");
+                                    app_props.write().client_secret =
+                                        con.secret.unwrap_or(String::new());
+                                }
+                                common::GameActionResponse::GameState(gs) => {
+                                    info!("Got game state: {gs:?}");
+                                    gamestate.set(gs);
+                                }
+                                common::GameActionResponse::Message(text) => {
+                                    info!("Got message: {text}");
+                                }
+                            }
                         }
-                        // gamestate.set();
-                    }
-                    Err(err) => {
-                        info!(
-                            "[SERVER-LISTENING] Failed to parse server message: {:?}",
-                            err
-                        );
-                    }
-                };
+                        Err(err) => {
+                            info!(
+                                "[SERVER-LISTENING] Failed to parse server message: {:?}",
+                                err
+                            );
+                        }
+                    };
 
-                //     if is_gamestate {
-                //         return;
-                //     }
+                    //     if is_gamestate {
+                    //         return;
+                    //     }
 
-                //     match serde_json::from_str::<PlayerSecret>(&text) {
-                //         Ok(x) => {
-                //             player_secret.set(x.client_secret);
-                //             info!("player_secret: {player_secret}");
-                //             // server_message.set(x);
-                //         }
-                //         Err(err) => info!("Failed to parse server message: {}", err),
-                //     };
-                // }
+                    //     match serde_json::from_str::<PlayerSecret>(&text) {
+                    //         Ok(x) => {
+                    //             player_secret.set(x.client_secret);
+                    //             info!("player_secret: {player_secret}");
+                    //             // server_message.set(x);
+                    //         }
+                    //         Err(err) => info!("Failed to parse server message: {}", err),
+                    //     };
+                    // }
+                }
+                info!("[SERVER-LISTENER] Got error {}, retrying", error_count);
+                error_count += 1;
             }
             info!("[SERVER-LISTENER] ended server listener.")
         });
@@ -513,7 +532,7 @@ fn GameRoom(room_code: String) -> Element {
                     }
 
                     let im: InternalMessage = InternalMessage::ToGame {
-                        dest: common::Destination::Lobby(app_props.read().lobbyCode.clone()),
+                        dest: common::Destination::Lobby(app_props.read().lobby_code.clone()),
                         msg: msg,
                     };
 
@@ -532,35 +551,6 @@ fn GameRoom(room_code: String) -> Element {
         info!("Finished listening to player actions");
     });
 
-    // let start_ws = move || async move {
-    //     info!("Attempting to connect to websocket server");
-    //     // Connect to some sort of service
-    //     // Creates a GET request, upgrades and sends it.
-
-    //     // if server_websocket_listener.read().is_some() {
-    //     //     info!("Server websocket listener already exists");
-    //     //     return;
-    //     // }
-
-    //     let response = Client::default()
-    //         .get(ws_url())
-    //         .upgrade() // Prepares the WebSocket upgrade.
-    //         .send()
-    //         .await
-    //         .expect("Failed to connect to websocket");
-
-    //     // Turns the response into a WebSocket stream.
-    //     let mut websocket = response
-    //         .into_websocket()
-    //         .await
-    //         .expect("Failed to upgrade to websocket");
-    //     let (mut ws_tx, mut ws_rx) = websocket.split();
-    //     server_websocket_listener.set(Some(ws_rx));
-    //     server_websocket_sender.set(Some(ws_tx));
-    //     listen_for_server_messages.send(("ready".to_string()));
-    //     info!("Successfully connected to server");
-    // };
-
     rsx!(
         {
             if error().is_null() {
@@ -574,7 +564,7 @@ fn GameRoom(room_code: String) -> Element {
                 rsx!(
                     button {
                         class: "h-full w-full bg-blue-500",
-                        onclick: move |evt| get_game_details(app_props.read().lobbyCode.clone()),
+                        onclick: move |evt| get_game_details(app_props.read().lobby_code.clone()),
                         "Refresh player list"
                     }
                     button {
@@ -653,10 +643,13 @@ fn GameRoom(room_code: String) -> Element {
                     .expect("Player not found")
                     .encrypted_hand
                     .clone();
-                let decrypted_hand =
-                    GameState::decrypt_player_hand(curr_hand, &player_secret.read().clone());
+                let decrypted_hand = GameState::decrypt_player_hand(
+                    curr_hand,
+                    &app_props.read().client_secret.clone(),
+                );
                 rsx!(
-                        div { class: "bg-green-300 w-full h-full",
+                    div { class: "bg-red-500 w-full h-full", "My app props: {app_props.read():?}" }
+                    div { class: "bg-green-300 w-full h-full",
                     div { "This is the game" }
                     div { "State: {gamestate().gameplay_state:?}" }
                     div { "Trump: {gamestate().trump:?}" }
@@ -725,78 +718,79 @@ fn GameRoom(room_code: String) -> Element {
     )
 }
 
-#[component]
-fn GameState(player_secret: Signal<String>, gamestate: Signal<GameState>) -> Element {
-    let mut app_props: Signal<AppProps> = use_context::<Signal<AppProps>>();
+// #[component]
+// fn GameState(player_secret: Signal<String>, gamestate: Signal<GameState>) -> Element {
+//     let mut app_props: Signal<AppProps> = use_context::<Signal<AppProps>>();
 
-    fn create_action(username: String, action: GameAction) -> GameMessage {
-        return GameMessage {
-            username: username.clone(),
-            message: GameEvent { action },
-            timestamp: Utc::now(),
-        };
-    };
-    info!("GameState: {gamestate:?}");
-    let curr_hand = gamestate
-        .read()
-        .players
-        .get(&app_props.read().username)
-        .expect("Player not found")
-        .encrypted_hand
-        .clone();
-    info!("curr_hand: {curr_hand:?}");
-    info!("player_secret: {:?}", player_secret.read());
-    let decrypted_hand = GameState::decrypt_player_hand(curr_hand, &player_secret.read().clone());
-    info!("decrypted_hand: {decrypted_hand:?}");
-    rsx!(
-        div { class: "bg-green-300 w-full h-full",
-            div { "This is the game" }
-            div { "State: {gamestate().gameplay_state:?}" }
-            div { "Trump: {gamestate().trump:?}" }
-            div {
-                ol { {gamestate().player_order.iter().map(|player| rsx!(li { "{player}" }))} }
-            }
-            div { "Round: {gamestate().curr_round}" }
-            div { "Dealer: {gamestate().curr_dealer}" }
-            div { "Player turn: {gamestate().curr_player_turn:?}" }
-        }
-        div { class: "bg-blue-300 w-full h-full",
-            "Play area"
-            div {
-                "Cards"
-                {gamestate().curr_played_cards.iter().map(|card| rsx!(li { "{card}" }))}
-            }
-        }
-        div { class: "bg-red-300 w-full h-full",
-            "Action area"
-            div {
-                "My cards"
-                {decrypted_hand.iter().map(|card| rsx!(li { "{card:?}" }))}
-            }
-            if gamestate().gameplay_state == GameplayState::Bid {
-                div { class: "flex justify-center m-4",
-                    label { "Bid" }
-                    ol { class: "flex flex-row",
-                        {(0..gamestate().curr_round).into_iter().map(|i| {
-                            rsx!(
-                                li { key: "{i}",
-                                    button {
-                                        class: "w-24 h-10 border border-solid rounded-md bg-slate-100",
-                                        onclick: move |_| {
-                                            info!("Clicked on bid {i}");
-                                            // send_bid(*i);
-                                        },
-                                        "{i}"
-                                    }
-                                }
-                            )
-                        })}
-                    }
-                }
-            }
-        }
-    )
-}
+//     fn create_action(username: String, action: GameAction) -> GameMessage {
+//         return GameMessage {
+//             username: username.clone(),
+//             message: GameEvent { action },
+//             timestamp: Utc::now(),
+//         };
+//     };
+//     info!("GameState: {gamestate:?}");
+//     let curr_hand = gamestate
+//         .read()
+//         .players
+//         .get(&app_props.read().username)
+//         .expect("Player not found")
+//         .encrypted_hand
+//         .clone();
+//     info!("curr_hand: {curr_hand:?}");
+//     info!("player_secret: {:?}", player_secret.read());
+//     let decrypted_hand = GameState::decrypt_player_hand(curr_hand, &player_secret.read().clone());
+//     info!("decrypted_hand: {decrypted_hand:?}");
+//     rsx!(
+//         div { class: "bg-red-500 w-full h-full", "My app props: {app_props.read():?}" }
+//         div { class: "bg-green-300 w-full h-full",
+//             div { "This is the game" }
+//             div { "State: {gamestate().gameplay_state:?}" }
+//             div { "Trump: {gamestate().trump:?}" }
+//             div {
+//                 ol { {gamestate().player_order.iter().map(|player| rsx!(li { "{player}" }))} }
+//             }
+//             div { "Round: {gamestate().curr_round}" }
+//             div { "Dealer: {gamestate().curr_dealer}" }
+//             div { "Player turn: {gamestate().curr_player_turn:?}" }
+//         }
+//         div { class: "bg-blue-300 w-full h-full",
+//             "Play area"
+//             div {
+//                 "Cards"
+//                 {gamestate().curr_played_cards.iter().map(|card| rsx!(li { "{card}" }))}
+//             }
+//         }
+//         div { class: "bg-red-300 w-full h-full",
+//             "Action area"
+//             div {
+//                 "My cards"
+//                 {decrypted_hand.iter().map(|card| rsx!(li { "{card:?}" }))}
+//             }
+//             if gamestate().gameplay_state == GameplayState::Bid {
+//                 div { class: "flex justify-center m-4",
+//                     label { "Bid" }
+//                     ol { class: "flex flex-row",
+//                         {(0..gamestate().curr_round).into_iter().map(|i| {
+//                             rsx!(
+//                                 li { key: "{i}",
+//                                     button {
+//                                         class: "w-24 h-10 border border-solid rounded-md bg-slate-100",
+//                                         onclick: move |_| {
+//                                             info!("Clicked on bid {i}");
+//                                             // send_bid(*i);
+//                                         },
+//                                         "{i}"
+//                                     }
+//                                 }
+//                             )
+//                         })}
+//                     }
+//                 }
+//             }
+//         }
+//     )
+// }
 
 #[component]
 fn PlayerComponent(player: GameClient) -> Element {

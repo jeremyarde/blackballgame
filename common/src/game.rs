@@ -1046,6 +1046,13 @@ mod tests {
             }
         );
         println!("Cards: {:?}", res);
+
+        let res = GameState::get_hand_from_encrypted(
+            "KBBbNg5WXlVATUQGGgZNVhc0GyZITkYGGUNKVAUSXUdRUVs7AxUJCB4FRFpUEVVfBg5bZVMJOQ=="
+                .to_string(),
+            &"sky_jtdgpafvvg43".to_string(),
+        );
+        println!("Cards: {:?}", res);
     }
 
     #[test]
