@@ -448,7 +448,7 @@ async fn main() {
 
     let mut game_loop = {
         tokio::spawn(async move {
-            let event_cap = 5;
+            // let event_cap = 5;
             // let mut rooms: HashMap<String, GameState> = HashMap::new();
             info!("[GAME] - starting thread");
             while let Some(msg) = gamechannel_recv.recv().await {
@@ -477,7 +477,7 @@ async fn main() {
                             },
                         }; 
                         info!("[GAME] jere/ game before: {:?}", game);
-                        let eventresult = game.process_event(vec![msg]);
+                        let eventresult = game.process_event(msg);
                         info!("[GAME] jere/ game after: {:?}", game);
 
                         // info!("[GAME]: Finished processing: {:?}", eventresult);

@@ -185,77 +185,92 @@ impl GameState {
 
     pub fn process_event(
         &mut self,
-        events: Vec<GameMessage>,
+        event: GameMessage,
         // sender: &Sender<GameServer>,
         // player_id: String,
     ) -> GameEventResult {
         // info!("[TODO] Processing an event");
-        self.event_log.extend(events.clone());
-        for event in events {
-            info!("Processing event: {:?}", event);
-            match &event.message.action {
-                // GameAction::PlayCard(_) => todo!(),
-                // GameAction::Bid(_) => todo!(),
-                // GameAction::Ack => todo!(),
-                // GameAction::StartGame(_) => todo!(),
-                // GameAction::Deal => todo!(),
-                // GameAction::CurrentState => todo!(),
-                GameAction::Connect {
-                    username,
-                    channel,
-                    secret,
-                } => {
-                    let secret = self.add_player(
-                        username.clone(),
-                        PlayerRole::Player,
-                        "Connect action".to_string(),
-                    );
-                    return GameEventResult {
-                        dest: Destination::User(PlayerDetails {
-                            username: event.username.clone(),
-                            ip: String::new(),
-                        }),
-                        msg: crate::GameActionResponse::Connect(Connect {
-                            username: event.username.clone(),
-                            channel: self.lobby_code.clone(),
-                            secret: Some(secret),
-                        }),
-                    };
-                }
-                GameAction::PlayCard(_) => {}
-                GameAction::Bid(_) => {}
-                GameAction::Ack => {}
-                GameAction::StartGame(_) => {}
-                GameAction::Deal => {}
-                GameAction::CurrentState => {}
-                GameAction::JoinGame(player) => {
-                    self.add_player(
-                        player.username.clone(),
-                        PlayerRole::Player,
-                        player.ip.clone(),
-                    );
+        // self.event_log.extend(events.clone());
+
+        info!("Processing event: {:?}", event);
+        match &event.message.action {
+            // GameAction::PlayCard(_) => todo!(),
+            // GameAction::Bid(_) => todo!(),
+            // GameAction::Ack => todo!(),
+            // GameAction::StartGame(_) => todo!(),
+            // GameAction::Deal => todo!(),
+            // GameAction::CurrentState => todo!(),
+            GameAction::Connect {
+                username,
+                channel,
+                secret,
+            } => {
+                let secret = self.add_player(
+                    username.clone(),
+                    PlayerRole::Player,
+                    "Connect action".to_string(),
+                );
+                return GameEventResult {
+                    dest: Destination::User(PlayerDetails {
+                        username: event.username.clone(),
+                        ip: String::new(),
+                    }),
+                    msg: crate::GameActionResponse::Connect(Connect {
+                        username: event.username.clone(),
+                        channel: self.lobby_code.clone(),
+                        secret: Some(secret),
+                    }),
+                };
+            }
+            GameAction::PlayCard(_) => {}
+            GameAction::Bid(_) => {}
+            GameAction::Ack => {}
+            GameAction::StartGame(_) => {}
+            GameAction::Deal => {}
+            GameAction::CurrentState => {}
+            GameAction::JoinGame(player) => {
+                // let secret = self.add_player(
+                //     username.clone(),
+                //     PlayerRole::Player,
+                //     "Connect action".to_string(),
+                // );
+                let secret = self.add_player(
+                    player.username.clone(),
+                    PlayerRole::Player,
+                    player.ip.clone(),
+                );
+                return GameEventResult {
+                    dest: Destination::User(PlayerDetails {
+                        username: event.username.clone(),
+                        ip: String::new(),
+                    }),
+                    msg: crate::GameActionResponse::Connect(Connect {
+                        username: event.username.clone(),
+                        channel: self.lobby_code.clone(),
+                        secret: Some(secret),
+                    }),
+                };
+            }
+        }
+
+        match &self.gameplay_state {
+            // Allow new players to join
+            GameplayState::Pregame => self.process_event_pregame(event),
+            // Get bids from all players
+            GameplayState::Bid => self.process_event_bid(event),
+            // Play cards starting with after dealer
+            // Get winner once everyones played and start again with winner of round
+            GameplayState::Play(ps) => self.process_event_play(event),
+            GameplayState::PostRound => self.process_event_postround(event),
+            GameplayState::PostHand(ps) => {
+                if event.message.action == GameAction::Ack
+                    || event.message.action == GameAction::Deal
+                {
+                    self.start_next_hand();
+                    self.update_to_next_state();
                 }
             }
-
-            match &self.gameplay_state {
-                // Allow new players to join
-                GameplayState::Pregame => self.process_event_pregame(event),
-                // Get bids from all players
-                GameplayState::Bid => self.process_event_bid(event),
-                // Play cards starting with after dealer
-                // Get winner once everyones played and start again with winner of round
-                GameplayState::Play(ps) => self.process_event_play(event),
-                GameplayState::PostRound => self.process_event_postround(event),
-                GameplayState::PostHand(ps) => {
-                    if event.message.action == GameAction::Ack
-                        || event.message.action == GameAction::Deal
-                    {
-                        self.start_next_hand();
-                        self.update_to_next_state();
-                    }
-                }
-            };
-        }
+        };
 
         return GameEventResult {
             dest: Destination::Lobby(self.lobby_code.clone()),
