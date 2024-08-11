@@ -16,6 +16,7 @@ impl GameClient {
             details: PlayerDetails {
                 username: id.clone(),
                 ip: user_ip,
+                client_secret: None,
             },
         }
     }

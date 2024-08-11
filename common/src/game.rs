@@ -214,6 +214,7 @@ impl GameState {
                     dest: Destination::User(PlayerDetails {
                         username: event.username.clone(),
                         ip: String::new(),
+                        client_secret: None,
                     }),
                     msg: crate::GameActionResponse::Connect(Connect {
                         username: event.username.clone(),

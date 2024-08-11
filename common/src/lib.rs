@@ -249,6 +249,7 @@ pub enum GameAction {
 pub struct PlayerDetails {
     pub username: String,
     pub ip: String,
+    pub client_secret: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialOrd, PartialEq, Ord, Eq, Serialize, Deserialize)]
