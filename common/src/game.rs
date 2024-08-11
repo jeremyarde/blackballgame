@@ -294,6 +294,11 @@ impl GameState {
             error!("Player secret is empty");
             return vec![];
         }
+
+        if hand.is_empty() {
+            info!("Hand is empty");
+            return vec![];
+        }
         let hand = BASE64.decode(hand.as_bytes()).unwrap();
         let str_hand = String::from_utf8(hand).unwrap();
         // println!("Decrypting hand: {:?}", str_hand);
