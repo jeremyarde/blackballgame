@@ -532,8 +532,13 @@ fn GameRoom(room_code: String) -> Element {
                     }
 
                     let im: InternalMessage = InternalMessage::ToGame {
-                        dest: common::Destination::Lobby(app_props.read().lobby_code.clone()),
+                        // dest: common::Destination::Lobby(app_props.read().lobby_code.clone()),
                         msg: msg,
+                        lobby_code: app_props.read().lobby_code.clone(),
+                        from: Destination::User(PlayerDetails {
+                            username: app_props.read().username.clone(),
+                            ip: String::new(),
+                        }),
                     };
 
                     let _ = ws_server_sender
@@ -677,7 +682,7 @@ fn GameRoom(room_code: String) -> Element {
                         div { class: "flex justify-center m-4",
                             label { "Bid" }
                             ol { class: "flex flex-row",
-                                {(0..gamestate().curr_round).into_iter().map(|i| {
+                                {(0..=gamestate().curr_round).into_iter().map(|i| {
                                     rsx!(
                                         li { key: "{i}",
                                             button {

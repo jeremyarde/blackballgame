@@ -18,12 +18,13 @@ pub enum GameplayState {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum InternalMessage {
     ToGame {
-        dest: Destination,
+        lobby_code: String,
+        from: Destination,
         msg: GameMessage,
     },
     // Server { dest: Destination, msg: Connect },
     ToClient {
-        dest: Destination,
+        to: Destination,
         msg: GameEventResult,
     }, // from game server to client
        // WsAction(WsAction),
@@ -31,7 +32,7 @@ pub enum InternalMessage {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Destination {
-    Lobby(String),
+    Lobby(Vec<PlayerDetails>),
     User(PlayerDetails),
 }
 
@@ -67,12 +68,11 @@ pub enum GameError {
 pub struct GameClient {
     pub id: String,
     #[serde(skip)]
-    pub user_ip: String,
-    #[serde(skip)]
     pub hand: Vec<Card>, // we don't want everyone getting this information
     pub encrypted_hand: String,
     pub num_cards: i32,
     pub role: PlayerRole,
+    pub details: PlayerDetails,
 }
 
 impl fmt::Display for GameClient {

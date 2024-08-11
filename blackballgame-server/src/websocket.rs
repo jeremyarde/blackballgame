@@ -2,6 +2,7 @@ use axum::extract::ws::Message;
 use axum::extract::FromRef;
 use axum::extract::Path;
 use axum::extract::Query;
+use axum_extra::headers::UserAgent;
 use chrono::Utc;
 // use common::Connect;
 use common::Destination;
@@ -48,14 +49,6 @@ use common::PlayerRole;
 
 pub type SharedState = Arc<RwLock<AppState>>;
 
-// #[derive(Debug)]
-// pub struct AppState {
-//     pub rooms: RwLock<HashMap<String, GameState>>,
-//     pub room_broadcast_channel: RwLock<HashMap<String, tokio::sync::broadcast::Sender<GameState>>>,
-//     pub lobby_to_game_channel_send: RwLock<HashMap<String, tokio::sync::mpsc::Sender<GameMessage>>>,
-//     pub game_threads: RwLock<HashMap<String, tokio::task::JoinHandle<()>>>,
-// }
-
 #[derive(Debug)]
 pub struct AppState {
     pub rooms: HashMap<String, GameState>,
@@ -71,19 +64,6 @@ pub struct ServerMessage {
     message: String,
     from: String,
 }
-
-// the api specific state
-// #[derive(Clone)]
-// pub struct GameRoomState {
-//     pub rooms: HashMap<String, GameState>,
-// }
-
-// support converting an `AppState` in an `ApiState`
-// impl FromRef<Arc<RwLock<AppState>>> for GameRoomState {
-//     async fn from_ref(app_state: &Arc<RwLock<AppState>>) -> GameRoomState {
-//         app_state.lock().await.rooms.clone()
-//     }
-// }
 
 impl ServerMessage {
     fn from(message: String, from: &str) -> Self {
@@ -122,15 +102,8 @@ async fn handle_socket(
     mut socket: WebSocket,
     who: SocketAddr,
     user_agent: String,
-    // room_code: Params,
-    // room_code: Option<String>,
     State(state): State<Arc<RwLock<AppState>>>,
-    // Path(room_code): Path<String>,
 ) {
-    // let mut username = String::new();
-    // let mut lobby_code = String::new();
-    // let mut game_thread_running = false;
-    // let mut tx = None::<Sender<String>>;
     let mut tx_from_game_to_client = None::<tokio::sync::broadcast::Sender<GameState>>;
     let mut recv_channel: Option<tokio::sync::mpsc::Receiver<GameMessage>> = None;
     if socket.send(Message::Ping(vec![1, 2, 3])).await.is_ok() {
@@ -141,19 +114,20 @@ async fn handle_socket(
         // If we can not send messages, there is no way to salvage the statemachine anyway.
         return;
     }
+    // let user_ip = format("{}{}"who.ip().to_string();
+    let user_ip = who.to_string();
 
     let (mut sender, mut receiver) = socket.split();
 
     let bcast_channel: Sender<Value> = tokio::sync::broadcast::channel(10).0;
 
-    // let username_for_send = username.clone();
-    // let lobby_code_for_send = lobby_code.clone();
     // recieving messages from clients, passing to game
+    let recv_user_ip = user_ip.clone();
     let gamesender = state.write().await.game_thread_channel.clone();
     let mut recv_messages_from_clients = tokio::spawn(async move {
         info!(
             "[CLIENT-RECEIVER] Reciever for user={} is now ready to accept messages.",
-            "username_for_recv"
+            recv_user_ip
         );
         let mut error_counter = 0;
         while error_counter < 10 {
@@ -162,11 +136,20 @@ async fn handle_socket(
                 info!("[CLIENT-RECEIVER] reciever got message");
                 let internalmsg = match serde_json::from_str::<InternalMessage>(&msg) {
                     Ok(mut im) => {
-                        if let InternalMessage::ToGame { dest, msg } = &mut im {
-                            if let Destination::User(playerdetails) = dest {
-                                playerdetails.ip = who.ip().to_string();
+                        // let mut im_clone = im.clone();
+                        if let InternalMessage::ToGame {
+                            msg: ref mut game_message,
+                            lobby_code,
+                            from,
+                        } = &mut im
+                        {
+                            if let GameAction::JoinGame(ref mut playerdetails) =
+                                &mut game_message.message.action
+                            {
+                                playerdetails.ip = recv_user_ip.clone();
                             }
                         }
+
                         let _ = gamesender.send(im);
                     }
                     Err(err) => info!("[CLIENT-RECEIVER] Error deserializing GameMessage: {}", err),
@@ -196,26 +179,37 @@ async fn handle_socket(
             who
         );
 
-        while let Ok(msg) = broadcast_channel.recv().await {
+        // let user_ip = who.ip().to_string();
+
+        while let Ok(im) = broadcast_channel.recv().await {
             info!(
                 "[CLIENT-SENDER] Got a message from broadcast channel: {:?}",
-                msg
+                im
             );
-            match msg {
-                InternalMessage::ToClient { dest, msg } => match dest {
+            match im {
+                InternalMessage::ToClient { to, msg } => match to {
                     Destination::Lobby(lobby) => {
                         info!("[CLIENT-SENDER] Lobby: {:?}", lobby);
                         // if lobby == this_lobby_code {
                         // }
-                        let _ = sender
-                            .send(Message::Text(json!(msg.clone()).to_string()))
-                            .await;
+                        if lobby
+                            .iter()
+                            .map(|ply| &ply.ip)
+                            .collect::<Vec<&String>>()
+                            .contains(&&user_ip)
+                        {
+                            let _ = sender
+                                .send(Message::Text(json!(msg.clone()).to_string()))
+                                .await;
+                        }
                     }
                     Destination::User(playerdetails) => {
                         info!("[CLIENT-SENDER] Player details: {:?}", playerdetails);
-                        let _ = sender
-                            .send(Message::Text(json!(msg.clone()).to_string()))
-                            .await;
+                        if playerdetails.ip == user_ip {
+                            let _ = sender
+                                .send(Message::Text(json!(msg.clone()).to_string()))
+                                .await;
+                        }
                         // if this_username == username && lobby == this_lobby_code {
                         // }
                     }

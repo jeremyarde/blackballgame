@@ -229,21 +229,15 @@ impl GameState {
             GameAction::Deal => {}
             GameAction::CurrentState => {}
             GameAction::JoinGame(player) => {
-                // let secret = self.add_player(
-                //     username.clone(),
-                //     PlayerRole::Player,
-                //     "Connect action".to_string(),
-                // );
                 let secret = self.add_player(
                     player.username.clone(),
                     PlayerRole::Player,
                     player.ip.clone(),
                 );
                 return GameEventResult {
-                    dest: Destination::User(PlayerDetails {
-                        username: event.username.clone(),
-                        ip: String::new(),
-                    }),
+                    dest: Destination::User(
+                        self.players.get(&event.username).unwrap().clone().details,
+                    ),
                     msg: crate::GameActionResponse::Connect(Connect {
                         username: event.username.clone(),
                         channel: self.lobby_code.clone(),
@@ -272,8 +266,14 @@ impl GameState {
             }
         };
 
+        let players = self
+            .players
+            .values()
+            .map(|player| player.details.clone())
+            .collect();
+
         return GameEventResult {
-            dest: Destination::Lobby(self.lobby_code.clone()),
+            dest: Destination::Lobby(players),
             msg: crate::GameActionResponse::GameState(self.get_state()),
         };
     }

@@ -460,20 +460,20 @@ async fn main() {
                 let mut state_guard = stateclone.write().await; 
                 let mut rooms = &mut state_guard.rooms;
                 match msg {
-                    InternalMessage::ToGame {  dest, msg } => {
-                        let lc = if let Destination::Lobby(x) = dest {
-                            x
-                        } else {
-                            continue;
-                        };
+                    InternalMessage::ToGame {msg, lobby_code, from } => {
+                        // let lc: Vec<common::PlayerDetails> = if let Destination::Lobby(x) = dest {
+                        //     x
+                        // } else {
+                        //     continue;
+                        // };
 
-                        let mut game = match rooms.get_mut(&lc) {
+                        let mut game = match rooms.get_mut(&lobby_code) {
                             Some(x) => x,
                             None => {
                                 info!("[GAME] Creating new game");
-                                let mut newgame = GameState::new(lc.clone());
-                                rooms.insert(lc.clone(), newgame);
-                                rooms.get_mut(&lc).unwrap()
+                                let mut newgame = GameState::new(lobby_code.clone());
+                                rooms.insert(lobby_code.clone(), newgame);
+                                rooms.get_mut(&lobby_code).unwrap()
                             },
                         }; 
                         info!("[GAME] jere/ game before: {:?}", game);
@@ -482,7 +482,10 @@ async fn main() {
 
                         // info!("[GAME]: Finished processing: {:?}", eventresult);
                         info!("[GAME]: Finished processing");
-                        let _ = toclient_send.send(InternalMessage::ToClient { dest: eventresult.dest.clone(), msg: eventresult });
+                        let _ = toclient_send.send(InternalMessage::ToClient { 
+                            to: eventresult.dest.clone(),
+                            msg: eventresult,
+                        });
                     },
                     _ => {}
                 }

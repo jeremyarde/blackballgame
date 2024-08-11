@@ -2,19 +2,21 @@ use std::io;
 
 use tracing::info;
 
-use crate::{Card, GameClient, PlayerRole};
+use crate::{Card, GameClient, PlayerDetails, PlayerRole};
 
 impl GameClient {
     pub fn new(id: String, role: PlayerRole, user_ip: String) -> Self {
         GameClient {
-            id,
+            id: id.clone(),
             hand: vec![],
             role,
             // encrypted_hand: vec![],
             encrypted_hand: String::new(),
             num_cards: 0,
-            user_ip,
-            // nonce: vec![],
+            details: PlayerDetails {
+                username: id.clone(),
+                ip: user_ip,
+            },
         }
     }
 
