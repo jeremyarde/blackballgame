@@ -41,6 +41,8 @@ jobs:
       - name: Build Project 🎁
         shell: bash
         run: |
+          git config --global user.email "jere.arde@gmail.com"
+          git config --global user.name "Jeremy"
           git checkout -B deploy
           cd bb-admin && dx build --release
           git add -f dist
