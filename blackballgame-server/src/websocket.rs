@@ -17,7 +17,6 @@ use tokio::task::JoinHandle;
 use tower_http::timeout::ResponseBodyTimeout;
 use tracing::error;
 
-use core::error;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;

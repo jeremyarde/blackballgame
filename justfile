@@ -6,9 +6,8 @@ build:
     # earthly +build
     
 buildfe:
-    cd blackballgame-client && npm run build
-    rm -rf blackballgame-server/dist
-    cp -R blackballgame-client/dist/ blackballgame-server/dist
+    # cd blackballgame-client && npm run build
+    cd bb-admin && dx build --release
 
 lint:
     earthly --no-sat +lint

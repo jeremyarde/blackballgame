@@ -1,6 +1,5 @@
 #![allow(warnings)]
 
-use core::error;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::PathBuf;
