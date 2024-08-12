@@ -11,8 +11,7 @@ on:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
-  contents: read
-  pages: write
+  contents: write
   id-token: write
 
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
@@ -39,6 +38,8 @@ jobs:
       # - name: Build tailwind file
       #   run: npx tailwindcss -i ./input.css -o ./assets/tailwind.css
       - name: Build Project 🎁
+        # env:
+        #   GITHUB_TOKEN: ${{ secrets.ACTIONS_DEPLOY_KEY }}
         shell: bash
         run: |
           git config --global user.email "jere.arde@gmail.com"
