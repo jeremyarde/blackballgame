@@ -51,6 +51,9 @@ struct AppProps {
     username: String,
     lobby_code: String,
     client_secret: String,
+    server_url: String,
+    server_base_url: String,
+    server_ws_url: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -67,6 +70,10 @@ fn StateProvider() -> Element {
             username: String::new(),
             lobby_code: String::new(),
             client_secret: String::new(),
+            // server_url: String::from("http://localhost:8080/"),
+            server_url: String::from("https://blackballgame-blackballgame-server.onrender.com"),
+            server_base_url: String::from("blackballgame-blackballgame-server.onrender.com"),
+            server_ws_url: String::from("wss://blackballgame-blackballgame-server.onrender.com"),
         })
     });
 
@@ -140,7 +147,6 @@ fn Home() -> Element {
 #[component]
 fn Explorer() -> Element {
     let mut ws_action = use_signal(|| WsState::Pause);
-    let mut server_url = use_signal(|| String::from("http://0.0.0.0:8080/"));
     let mut create_lobby_response_msg = use_signal(|| String::from(""));
 
     let mut app_props: Signal<AppProps> = use_context::<Signal<AppProps>>();
@@ -150,7 +156,11 @@ fn Explorer() -> Element {
     use_effect(move || {
         spawn(async move {
             let resp = reqwest::Client::new()
-                .get("http://localhost:8080/rooms")
+                .get(format!(
+                    "{}{}",
+                    app_props.read().server_url.clone(),
+                    "/rooms"
+                ))
                 .send()
                 .await;
 
@@ -175,7 +185,11 @@ fn Explorer() -> Element {
     let refresh_lobbies = move |_| {
         spawn(async move {
             let resp = reqwest::Client::new()
-                .get("http://localhost:8080/rooms")
+                .get(format!(
+                    "{}{}",
+                    app_props.read().server_url.clone(),
+                    "/rooms"
+                ))
                 .send()
                 .await;
 
@@ -313,11 +327,14 @@ fn GameRoom(room_code: String) -> Element {
 
     let mut server_message = use_signal(|| Value::Null);
     let mut gamestate = use_signal(|| GameState::new(room_code.clone()));
-    let mut ws_url =
-        use_signal(|| String::from(format!("ws://0.0.0.0:8080/rooms/{}/ws", room_code.clone())));
-    // use_signal(|| String::from(format!("ws://0.0.0.0:8080/games/ws")));
+    let mut ws_url = use_signal(|| {
+        String::from(format!(
+            "{}/rooms/{}/ws",
+            app_props.read().server_ws_url.clone(),
+            room_code.clone()
+        ))
+    });
 
-    let mut server_url = use_signal(|| String::from("http://0.0.0.0:8080/"));
     let mut lobby = use_signal(|| GetLobbyResponse {
         lobby_code: room_code.clone(),
         players: vec![],
@@ -349,7 +366,11 @@ fn GameRoom(room_code: String) -> Element {
 
         spawn(async move {
             let resp = reqwest::Client::new()
-                .post("http://localhost:8080/rooms")
+                .post(format!(
+                    "{}{}",
+                    app_props.read().server_url.clone(),
+                    "/rooms"
+                ))
                 .json(&CreateGameRequest {
                     lobby_code: app_props.read().lobby_code.clone(),
                 })
@@ -399,7 +420,11 @@ fn GameRoom(room_code: String) -> Element {
     let get_game_details = move |room_code: String| {
         spawn(async move {
             let resp = reqwest::Client::new()
-                .get(format!("http://localhost:8080/rooms/{}", room_code))
+                .get(format!(
+                    "{}{}",
+                    app_props.read().server_url.clone(),
+                    format!("/rooms/{}", room_code)
+                ))
                 .send()
                 .await;
 
