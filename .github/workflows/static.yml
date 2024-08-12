@@ -36,20 +36,9 @@ jobs:
       - name: Install Dioxus-CLI
         shell: bash
         run: cargo install dioxus-cli
-
       - name: Build Project 🎁
         shell: bash
         run: cd bb-admin && dx build --release
-
-  # Single deploy job since we're just deploying
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Get directory
