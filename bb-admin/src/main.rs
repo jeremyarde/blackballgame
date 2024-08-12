@@ -261,7 +261,7 @@ fn Explorer() -> Element {
                 }}
             }
         }
-        div { class: "bg-blue-300 h-10 flex flex-row relative justify-center",
+        div { class: "bg-blue-300 h-[300px] w-full flex flex-row relative justify-center",
             {vec![Card {
                 suit: Suit::Club,
                 value: 10,
@@ -631,103 +631,164 @@ fn GameRoom(room_code: String) -> Element {
                     .expect("Player not found")
                     .encrypted_hand
                     .clone();
-                let decrypted_hand = GameState::decrypt_player_hand(
-                    curr_hand,
-                    &app_props.read().client_secret.clone(),
-                );
+
                 rsx!(
-                    div { class: "bg-red-500 w-full h-full", "My app props: {app_props.read():?}" }
-                    div { class: "bg-green-300 w-full h-full",
-                    div { "This is the game" }
-                    div { "State: {gamestate().gameplay_state:?}" }
-                    div { "Trump: {gamestate().trump:?}" }
-                    div {
-                        ol { {gamestate().player_order.iter().map(|player| rsx!(li { "{player}" }))} }
+                        div { class: "bg-red-500 w-full h-full", "My app props: {app_props.read():?}" }
+                        div { class: "bg-green-300 w-full h-full",
+                        div { "This is the game" }
+                        div { "State: {gamestate().gameplay_state:?}" }
+                        div { "Trump: {gamestate().trump:?}" }
+                        div {
+                            ol { {gamestate().player_order.iter().map(|player| rsx!(li { "{player}" }))} }
+                        }
+                        div { "Round: {gamestate().curr_round}" }
+                        div { "Dealer: {gamestate().curr_dealer}" }
+                        div { "Player turn: {gamestate().curr_player_turn:?}" }
                     }
-                    div { "Round: {gamestate().curr_round}" }
-                    div { "Dealer: {gamestate().curr_dealer}" }
-                    div { "Player turn: {gamestate().curr_player_turn:?}" }
-                }
-                div { class: "bg-blue-300 w-full h-full",
-                    "Play area"
-                    div {
+                    div { class: "bg-blue-300 w-full h-full",
+                        "Play area"
+                        div { class: "w-full flex flex-row relative justify-center",
                         "Cards"
-                        {gamestate().curr_played_cards.iter().map(|card| rsx!(li { "{card}" }))}
-                    }
-                }
-                div { class: "bg-red-300 w-full h-full",
-                    "Action area"
-                    div {
-                        "My cards"
-                        {decrypted_hand.iter().map(|card| rsx!(
-                            li { "{card:?}" }
-                            CardComponent {
-                                onclick: move |_| { info!("Clicked a card: {:?}", "fake card") },
-                                card: card.clone()
-                            }
-                        ))}
-                    }
-                    if gamestate().gameplay_state == GameplayState::Bid {
-                        div { class: "flex justify-center m-4",
-                            label { "Bid" }
-                            ol { class: "flex flex-row",
-                                {(0..=gamestate().curr_round).into_iter().map(|i| {
-                                    rsx!(
-                                        li { key: "{i}",
-                                            button {
-                                                class: "w-24 h-10 border border-solid rounded-md bg-slate-100",
-                                                onclick: move |_| {
-                                                    info!("Clicked on bid {i}");
-                                                    // send_bid(*i);
-                                                    // ws_send.send(InternalMessage::Game(GameMessage {
-                                                    //     username: app_props.read().username.clone(),
-                                                    //     message: GameEvent {
-                                                    //         action: GameAction::Bid(i),
-                                                    //     },
-                                                    //     timestamp: Utc::now(),
-                                                    // }));
-                                                    ws_send.send(InnerMessage::GameMessage {
-                                                        msg: GameMessage {
-                                                            username: app_props.read().username.clone(),
-                                                            message: GameEvent {
-                                                                action: GameAction::Bid(i),
-                                                            },
-                                                            timestamp: Utc::now(),
-                                                }});
-                                            },
-                                                "{i}"
-                                            }
-                                        }
-                                    )
-                                })}
-                            }
+                            {gamestate().curr_played_cards.iter().map(|card| rsx!(
+                                // li { "{card}" }
+                                CardComponent {
+                                    onclick: move |_| { info!("Clicked a card: {:?}", "fake card") },
+                                    card: card.clone()
+                                }
+                            ))}
                         }
                     }
-                }
-                    )
+                    div { class: "bg-red-300 w-full h-full",
+                        "Action area"
+                        div { class: "w-full flex flex-row relative justify-center",
+                        "My cards"
+                            {GameState::decrypt_player_hand(
+                                curr_hand,
+                                &app_props.read().client_secret.clone(),
+                            ).iter().map(|card| {
+                                return rsx!(
+                                    CardComponent {
+                                        onclick: move |clicked_card: Card| {
+                                            ws_send.send(InnerMessage::GameMessage {
+                                                msg: GameMessage {
+                                                    username: app_props.read().username.clone(),
+                                                    message: GameEvent { action: GameAction::PlayCard(clicked_card) },
+                                                    timestamp: Utc::now()}
+                                            });
+                                        },
+                                        card: card.clone()
+                                    }
+                                );
+                            })}
+                        }
+                        if gamestate().gameplay_state == GameplayState::Bid {
+                            div { class: "flex justify-center m-4",
+                                label { "Bid" }
+                                ol { class: "flex flex-row",
+                                    {(0..=gamestate().curr_round).into_iter().map(|i| {
+                                        rsx!(
+                                            li { key: "{i}",
+                                                button {
+                                                    class: "w-24 h-10 border border-solid rounded-md bg-slate-100",
+                                                    onclick: move |_| {
+                                                        info!("Clicked on bid {i}");
+                                                        // send_bid(*i);
+                                                        // ws_send.send(InternalMessage::Game(GameMessage {
+                                                        //     username: app_props.read().username.clone(),
+                                                        //     message: GameEvent {
+                                                        //         action: GameAction::Bid(i),
+                                                        //     },
+                                                        //     timestamp: Utc::now(),
+                                                        // }));
+                                                        ws_send.send(InnerMessage::GameMessage {
+                                                            msg: GameMessage {
+                                                                username: app_props.read().username.clone(),
+                                                                message: GameEvent {
+                                                                    action: GameAction::Bid(i),
+                                                                },
+                                                                timestamp: Utc::now(),
+                                                    }});
+                                                },
+                                                    "{i}"
+                                                }
+                                            }
+                                        )
+                                    })}
+                                }
+                            }
+                        }
+                        {if let GameplayState::PostHand(ps) = gamestate().gameplay_state {
+                            rsx!(
+                                div {
+                                    button {
+                                        onclick: move |_| {
+                                            ws_send
+                                                .send(InnerMessage::GameMessage {
+                                                    msg: GameMessage {
+                                                        username: app_props.read().username.clone(),
+                                                        message: GameEvent {
+                                                            action: GameAction::Ack,
+                                                        },
+                                                        timestamp: Utc::now(),
+                                                    },
+                                                });
+                                        },
+                                        "Acknolwedge"
+                                    }
+                                }
+                            )
+                        } else {
+                            rsx!()
+                        }}
+                        {if let GameplayState::PostRound = gamestate().gameplay_state {
+                            rsx!(
+                                div {
+                                    button {
+                                        onclick: move |_| {
+                                            ws_send
+                                                .send(InnerMessage::GameMessage {
+                                                    msg: GameMessage {
+                                                        username: app_props.read().username.clone(),
+                                                        message: GameEvent {
+                                                            action: GameAction::Ack,
+                                                        },
+                                                        timestamp: Utc::now(),
+                                                    },
+                                                });
+                                        },
+                                        "Acknolwedge"
+                                    }
+                                }
+                            )
+                        } else {
+                            rsx!()
+                        }}
+                })
             } else {
-                rsx!(div { "Press start when all players have joined to begin" })
+                rsx! {div {"Something went wrong"}}
             }
         }
     )
 }
 
-pub const CARD_ASSET: manganis::ImageAsset = manganis::mg!(image("./assets/outline.png"));
+pub const CARD_ASSET: manganis::ImageAsset =
+    manganis::mg!(image("./assets/outline.png").size(144, 192));
 pub const SUIT_HEART: manganis::ImageAsset = manganis::mg!(image("./assets/suits/heart.png"));
 
 #[component]
-fn CardComponent(card: Card, onclick: EventHandler<MouseEvent>) -> Element {
+fn CardComponent(card: Card, onclick: EventHandler<Card>) -> Element {
     rsx!(
         div {
-            class: "relative w-[64px] self-center align-middle justify-center",
-            onclick: move |event| {
-                spawn(async move {
-                    info!("Clicked! {:?}", card.id);
-                });
+            class: "relative w-[64px] self-center",
+            onclick: move |evt| {
+                onclick(card.clone());
             },
             img { class: "absolute top-0 left-0 z-10", src: "{CARD_ASSET}" }
-            img { class: "absolute z-20 top-1 left-1", src: "{SUIT_HEART}" }
-            div { class: "text-lg z-30 absolute top-3 left-3", "{card.value}" }
+            img {
+                class: "absolute z-20 top-[15px] left-[35%]",
+                src: "{SUIT_HEART}"
+            }
+            div { class: "text-lg z-30 absolute top-[30px] left-[10px]", "{card.value}" }
         }
     )
 }
