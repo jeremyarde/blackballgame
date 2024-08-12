@@ -738,7 +738,9 @@ fn GameRoom(room_code: String) -> Element {
                         {if let GameplayState::PostHand(ps) = gamestate().gameplay_state {
                             rsx!(
                                 div {
+                                    class: "content-center text-center",
                                     button {
+                                        class: "bg-green-300 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded shadow-lg",
                                         onclick: move |_| {
                                             ws_send
                                                 .send(InnerMessage::GameMessage {
@@ -761,7 +763,9 @@ fn GameRoom(room_code: String) -> Element {
                         {if let GameplayState::PostRound = gamestate().gameplay_state {
                             rsx!(
                                 div {
+                                    class: "content-center text-center",
                                     button {
+                                        class: "bg-green-300 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded shadow-lg ",
                                         onclick: move |_| {
                                             ws_send
                                                 .send(InnerMessage::GameMessage {
