@@ -25,8 +25,22 @@ jobs:
   build-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: "Dioxus Deploy"
-        uses: DioxusLabs/deploy-action@0.1.1
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1.0.6
+        with:
+          toolchain: "stable"
+          profile: minimal
+          target: wasm32-unknown-unknown
+          override: true
+      - uses: Swatinem/rust-cache@v2
+      - name: Install Dioxus-CLI
+        shell: bash
+        run: cargo install dioxus-cli
+
+      - name: Build Project 🎁
+        shell: bash
+        run: cd bb-admin && dx build --release
+
   # Single deploy job since we're just deploying
   deploy:
     environment:
@@ -41,7 +55,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'bb-admin/dist'
+          path: "bb-admin/dist"
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
