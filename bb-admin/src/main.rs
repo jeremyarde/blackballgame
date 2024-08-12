@@ -582,7 +582,7 @@ fn GameRoom(room_code: String) -> Element {
                     div { "Players ({lobby.read().players.len()})" }
                     {lobby.read().players.iter().enumerate().map(|(i, player)| rsx!(div { "{i}: {player}" }))},
                     div { class: "flex flex-col bg-purple-300 h-full w-full text-center",
-                        div { class: "text-4xl", "Game options" }
+                        div { class: "text-4xl ", "Game options" }
                         div { class: "flex flex-row align-middle w-full",
                             label { "Rounds" }
                             input {
@@ -632,6 +632,26 @@ fn GameRoom(room_code: String) -> Element {
                     .encrypted_hand
                     .clone();
 
+                let is_turn_css = if gamestate()
+                    .curr_player_turn
+                    .unwrap_or("".to_string())
+                    .eq(&app_props.read().username)
+                {
+                    "bg-green-300"
+                } else {
+                    "bg-slate-100"
+                };
+
+                let is_turn_outline_css = if gamestate()
+                    .curr_player_turn
+                    .unwrap_or("".to_string())
+                    .eq(&app_props.read().username)
+                {
+                    "outline outline-4 outline-yellow-300"
+                } else {
+                    ""
+                };
+
                 rsx!(
                         div { class: "bg-red-500 w-full h-full", "My app props: {app_props.read():?}" }
                         div { class: "bg-green-300 w-full h-full",
@@ -647,10 +667,8 @@ fn GameRoom(room_code: String) -> Element {
                     }
                     div { class: "bg-blue-300 w-full h-full",
                         "Play area"
-                        div { class: "w-full flex flex-row relative justify-center",
-                        "Cards"
+                        div { class: "w-full h-[100px] flex flex-row relative justify-center",
                             {gamestate().curr_played_cards.iter().map(|card| rsx!(
-                                // li { "{card}" }
                                 CardComponent {
                                     onclick: move |_| { info!("Clicked a card: {:?}", "fake card") },
                                     card: card.clone()
@@ -658,10 +676,9 @@ fn GameRoom(room_code: String) -> Element {
                             ))}
                         }
                     }
-                    div { class: "bg-red-300 w-full h-full",
+                    div { class: "bg-red-300 w-full h-full {is_turn_outline_css}",
                         "Action area"
-                        div { class: "w-full flex flex-row relative justify-center",
-                        "My cards"
+                        div { class: "w-full flex h-[100px] flex-row relative justify-center",
                             {GameState::decrypt_player_hand(
                                 curr_hand,
                                 &app_props.read().client_secret.clone(),
@@ -686,10 +703,11 @@ fn GameRoom(room_code: String) -> Element {
                                 label { "Bid" }
                                 ol { class: "flex flex-row",
                                     {(0..=gamestate().curr_round).into_iter().map(|i| {
+
                                         rsx!(
                                             li { key: "{i}",
                                                 button {
-                                                    class: "w-24 h-10 border border-solid rounded-md bg-slate-100",
+                                                    class: "w-24 h-10 border border-solid rounded-md {is_turn_css}",
                                                     onclick: move |_| {
                                                         info!("Clicked on bid {i}");
                                                         // send_bid(*i);
@@ -733,7 +751,7 @@ fn GameRoom(room_code: String) -> Element {
                                                     },
                                                 });
                                         },
-                                        "Acknolwedge"
+                                        "Acknowledge"
                                     }
                                 }
                             )
@@ -756,7 +774,7 @@ fn GameRoom(room_code: String) -> Element {
                                                     },
                                                 });
                                         },
-                                        "Acknolwedge"
+                                        "Acknowledge"
                                     }
                                 }
                             )
@@ -774,20 +792,28 @@ fn GameRoom(room_code: String) -> Element {
 pub const CARD_ASSET: manganis::ImageAsset =
     manganis::mg!(image("./assets/outline.png").size(144, 192));
 pub const SUIT_HEART: manganis::ImageAsset = manganis::mg!(image("./assets/suits/heart.png"));
+pub const SUIT_DIAMOND: manganis::ImageAsset = manganis::mg!(image("./assets/suits/diamond.png"));
+pub const SUIT_CLUB: manganis::ImageAsset = manganis::mg!(image("./assets/suits/club.png"));
+pub const SUIT_SPADE: manganis::ImageAsset = manganis::mg!(image("./assets/suits/spade.png"));
+pub const SUIT_NOTRUMP: manganis::ImageAsset = manganis::mg!(image("./assets/suits/notrump.png"));
 
 #[component]
 fn CardComponent(card: Card, onclick: EventHandler<Card>) -> Element {
+    let suit = match card.suit {
+        Suit::Heart => SUIT_HEART,
+        Suit::Diamond => SUIT_DIAMOND,
+        Suit::Club => SUIT_CLUB,
+        Suit::Spade => SUIT_SPADE,
+        Suit::NoTrump => SUIT_NOTRUMP,
+    };
     rsx!(
         div {
-            class: "relative w-[64px] self-center",
+            class: "relative w-[64px]",
             onclick: move |evt| {
                 onclick(card.clone());
             },
             img { class: "absolute top-0 left-0 z-10", src: "{CARD_ASSET}" }
-            img {
-                class: "absolute z-20 top-[15px] left-[35%]",
-                src: "{SUIT_HEART}"
-            }
+            img { class: "absolute z-20 top-[15px] left-[35%]", src: "{suit}" }
             div { class: "text-lg z-30 absolute top-[30px] left-[10px]", "{card.value}" }
         }
     )

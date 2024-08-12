@@ -746,6 +746,10 @@ video {
   height: 300px;
 }
 
+.h-\[100px\] {
+  height: 100px;
+}
+
 .w-1\/2 {
   width: 50%;
 }
@@ -937,6 +941,30 @@ video {
 
 .outline {
   outline-style: solid;
+}
+
+.outline-2 {
+  outline-width: 2px;
+}
+
+.outline-4 {
+  outline-width: 4px;
+}
+
+.outline-green-500 {
+  outline-color: #22c55e;
+}
+
+.outline-yellow-300 {
+  outline-color: #fde047;
+}
+
+.outline-yellow-600 {
+  outline-color: #ca8a04;
+}
+
+.outline-yellow-500 {
+  outline-color: #eab308;
 }
 
 .hover\:bg-slate-300:hover {
