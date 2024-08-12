@@ -40,15 +40,21 @@ jobs:
       #   run: npx tailwindcss -i ./input.css -o ./assets/tailwind.css
       - name: Build Project 🎁
         shell: bash
-        run: cd bb-admin && dx build --release
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
+        run: |
+          git checkout -B deploy
+          cd bb-admin && dx build --release
+          git add -f dist
+          git commit -m "Committing assets"
+          git push -f origin deploy
+
+      # - name: Setup Pages
+      #   uses: actions/configure-pages@v5
       # - name: Get directory
       #   run: cd bb-admin && ls
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: "bb-admin/dist"
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      # - name: Upload artifact
+      #   uses: actions/upload-pages-artifact@v3
+      #   with:
+      #     path: "bb-admin/dist"
+      # - name: Deploy to GitHub Pages
+      #   id: deployment
+      #   uses: actions/deploy-pages@v4
