@@ -36,13 +36,15 @@ jobs:
       - name: Install Dioxus-CLI
         shell: bash
         run: cargo install dioxus-cli
+      # - name: Build tailwind file
+      #   run: npx tailwindcss -i ./input.css -o ./assets/tailwind.css
       - name: Build Project 🎁
         shell: bash
         run: cd bb-admin && dx build --release
       - name: Setup Pages
         uses: actions/configure-pages@v5
-      - name: Get directory
-        run: cd bb-admin && ls
+      # - name: Get directory
+      #   run: cd bb-admin && ls
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

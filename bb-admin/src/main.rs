@@ -73,11 +73,7 @@ fn StateProvider() -> Element {
     rsx!(Outlet::<Route> {})
 }
 
-// static APP_STATE: OnceLock<FrontendAppState> = OnceLock::new();
-// static APP_STATE: GlobalSignal<FrontendAppState> = Signal::global(|| FrontendAppState::new());
-// const STYLE: &str = manganis::mg!(file("./assets/main.css")); // this works but does not reload nicely
-
-const STYLE: &str = include_str!("../assets/main.css");
+// const STYLE: &str = include_str!("../assets/main.css");
 
 fn main() {
     // Init logger
@@ -86,7 +82,7 @@ fn main() {
     launch(|| {
         rsx! {
             head {
-                link { rel: "stylesheet", href: STYLE }
+                // link { rel: "stylesheet", href: STYLE }
             }
             Router::<Route> {}
         }
