@@ -40,6 +40,8 @@ jobs:
       - name: Earthly version
         run: earthly --version
       - name: Run build and push
+        env:
+          ENVIRONMENT: production
         run: earthly --push +docker
 
   cd:
