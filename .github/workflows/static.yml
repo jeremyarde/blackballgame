@@ -40,6 +40,8 @@ jobs:
       - name: Build Project 🎁
         # env:
         #   GITHUB_TOKEN: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+        env:
+          ENVIRONMENT: production
         shell: bash
         run: |
           git config --global user.email "jere.arde@gmail.com"
