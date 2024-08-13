@@ -30,6 +30,7 @@ build:
 
 docker:
   ARG docker_tag=jerecan/blackballgame:blackballgame-server
+  ARG ENVIRONMENT=production
 
   # FROM DOCKERFILE . # how to fix: https://docs.earthly.dev/docs/earthfile#description-10
   FROM debian:bookworm-slim # does work with libssl-dev
