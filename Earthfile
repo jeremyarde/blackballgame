@@ -15,7 +15,7 @@ install:
 source:
   FROM +install
   COPY --keep-ts Cargo.toml Cargo.lock ./
-  COPY --keep-ts --dir blackballgame-server ai-client common api_types bb-admin ./
+  COPY --keep-ts --dir blackballgame-server ai-client common api_types ./
 
 # lint runs cargo clippy on the source code
 lint:
