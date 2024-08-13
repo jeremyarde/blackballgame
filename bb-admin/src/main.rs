@@ -11,6 +11,7 @@ use common::{
     SetupGameOptions, Suit,
 };
 use dioxus::prelude::*;
+use dioxus_elements::link;
 use dotenvy::dotenv;
 
 use futures_util::stream::{SplitSink, SplitStream};
@@ -23,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tracing::{info, Level};
 
-static ASSET_PATH: &str = "bb-admin/assets/spade.svg";
+// static ASSET_PATH: &str = "bb-admin/assets/spade.svg";
 
 // All of our routes will be a variant of this Route enum
 #[derive(Routable, PartialEq, Clone)]
@@ -66,21 +67,36 @@ enum InnerMessage {
 #[component]
 fn StateProvider() -> Element {
     let mut app_props = use_context_provider(|| {
+        let is_prod = env!("ENVIRONMENT") == "production";
+        let mut server_url =
+            String::from("https://blackballgame-blackballgame-server.onrender.com");
+        let mut server_base_url = String::from("blackballgame-blackballgame-server.onrender.com");
+        let mut server_ws_url =
+            String::from("wss://blackballgame-blackballgame-server.onrender.com");
+
+        if !is_prod {
+            server_url = String::from("http://localhost:8080");
+            server_base_url = String::from("localhost:8080");
+            server_ws_url = String::from("ws://localhost:8080");
+        }
+
         Signal::new(AppProps {
             username: String::new(),
             lobby_code: String::new(),
             client_secret: String::new(),
             // server_url: String::from("http://localhost:8080/"),
-            server_url: String::from("https://blackballgame-blackballgame-server.onrender.com"),
-            server_base_url: String::from("blackballgame-blackballgame-server.onrender.com"),
-            server_ws_url: String::from("wss://blackballgame-blackballgame-server.onrender.com"),
+            server_url: server_url,
+            server_base_url: server_base_url,
+            server_ws_url: server_ws_url,
         })
     });
 
-    rsx!(Outlet::<Route> {})
+    rsx!(
+        Outlet::<Route> {}
+    )
 }
 
-// const STYLE: &str = include_str!("../assets/main.css");
+const _: &str = manganis::mg!(file("./main.css"));
 
 fn main() {
     // Init logger
@@ -88,9 +104,10 @@ fn main() {
     // launch(App);
     launch(|| {
         rsx! {
-            head {
-                // link { rel: "stylesheet", href: STYLE }
-            }
+            // head {
+            //     // link { rel: "stylesheet", href: "./bb-admin/assets/main.css" }
+            // }
+            // link::Head { rel: "stylesheet", href: asset!("./assets/style.css") }
             Router::<Route> {}
         }
     });
@@ -112,33 +129,35 @@ enum WsState {
 #[component]
 fn Home() -> Element {
     let mut app_props: Signal<AppProps> = use_context::<Signal<AppProps>>();
-
+    let mut disabled = use_signal(|| true);
     rsx!(
-        div { class: "w-2/3 h-56 flex flex-col bg-green-100 float-start align-middle ",
-            h1 { class: "text-6xl h-full w-full font-bold text-center content-center",
-                "Blackball"
-            }
-            Link {
-                class: "text-center bg-orange-300  m-4 h-[200px] rounded-lg shadow-md",
-                to: Route::Explorer {},
-                div { class: "", "Start or find a game" }
-            }
-            div { class: "flex flex-row",
-                div { class: "flex flex-col",
-                    label { "Lobby code" }
-                    input {
-                        r#type: "text",
-                        value: "{app_props.read().lobby_code}",
-                        oninput: move |event| app_props.write().lobby_code = event.value()
+        div { class: "container",
+            h1 { class: "header", "Blackball" }
+            label { "Enter a username" }
+            input {
+                class: "input",
+                r#type: "text",
+                value: "{app_props.read().username}",
+                oninput: move |event| {
+                    info!(
+                        "Got username len, val: {}, {} - {}", event.value().len(), event.value(),
+                        disabled.read()
+                    );
+                    if event.value().len() > 3 {
+                        info!("Username length is good");
+                        disabled.set(false);
+                        app_props.write().username = event.value();
+                    } else {
+                        disabled.set(true);
+                        app_props.write().username = event.value();
                     }
                 }
-                Link {
-                    class: "text-center bg-orange-300 w-full h-full",
-                    to: Route::GameRoom {
-                        room_code: app_props.read().lobby_code.clone(),
-                    },
-                    div { class: "text-center bg-orange-300 w-full h-full", "Join an existing game" }
-                }
+            }
+            Link {
+                class: "link disabled_{disabled}",
+                aria_disabled: "{disabled}",
+                to: Route::Explorer {},
+                "Start or find a game"
             }
         }
     )
@@ -211,82 +230,34 @@ fn Explorer() -> Element {
     };
 
     rsx! {
-        div { class: "flex flex-col outline w-2/3 h-full m-10 content-center text-center",
-            div { class: "flex flex-col w-full h-full m-2",
-                div { class: "flex flex-col content-center text-center self-center",
-                    label {
-                        "Enter a username"
-                        input {
-                            r#type: "text",
-                            value: "{app_props.read().username}",
-                            oninput: move |event| {
-                                app_props.write().username = event.value();
-                            }
-                        }
-                    }
-                    label {
-                        "Secret"
-                        input {
-                            r#type: "text",
-                            value: "{app_props.read().client_secret}",
-                            oninput: move |event| {
-                                app_props.write().client_secret = event.value();
-                            }
-                        }
-                    }
-                    label {
-                        "Lobby"
-                        input {
-                            r#type: "text",
-                            value: "{app_props.read().lobby_code}",
-                            oninput: move |event| app_props.write().lobby_code = event.value(),
-                            "lobby"
-                        }
-                    }
-                }
+        div { class: "container",
+            label { class: "lg", "Create a lobby" }
+            input {
+                class: "input",
+                r#type: "text",
+                value: "{app_props.read().lobby_code}",
+                oninput: move |event| app_props.write().lobby_code = event.value(),
+                "lobby"
             }
             Link {
                 to: Route::GameRoom {
                     room_code: app_props.read().lobby_code.clone(),
                 },
-                class: "bg-green-300 w-full h-full hover:outline-2 hover:outline hover:outline-green-500",
+                class: "button link",
                 "Create lobby"
             }
-            {if create_lobby_response_msg() == String::from("") { rsx!() } else { rsx!(div { "{create_lobby_response_msg.read()}" }) }}
+            {if create_lobby_response_msg() == String::from("") { rsx!() } else { rsx!(div { "{create_lobby_response_msg.read()}" }) }},
+            button { class: "", onclick: refresh_lobbies, "Refresh lobbies" }
         }
-        div { class: "flex flex-col bg-green-50 w-2/3",
-            button {
-                class: "bg-green-300 w-full h-full hover:outline-2 hover:outline hover:outline-green-500",
-                onclick: refresh_lobbies,
-                "Refresh lobbies"
-            }
-            div {
-                "Ongoing games"
-                {if lobbies.read().lobbies.len() == 0 {
-                    rsx!(div { "No games" })
-                } else {
-                    rsx!({
-                        lobbies.read().lobbies.iter().map(|lobby| rsx!(LobbyComponent {lobby: lobby}))
-                    })
-                }}
-            }
-        }
-        div { class: "bg-blue-300 h-[300px] w-full flex flex-row relative justify-center",
-            {vec![Card {
-                suit: Suit::Club,
-                value: 10,
-                id: 1,
-                played_by: None,
-            },
-            Card {
-                suit: Suit::Heart,
-                value: 3,
-                id: 2,
-                played_by: None,
-            }].iter().map(|card| rsx!(CardComponent {
-                card: card.clone(),
-                onclick: move |_| { info!("Clicked a card: {}!", "fakecard") }
-            }))}
+        div {
+            label { class: "lg", "Ongoing games" }
+            {if lobbies.read().lobbies.len() == 0 {
+                rsx!(div { "No games" })
+            } else {
+                rsx!({
+                    lobbies.read().lobbies.iter().map(|lobby| rsx!(LobbyComponent {lobby: lobby}))
+                })
+            }}
         }
     }
 }
@@ -297,17 +268,10 @@ fn LobbyComponent(lobby: String) -> Element {
     let mut create_lobby_response_msg = use_signal(|| String::from(""));
 
     rsx!(
-        div { class: "flex flex-row justify-between",
+        div { class: "container-row",
             div { "{lobby}" }
-            button {
-                class: "shadow-sm p-6 rounded-md bg-slate-200 hover:bg-slate-300 w-1/2",
-                onclick: move |_| {
-                    info!("Get details for lobby");
-                },
-                "Game details"
-            }
             Link {
-                class: "shadow-sm p-6 rounded-md bg-slate-200 hover:bg-slate-300 w-1/2",
+                class: "link",
                 to: Route::GameRoom {
                     room_code: lobby.clone(),
                 },
@@ -569,12 +533,12 @@ fn GameRoom(room_code: String) -> Element {
             if gamestate().gameplay_state == GameplayState::Pregame {
                 rsx!(
                     button {
-                        class: "h-full w-full bg-blue-500",
+                        class: "button",
                         onclick: move |evt| get_game_details(app_props.read().lobby_code.clone()),
                         "Refresh player list"
                     }
                     button {
-                        class: "h-full w-full bg-blue-500",
+                        class: "button",
                         onclick: move |evt| {
                             // let room_code_clone = room_code_clone.clone();
                             async move {
@@ -599,44 +563,53 @@ fn GameRoom(room_code: String) -> Element {
                         },
                         "Join this game",
                     }
-                    div { "lobby: {lobby.read().lobby_code}" }
-                    div { "Players ({lobby.read().players.len()})" }
-                    {lobby.read().players.iter().enumerate().map(|(i, player)| rsx!(div { "{i}: {player}" }))},
-                    div { class: "flex flex-col bg-purple-300 h-full w-full text-center",
-                        div { class: "text-4xl ", "Game options" }
-                        div { class: "flex flex-row align-middle w-full",
-                            label { "Rounds" }
-                            input {
-                                r#type: "number",
-                                onchange: move |evt| num_rounds.set(evt.value().parse::<usize>().unwrap_or(9)),
-                                value: "{num_rounds}"
+                    div {
+                        class: "container",
+                        h1 {class: "lg", "{lobby.read().lobby_code}" }
+                        div { "Players ({lobby.read().players.len()})"
+                            {lobby.read().players.iter().enumerate().map(|(i, player)| rsx!(div { "{i}: {player}" }))},
+                        }
+                        div { class: "container",
+                            div {
+                                class: "text-4xl",
+                                "Game options"
                             }
+                            div { class: "flex flex-row align-middle w-full",
+                                label { "Rounds" }
+                                input {
+                                    class: "input",
+                                    r#type: "number",
+                                    onchange: move |evt| num_rounds.set(evt.value().parse::<usize>().unwrap_or(9)),
+                                    value: "{num_rounds}"
+                                }
+                            }
+        
+                        button {
+                            class: "button",
+                            onclick: move |evt| {
+                                info!("Starting game");
+                                ws_send
+                                    .send(
+                                        InnerMessage::GameMessage {
+                                            msg: GameMessage {
+                                                username: app_props.read().username.clone(),
+                                                message: GameEvent {
+                                                    action: GameAction::StartGame(SetupGameOptions {
+                                                        rounds: gamestate().setup_game_options.rounds,
+                                                        deterministic: false,
+                                                        start_round: None,
+                                                    }),
+                                                },
+                                                timestamp: Utc::now(),
+                                        }});
+                            },
+                            "Start game"
                         }
                     }
-                    button {
-                        class: "h-full w-full bg-blue-500",
-                        onclick: move |evt| {
-                            info!("Starting game");
-                            ws_send
-                                .send(
-                                    InnerMessage::GameMessage {
-                                        msg: GameMessage {
-                                            username: app_props.read().username.clone(),
-                                            message: GameEvent {
-                                                action: GameAction::StartGame(SetupGameOptions {
-                                                    rounds: gamestate().setup_game_options.rounds,
-                                                    deterministic: false,
-                                                    start_round: None,
-                                                }),
-                                            },
-                                            timestamp: Utc::now(),
-                                    }});
-                        },
-                        "Start game"
-                    }
+                }
                 )
             } else {
-                rsx!(div { "Game is not in pregame state" })
+                rsx!(div {})
             }
         },
         {
@@ -652,7 +625,7 @@ fn GameRoom(room_code: String) -> Element {
                     .expect("Player not found")
                     .encrypted_hand
                     .clone();
-
+        
                 let is_turn_css = if gamestate()
                     .curr_player_turn
                     .unwrap_or("".to_string())
@@ -662,7 +635,7 @@ fn GameRoom(room_code: String) -> Element {
                 } else {
                     "bg-slate-100"
                 };
-
+        
                 let is_turn_outline_css = if gamestate()
                     .curr_player_turn
                     .unwrap_or("".to_string())
@@ -672,20 +645,19 @@ fn GameRoom(room_code: String) -> Element {
                 } else {
                     ""
                 };
-
+        
                 rsx!(
                         div { class: "bg-red-500 w-full h-full", "My app props: {app_props.read():?}" }
-                        div { class: "bg-green-300 w-full h-full",
-                        div { "This is the game" }
-                        div { "State: {gamestate().gameplay_state:?}" }
-                        div { "Trump: {gamestate().trump:?}" }
-                        div {
-                            ol { {gamestate().player_order.iter().map(|player| rsx!(li { "{player}" }))} }
+                        div { class: "container",
+                            div { "State: {gamestate().gameplay_state:?}" }
+                            div { "Trump: {gamestate().trump:?}" }
+                            div {
+                                ol { {gamestate().player_order.iter().map(|player| rsx!(li { "{player}" }))} }
+                            }
+                            div { "Round: {gamestate().curr_round}" }
+                            div { "Dealer: {gamestate().curr_dealer}" }
+                            div { "Player turn: {gamestate().curr_player_turn:?}" }
                         }
-                        div { "Round: {gamestate().curr_round}" }
-                        div { "Dealer: {gamestate().curr_dealer}" }
-                        div { "Player turn: {gamestate().curr_player_turn:?}" }
-                    }
                     div { class: "bg-blue-300 w-full h-full",
                         "Play area"
                         div { class: "w-full h-[100px] flex flex-row relative justify-center",
@@ -724,7 +696,7 @@ fn GameRoom(room_code: String) -> Element {
                                 label { "Bid" }
                                 ol { class: "flex flex-row",
                                     {(0..=gamestate().curr_round).into_iter().map(|i| {
-
+        
                                         rsx!(
                                             li { key: "{i}",
                                                 button {
