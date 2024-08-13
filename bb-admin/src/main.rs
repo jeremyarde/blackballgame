@@ -67,7 +67,7 @@ enum InnerMessage {
 #[component]
 fn StateProvider() -> Element {
     let mut app_props = use_context_provider(|| {
-        let is_prod = env!("ENVIRONMENT") == "production";
+        let is_prod = option_env!("ENVIRONMENT").unwrap_or("default") == "production";
         let mut server_url =
             String::from("https://blackballgame-blackballgame-server.onrender.com");
         let mut server_base_url = String::from("blackballgame-blackballgame-server.onrender.com");
@@ -91,9 +91,7 @@ fn StateProvider() -> Element {
         })
     });
 
-    rsx!(
-        Outlet::<Route> {}
-    )
+    rsx!(Outlet::<Route> {})
 }
 
 const _: &str = manganis::mg!(file("./main.css"));
@@ -583,7 +581,7 @@ fn GameRoom(room_code: String) -> Element {
                                     value: "{num_rounds}"
                                 }
                             }
-        
+
                         button {
                             class: "button",
                             onclick: move |evt| {
@@ -625,7 +623,7 @@ fn GameRoom(room_code: String) -> Element {
                     .expect("Player not found")
                     .encrypted_hand
                     .clone();
-        
+
                 let is_turn_css = if gamestate()
                     .curr_player_turn
                     .unwrap_or("".to_string())
@@ -635,7 +633,7 @@ fn GameRoom(room_code: String) -> Element {
                 } else {
                     "bg-slate-100"
                 };
-        
+
                 let is_turn_outline_css = if gamestate()
                     .curr_player_turn
                     .unwrap_or("".to_string())
@@ -645,7 +643,7 @@ fn GameRoom(room_code: String) -> Element {
                 } else {
                     ""
                 };
-        
+
                 rsx!(
                         div { class: "bg-red-500 w-full h-full", "My app props: {app_props.read():?}" }
                         div { class: "container",
@@ -696,7 +694,7 @@ fn GameRoom(room_code: String) -> Element {
                                 label { "Bid" }
                                 ol { class: "flex flex-row",
                                     {(0..=gamestate().curr_round).into_iter().map(|i| {
-        
+
                                         rsx!(
                                             li { key: "{i}",
                                                 button {
