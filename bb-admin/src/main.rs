@@ -30,10 +30,6 @@ use tracing::{info, Level};
 #[derive(Routable, PartialEq, Clone)]
 #[rustfmt::skip]
 enum Route {
-    // #[route("/")]
-    // //  if the current location doesn't match any of the other routes, redirect to "/home"
-    // #[redirect("/:..segments", |segments: Vec<String>| Route::Home {})]
-    // Home {},
     #[layout(StateProvider)]
     #[route("/")]
     Home {},
@@ -94,7 +90,7 @@ fn StateProvider() -> Element {
     rsx!(Outlet::<Route> {})
 }
 
-const _: &str = manganis::mg!(file("./main.css"));
+const _STYLE: &str = manganis::mg!(file("./main.css"));
 
 fn main() {
     // Init logger
@@ -110,13 +106,6 @@ fn main() {
         }
     });
 }
-
-// #[derive(Clone, Debug)]
-// enum InternalMessage {
-//     Game(GameMessage),
-//     Server(Connect),
-//     WsAction(WsAction),
-// }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 enum WsState {
@@ -151,12 +140,32 @@ fn Home() -> Element {
                     }
                 }
             }
-            Link {
-                class: "link disabled_{disabled}",
-                aria_disabled: "{disabled}",
-                to: Route::Explorer {},
-                "Start or find a game"
+            Link { class: "link disabled_{disabled}", to: Route::Explorer {}, "Start or find a game" }
+        }
+        div { class: "container",
+            label { class: "lg center", "How many hands do you want to win" }
+            ul { class: "bid-list",
+                {(0..=6).map(|i| {
+                    rsx!(
+                        button {
+                            class: "bid-item is-selected",
+                            onclick: move |_| {
+                                info!("Clicked on bid {i}");
+                            },
+                            "{i}"
+                        },
+                    )
+                    })
+                }
             }
+        }
+        div { class: "card-area",
+            {vec![Card {id: 0, suit: Suit::Club, value: 10, played_by: None}, Card {id: 1, suit: Suit::Heart, value: 7, played_by: None}].iter().map(|card| rsx!(
+                CardComponent {
+                    onclick: move |_| { info!("Clicked a card: {:?}", "fake card") },
+                    card: card.clone()
+                }
+            ))}
         }
     )
 }
@@ -564,12 +573,12 @@ fn GameRoom(room_code: String) -> Element {
                     div {
                         class: "container",
                         h1 {class: "lg", "{lobby.read().lobby_code}" }
-                        div { "Players ({lobby.read().players.len()})"
+                        div { class: "container", "Players ({lobby.read().players.len()})"
                             {lobby.read().players.iter().enumerate().map(|(i, player)| rsx!(div { "{i}: {player}" }))},
                         }
                         div { class: "container",
-                            div {
-                                class: "text-4xl",
+                            h2 {
+                                class: "lg",
                                 "Game options"
                             }
                             div { class: "flex flex-row align-middle w-full",
@@ -583,9 +592,25 @@ fn GameRoom(room_code: String) -> Element {
                             }
 
                         button {
-                            class: "button",
+                            class: "button lg",
                             onclick: move |evt| {
                                 info!("Starting game");
+                                listen_for_server_messages.send(("ready".to_string()));
+                                ws_send
+                                    .send(InnerMessage::GameMessage {
+                                        msg: GameMessage {
+                                            username: app_props().username.clone(),
+                                            timestamp: Utc::now(),
+                                            message: GameEvent {
+                                                action: GameAction::JoinGame(
+                                                    PlayerDetails{
+                                                        username: app_props.read().username.clone(),
+                                                        ip: String::new(),
+                                                        client_secret: Some(app_props.read().client_secret.clone()),
+                                                    })
+                                            },
+                                        },
+                                    });
                                 ws_send
                                     .send(
                                         InnerMessage::GameMessage {
@@ -604,6 +629,21 @@ fn GameRoom(room_code: String) -> Element {
                             "Start game"
                         }
                     }
+                    div {
+                        class: "container",
+                        h2 {"System messages"}
+                        {if gamestate().system_status.len() > 0 {
+                            rsx!(
+                                ul {
+                                {gamestate().system_status.iter().map(|issue| rsx!(li { "{issue}" }))}
+                            }
+                        )
+                        } else {
+                            rsx!(
+                            div { "Join the game first" }
+                        )}
+                    }
+                    }
                 }
                 )
             } else {
@@ -611,11 +651,7 @@ fn GameRoom(room_code: String) -> Element {
             }
         },
         {
-            if gamestate()
-                .players
-                .get(&app_props.read().username)
-                .is_some()
-            {
+            if gamestate().gameplay_state != GameplayState::Pregame {
                 let curr_hand = gamestate
                     .read()
                     .players
@@ -645,17 +681,21 @@ fn GameRoom(room_code: String) -> Element {
                 };
 
                 rsx!(
-                        div { class: "bg-red-500 w-full h-full", "My app props: {app_props.read():?}" }
-                        div { class: "container",
-                            div { "State: {gamestate().gameplay_state:?}" }
-                            div { "Trump: {gamestate().trump:?}" }
-                            div {
-                                ol { {gamestate().player_order.iter().map(|player| rsx!(li { "{player}" }))} }
-                            }
-                            div { "Round: {gamestate().curr_round}" }
-                            div { "Dealer: {gamestate().curr_dealer}" }
-                            div { "Player turn: {gamestate().curr_player_turn:?}" }
+                    div { class: "bg-red-500 w-full h-full", "My app props: {app_props.read():?}" }
+                    div { class: "container",
+                        div { "State: {gamestate().gameplay_state:?}" }
+                        div { "Trump: {gamestate().trump:?}" }
+                        div {
+                            ol { {gamestate().player_order.iter().map(|player| rsx!(li { "{player}" }))} }
                         }
+                        div { "Round: {gamestate().curr_round}" }
+                        div { "Dealer: {gamestate().curr_dealer}" }
+                        div { "Player turn: {gamestate().curr_player_turn:?}" }
+                    }
+                    div {
+                        "Scores",
+
+                    }
                     div { class: "bg-blue-300 w-full h-full",
                         "Play area"
                         div { class: "w-full h-[100px] flex flex-row relative justify-center",
@@ -667,9 +707,9 @@ fn GameRoom(room_code: String) -> Element {
                             ))}
                         }
                     }
-                    div { class: "bg-red-300 w-full h-full {is_turn_outline_css}",
+                    div { class: "",
                         "Action area"
-                        div { class: "w-full flex h-[100px] flex-row relative justify-center",
+                        div { class: "card-area",
                             {GameState::decrypt_player_hand(
                                 curr_hand,
                                 &app_props.read().client_secret.clone(),
@@ -690,39 +730,29 @@ fn GameRoom(room_code: String) -> Element {
                             })}
                         }
                         if gamestate().gameplay_state == GameplayState::Bid {
-                            div { class: "flex justify-center m-4",
-                                label { "Bid" }
-                                ol { class: "flex flex-row",
-                                    {(0..=gamestate().curr_round).into_iter().map(|i| {
-
+                            div { class: "container",
+                                label { class: "lg center", "How many hands do you want to win" }
+                                ul { class: "bid-list",
+                                    {(0..=6).map(|i| {
                                         rsx!(
-                                            li { key: "{i}",
-                                                button {
-                                                    class: "w-24 h-10 border border-solid rounded-md {is_turn_css}",
-                                                    onclick: move |_| {
-                                                        info!("Clicked on bid {i}");
-                                                        // send_bid(*i);
-                                                        // ws_send.send(InternalMessage::Game(GameMessage {
-                                                        //     username: app_props.read().username.clone(),
-                                                        //     message: GameEvent {
-                                                        //         action: GameAction::Bid(i),
-                                                        //     },
-                                                        //     timestamp: Utc::now(),
-                                                        // }));
-                                                        ws_send.send(InnerMessage::GameMessage {
-                                                            msg: GameMessage {
-                                                                username: app_props.read().username.clone(),
-                                                                message: GameEvent {
-                                                                    action: GameAction::Bid(i),
-                                                                },
-                                                                timestamp: Utc::now(),
-                                                    }});
-                                                },
-                                                    "{i}"
-                                                }
-                                            }
+                                            button {
+                                                class: "bid-item is-selected",
+                                                onclick: move |_| {
+                                                    info!("Clicked on bid {i}");
+                                                    ws_send.send(InnerMessage::GameMessage {
+                                                        msg: GameMessage {
+                                                            username: app_props.read().username.clone(),
+                                                            message: GameEvent {
+                                                                action: GameAction::Bid(i),
+                                                            },
+                                                            timestamp: Utc::now(),
+                                                }});
+                                            },
+                                                "{i}"
+                                            },
                                         )
-                                    })}
+                                        })
+                                    }
                                 }
                             }
                         }
@@ -785,7 +815,7 @@ fn GameRoom(room_code: String) -> Element {
 }
 
 pub const CARD_ASSET: manganis::ImageAsset =
-    manganis::mg!(image("./assets/outline.png").size(144, 192));
+    manganis::mg!(image("./assets/outline.png").size(96, 128));
 pub const SUIT_HEART: manganis::ImageAsset = manganis::mg!(image("./assets/suits/heart.png"));
 pub const SUIT_DIAMOND: manganis::ImageAsset = manganis::mg!(image("./assets/suits/diamond.png"));
 pub const SUIT_CLUB: manganis::ImageAsset = manganis::mg!(image("./assets/suits/club.png"));
@@ -803,13 +833,13 @@ fn CardComponent(card: Card, onclick: EventHandler<Card>) -> Element {
     };
     rsx!(
         div {
-            class: "relative w-[64px]",
+            class: "card",
             onclick: move |evt| {
                 onclick(card.clone());
             },
-            img { class: "absolute top-0 left-0 z-10", src: "{CARD_ASSET}" }
-            img { class: "absolute z-20 top-[15px] left-[35%]", src: "{suit}" }
-            div { class: "text-lg z-30 absolute top-[30px] left-[10px]", "{card.value}" }
+            img { class: "card-bg", src: "{CARD_ASSET}" }
+            img { class: "card-suit", src: "{suit}" }
+            div { class: "card-value", "{card.value}" }
         }
     )
 }

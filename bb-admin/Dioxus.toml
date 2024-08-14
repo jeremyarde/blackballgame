@@ -35,7 +35,7 @@ watch_path = ["src", "assets"]
 
 # CSS style file
 
-style = ["main.css"]
+# style = ["main.css"]
 
 # Javascript code file
 script = []
