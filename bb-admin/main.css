@@ -189,3 +189,41 @@
  */
  border: 2px solid chartreuse;
 }
+
+
+.scores {
+    z-index: 40;
+    background: yellow;
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    top: 40px;
+    left: 40px;
+    padding: 10px 10px 10px 10px;
+}
+
+.bids {
+    z-index: 40;
+    background: yellow;
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    top: 40px;
+    right: 40px;
+    padding: 10px 10px 10px 10px;
+}
+
+.gameinfo {
+    z-index: 40;
+    background: #ff0;
+    width: 200px;
+    height: 100px;
+    padding: 10px;
+    position: absolute;
+    right: 40%;
+    top: 10px;
+  }
+
+.player-turn {
+ 
+}

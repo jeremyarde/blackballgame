@@ -87,7 +87,9 @@ fn StateProvider() -> Element {
         })
     });
 
-    rsx!(Outlet::<Route> {})
+    rsx!(
+        Outlet::<Route> {}
+    )
 }
 
 const _STYLE: &str = manganis::mg!(file("./main.css"));
@@ -117,6 +119,7 @@ enum WsState {
 fn Home() -> Element {
     let mut app_props: Signal<AppProps> = use_context::<Signal<AppProps>>();
     let mut disabled = use_signal(|| true);
+
     rsx!(
         div { class: "container",
             h1 { class: "header", "Blackball" }
@@ -141,31 +144,6 @@ fn Home() -> Element {
                 }
             }
             Link { class: "link disabled_{disabled}", to: Route::Explorer {}, "Start or find a game" }
-        }
-        div { class: "container",
-            label { class: "lg center", "How many hands do you want to win" }
-            ul { class: "bid-list",
-                {(0..=6).map(|i| {
-                    rsx!(
-                        button {
-                            class: "bid-item is-selected",
-                            onclick: move |_| {
-                                info!("Clicked on bid {i}");
-                            },
-                            "{i}"
-                        },
-                    )
-                    })
-                }
-            }
-        }
-        div { class: "card-area",
-            {vec![Card {id: 0, suit: Suit::Club, value: 10, played_by: None}, Card {id: 1, suit: Suit::Heart, value: 7, played_by: None}].iter().map(|card| rsx!(
-                CardComponent {
-                    onclick: move |_| { info!("Clicked a card: {:?}", "fake card") },
-                    card: card.clone()
-                }
-            ))}
         }
     )
 }
@@ -590,7 +568,7 @@ fn GameRoom(room_code: String) -> Element {
                                     value: "{num_rounds}"
                                 }
                             }
-
+        
                         button {
                             class: "button lg",
                             onclick: move |evt| {
@@ -659,7 +637,7 @@ fn GameRoom(room_code: String) -> Element {
                     .expect("Player not found")
                     .encrypted_hand
                     .clone();
-
+        
                 let is_turn_css = if gamestate()
                     .curr_player_turn
                     .unwrap_or("".to_string())
@@ -669,7 +647,7 @@ fn GameRoom(room_code: String) -> Element {
                 } else {
                     "bg-slate-100"
                 };
-
+        
                 let is_turn_outline_css = if gamestate()
                     .curr_player_turn
                     .unwrap_or("".to_string())
@@ -679,22 +657,40 @@ fn GameRoom(room_code: String) -> Element {
                 } else {
                     ""
                 };
-
+        
                 rsx!(
                     div { class: "bg-red-500 w-full h-full", "My app props: {app_props.read():?}" }
-                    div { class: "container",
+                    div { class: "gameinfo",
                         div { "State: {gamestate().gameplay_state:?}" }
                         div { "Trump: {gamestate().trump:?}" }
-                        div {
-                            ol { {gamestate().player_order.iter().map(|player| rsx!(li { "{player}" }))} }
-                        }
+                        ol { {gamestate().player_order.iter().map(|player| rsx!(li { class: "player-turn", "{player}" }))} }
                         div { "Round: {gamestate().curr_round}" }
                         div { "Dealer: {gamestate().curr_dealer}" }
                         div { "Player turn: {gamestate().curr_player_turn:?}" }
                     }
-                    div {
-                        "Scores",
-
+                    div { class: "scores",
+                        h2 { "Scores " }
+                        {gamestate().score.iter().map(|(player, bid)| {
+                            rsx!(
+                                div {
+                                    class: "container-row",
+                                    div { "Player: {player}" }
+                                    div { "Bid: {bid}" }
+                                }
+                            )
+                        })}
+                    }
+                    div { class: "bids",
+                        h2 { "Bids" }
+                        {gamestate().bids.iter().map(|(player, bid)| {
+                                rsx!(
+                                    div {
+                                        class: "container-row",
+                                        div { "Player: {player}" }
+                                        div { "Bid: {bid}" }
+                                    }
+                                )
+                            })}
                     }
                     div { class: "bg-blue-300 w-full h-full",
                         "Play area"
