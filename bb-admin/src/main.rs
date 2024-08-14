@@ -119,6 +119,29 @@ enum WsState {
 fn Home() -> Element {
     let mut app_props: Signal<AppProps> = use_context::<Signal<AppProps>>();
     let mut disabled = use_signal(|| true);
+    let mut gamestate = GameState::new(String::from("test"));
+    gamestate.add_player(
+        "player1".to_string(),
+        common::PlayerRole::Player,
+        "0.0.0.0".to_string(),
+    );
+    gamestate.add_player(
+        "player2".to_string(),
+        common::PlayerRole::Player,
+        "0.0.0.0".to_string(),
+    );
+    gamestate.process_event(GameMessage {
+        username: "player1".to_string(),
+        message: GameEvent {
+            action: GameAction::StartGame(SetupGameOptions {
+                rounds: 4,
+                deterministic: true,
+                start_round: Some(3),
+            }),
+        },
+        timestamp: Utc::now(),
+    });
+    let mut gamestate = use_signal(|| gamestate);
 
     rsx!(
         div { class: "container",
@@ -659,38 +682,46 @@ fn GameRoom(room_code: String) -> Element {
                 };
         
                 rsx!(
-                    div { class: "bg-red-500 w-full h-full", "My app props: {app_props.read():?}" }
-                    div { class: "gameinfo",
-                        div { "State: {gamestate().gameplay_state:?}" }
-                        div { "Trump: {gamestate().trump:?}" }
-                        ol { {gamestate().player_order.iter().map(|player| rsx!(li { class: "player-turn", "{player}" }))} }
-                        div { "Round: {gamestate().curr_round}" }
-                        div { "Dealer: {gamestate().curr_dealer}" }
-                        div { "Player turn: {gamestate().curr_player_turn:?}" }
-                    }
-                    div { class: "scores",
-                        h2 { "Scores " }
-                        {gamestate().score.iter().map(|(player, bid)| {
-                            rsx!(
-                                div {
-                                    class: "container-row",
-                                    div { "Player: {player}" }
-                                    div { "Bid: {bid}" }
-                                }
-                            )
-                        })}
-                    }
-                    div { class: "bids",
-                        h2 { "Bids" }
-                        {gamestate().bids.iter().map(|(player, bid)| {
+                    div { class: "container-row",
+                        div { class: "gameinfo container",
+                            h2 { "Phase: {gamestate().gameplay_state:?}" }
+                            div { "Trump: {gamestate().trump:?}" }
+                            ol {
+                                {gamestate().player_order.iter().map(|player| rsx!(li { class: "player-turn", "{player}" }))}
+                            }
+                            div { "Round: {gamestate().curr_round}" }
+                            div { "Dealer: {gamestate().curr_dealer}" }
+                            if gamestate().curr_player_turn.is_some() {
+                                div { "Player turn: {gamestate().curr_player_turn.unwrap()}" }
+                            } else {
+                                div { "Player turn: None" }
+                            }
+                        }
+                        div { class: "scores",
+                            h2 { "Scores" }
+                            {gamestate().score.iter().map(|(player, bid)| {
+                                rsx!(
+                                    div {
+                                        class: "container-row",
+                                        div { "{player}" }
+                                        div { "Score: {bid}" }
+                                    }
+                                )
+                            })}
+                        }
+                        div { class: "bids",
+                            h2 { "Bids" }
+                            {gamestate().bids.iter().map(|(player, bid)| {
+                                let wins = gamestate().wins.get(player).unwrap_or(&0).clone();
                                 rsx!(
                                     div {
                                         class: "container-row",
                                         div { "Player: {player}" }
-                                        div { "Bid: {bid}" }
+                                        div { "{wins}/{bid}" }
                                     }
                                 )
                             })}
+                        }
                     }
                     div { class: "bg-blue-300 w-full h-full",
                         "Play area"
