@@ -1,6 +1,8 @@
 use chrono::{DateTime, Utc};
+use data_encoding::BASE64;
+use game::xor_encrypt_decrypt;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::{collections::HashMap, fmt, net::SocketAddr};
 
 mod client;
@@ -69,10 +71,29 @@ pub struct GameClient {
     pub id: String,
     #[serde(skip)]
     pub hand: Vec<Card>, // we don't want everyone getting this information
+    #[serde(skip)]
+    // pub secret: String,
     pub encrypted_hand: String,
     pub num_cards: i32,
     pub role: PlayerRole,
     pub details: PlayerDetails,
+}
+
+impl GameClient {
+    pub fn update_hand(&mut self, new_hand: Vec<Card>) {
+        self.hand = new_hand;
+        self.encrypt_hand();
+    }
+
+    fn encrypt_hand(&mut self) {
+        let hand = self.hand.clone();
+        let plaintext_hand = json!(hand).to_string();
+        let player_secret = &self.details.client_secret;
+        let encoded = xor_encrypt_decrypt(&plaintext_hand, player_secret);
+        let secret_data = BASE64.encode(&encoded);
+
+        self.encrypted_hand = secret_data;
+    }
 }
 
 impl fmt::Display for GameClient {
@@ -249,7 +270,7 @@ pub enum GameAction {
 pub struct PlayerDetails {
     pub username: String,
     pub ip: String,
-    pub client_secret: Option<String>,
+    pub client_secret: String,
 }
 
 #[derive(Debug, Clone, PartialOrd, PartialEq, Ord, Eq, Serialize, Deserialize)]
@@ -293,6 +314,17 @@ pub struct Card {
     pub suit: Suit,
     pub value: i32,
     pub played_by: Option<String>,
+}
+
+impl Card {
+    pub fn new(suit: Suit, value: i32) -> Self {
+        Card {
+            id: 0,
+            suit,
+            value: value,
+            played_by: None,
+        }
+    }
 }
 
 #[derive(Deserialize, Debug, Serialize, Clone)]

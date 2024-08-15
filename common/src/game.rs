@@ -214,7 +214,13 @@ impl GameState {
                     dest: Destination::User(PlayerDetails {
                         username: event.username.clone(),
                         ip: String::new(),
-                        client_secret: None,
+                        client_secret: self
+                            .players
+                            .get(username)
+                            .unwrap()
+                            .details
+                            .client_secret
+                            .clone(),
                     }),
                     msg: crate::GameActionResponse::Connect(Connect {
                         username: event.username.clone(),
@@ -320,8 +326,10 @@ impl GameState {
         self.players_secrets
             .insert(player_id.clone(), client_secret.clone());
 
-        self.players
-            .insert(player_id.clone(), GameClient::new(player_id, role, ip));
+        self.players.insert(
+            player_id.clone(),
+            GameClient::new(player_id, role, ip, client_secret.clone()),
+        );
         return client_secret;
     }
 
@@ -694,7 +702,7 @@ fn is_played_card_valid(
     Ok(played_card.clone())
 }
 
-fn xor_encrypt_decrypt(data: &str, key: &str) -> Vec<u8> {
+pub fn xor_encrypt_decrypt(data: &str, key: &str) -> Vec<u8> {
     data.as_bytes()
         .iter()
         .zip(key.as_bytes().iter().cycle())
@@ -706,8 +714,8 @@ mod tests {
     use chrono::Utc;
 
     use crate::{
-        create_deck, game::find_winning_card, Card, GameMessage, GameState, GameplayState,
-        PlayState, PlayerRole, SetupGameOptions, Suit,
+        create_deck, game::find_winning_card, Card, GameAction, GameMessage, GameState,
+        GameplayState, PlayState, PlayerRole, SetupGameOptions, Suit,
     };
 
     #[test]
@@ -771,20 +779,6 @@ mod tests {
     }
 
     #[test]
-    fn test_decrypt_hand_2() {
-        let hand =
-            "KBBbNl1SS1YJWlUWD1JLBxc0GyYbSlMCG1pVFRZaRkBJSQovWBQUQRVUAQcPRldASVpKImQ=".to_string();
-        let secret = "sky_sw9cezjdtbwi";
-
-        // let decrypted_hand = GameState::decrypt_player_hand(hand, &secret.to_string());
-
-        let decrypted_hand =
-            GameState::get_hand_from_encrypted(hand.to_string(), &secret.to_string());
-
-        println!("Decrypted: {:?}", decrypted_hand);
-    }
-
-    #[test]
     fn test_finding_winning_card_no_trump_first_suit_wins() {
         let cards = vec![
             Card {
@@ -843,6 +837,71 @@ mod tests {
 
         assert!(res == "P1".to_string());
         assert!(i == 0);
+    }
+
+    #[test]
+    fn test_bids_cant_equal_round() {
+        let PLAYER_ONE = "p1".to_string();
+        let PLAYER_TWO = "p2".to_string();
+
+        let mut game = GameState::new("lobby".to_string());
+        game.add_player(PLAYER_ONE.clone(), PlayerRole::Leader, "ip".to_string());
+        game.add_player(PLAYER_TWO.clone(), PlayerRole::Player, "ip".to_string());
+
+        game.process_event(GameMessage {
+            username: PLAYER_ONE.clone(),
+            message: crate::GameEvent {
+                action: crate::GameAction::StartGame(SetupGameOptions::from(5, true, Some(3))),
+                // origin: crate::Actioner::Player(PLAYER_ONE.clone()),
+            },
+            timestamp: Utc::now(),
+        });
+
+        let firstplayer = game.curr_player_turn.clone().unwrap();
+        game.process_event(GameMessage {
+            username: game.curr_player_turn.clone().unwrap(),
+            message: crate::GameEvent {
+                action: GameAction::Bid(4),
+            },
+            timestamp: Utc::now(),
+        });
+
+        assert!(game
+            .bids
+            .get(&game.curr_player_turn.clone().unwrap())
+            .is_none());
+
+        // should be able to bid the round number
+        game.process_event(GameMessage {
+            username: game.curr_player_turn.clone().unwrap(),
+            message: crate::GameEvent {
+                action: GameAction::Bid(3),
+            },
+            timestamp: Utc::now(),
+        });
+
+        println!("Bids: {:?}", game.bids);
+        assert_eq!(game.bids.get(&firstplayer).clone(), Some(&3));
+
+        // curr player turn updates, and we should not be able to bid 0
+        let secondplayer = game.curr_player_turn.clone().unwrap();
+        game.process_event(GameMessage {
+            username: secondplayer.clone(),
+            message: crate::GameEvent {
+                action: GameAction::Bid(0),
+            },
+            timestamp: Utc::now(),
+        });
+        assert!(game.bids.get(&secondplayer).is_none());
+
+        game.process_event(GameMessage {
+            username: secondplayer.clone(),
+            message: crate::GameEvent {
+                action: GameAction::Bid(1),
+            },
+            timestamp: Utc::now(),
+        });
+        assert_eq!(game.bids.get(&secondplayer).clone(), Some(&1));
     }
 
     #[test]

@@ -1,6 +1,6 @@
 ---
 source: common/src/game.rs
-assertion_line: 1061
+assertion_line: 1117
 expression: game
 ---
 lobby_code: lobby
@@ -15,11 +15,19 @@ players:
     encrypted_hand: "[encrypted_hand]"
     num_cards: 0
     role: Leader
+    details:
+      username: p1
+      ip: ip
+      client_secret: ~
   p2:
     id: p2
     encrypted_hand: "[encrypted_hand]"
     num_cards: 0
     role: Player
+    details:
+      username: p2
+      ip: ip
+      client_secret: ~
 curr_round: 3
 trump: heart
 player_order:
@@ -41,4 +49,4 @@ gameplay_state: Bid
 event_log: []
 system_status: []
 is_public: true
-latest_update: "2024-08-11T13:52:08.588983Z"
+latest_update: "2024-08-14T22:49:27.644486Z"

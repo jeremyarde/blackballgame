@@ -121,8 +121,18 @@
 }
 
 
+.card-area {
+    width: 100%;
+    height: 128px;
+    display: flex;
+    flex-direction: row;
+    /* position: relative; */
+    justify-content: center;
+    background: orange;
+}
+
 .card {
-    position: relative;
+    /* position: relative; */
     width: 96px;
 }
 
@@ -138,7 +148,8 @@
 }
 
 .card-suit {
-    position: absolute;
+    /* position: absolute; */
+    position: relative;
     z-index: 20;
     top: 40px;
     left: 50px;
@@ -149,16 +160,16 @@
     height: 128px;
     display: flex;
     flex-direction: row;
-    position: relative;
+    /* position: relative; */
     justify-content: center;
     background: aquamarine;
 }
 
 .card-value {
-    position: absolute;
-    z-index: 30;
-    top: 40px;
-    left: 10px;
+    position: relative;
+    z-index: 2;
+    /* top: 40px;
+    left: 10px; */
     font-size: xx-large;
 }
 
@@ -200,7 +211,7 @@
     /* top: 40px;
     left: 40px; */
     width: 100%;
-    height: 100%;
+    /* height: 200px; */
     padding: 10px 10px 10px 10px;
 }
 
@@ -213,17 +224,17 @@
     /* top: 40px;
     right: 40px; */
     width: 100%;
-    height: 100%;
+    /* height: 200px; */
     padding: 10px 10px 10px 10px;
 }
 
 .gameinfo {
     z-index: 40;
     background: #ff0;
+    width: 100%;
     /* width: 200px;
     height: 100px; */
-    width: 100%;
-    height: 100%;
+    /* height: 200px; */
     padding: 10px 10px 10px 10px;
     /* position: absolute; */
     /* right: 40%;
@@ -233,3 +244,4 @@
 .player-turn {
  
 }
+
