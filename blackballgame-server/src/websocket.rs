@@ -191,23 +191,25 @@ async fn handle_socket(
                         info!("[CLIENT-SENDER] Lobby: {:?}", lobby);
                         // if lobby == this_lobby_code {
                         // }
-                        if lobby
-                            .iter()
-                            .map(|ply| &ply.ip)
-                            .collect::<Vec<&String>>()
-                            .contains(&&user_ip)
-                        {
+                        let lobbyips = lobby.iter().map(|ply| &ply.ip).collect::<Vec<&String>>();
+                        if lobbyips.contains(&&user_ip) {
+                            info!("[CLIENT-SENDER] SUCCESS - User IP is in lobby users: user:{} vs lobby:{:?}", user_ip, lobbyips);
                             let _ = sender
                                 .send(Message::Text(json!(msg.clone()).to_string()))
                                 .await;
+                        } else {
+                            info!("[CLIENT-SENDER] FAIL - User IP is not in lobby users: user:{} vs lobby:{:?}", user_ip, lobbyips);
                         }
                     }
                     Destination::User(playerdetails) => {
                         info!("[CLIENT-SENDER] Player details: {:?}", playerdetails);
                         if playerdetails.ip == user_ip {
+                            info!("[CLIENT-SENDER] SUCCESS - User IP matches receiver: user:{} vs recv:{}", user_ip, playerdetails.ip);
                             let _ = sender
                                 .send(Message::Text(json!(msg.clone()).to_string()))
                                 .await;
+                        } else {
+                            info!("[CLIENT-SENDER] User IP does not match receiver: user:{} vs recv:{}", user_ip, playerdetails.ip);
                         }
                         // if this_username == username && lobby == this_lobby_code {
                         // }

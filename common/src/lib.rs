@@ -71,7 +71,7 @@ pub struct GameClient {
     pub id: String,
     #[serde(skip)]
     pub hand: Vec<Card>, // we don't want everyone getting this information
-    #[serde(skip)]
+    // #[serde(skip)]
     // pub secret: String,
     pub encrypted_hand: String,
     pub num_cards: i32,

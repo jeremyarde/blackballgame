@@ -128,7 +128,7 @@
     flex-direction: row;
     /* position: relative; */
     justify-content: center;
-    background: orange;
+    /* background: orange; */
 }
 
 .card {
@@ -166,7 +166,7 @@
     flex-direction: row;
     /* position: relative; */
     justify-content: center;
-    background: aquamarine;
+    /* background: aquamarine; */
 }
 
 .card-value {
@@ -205,14 +205,15 @@
     /* border: solid 1px black; */
     /* justify-content: center; */
     /* padding: 10px; */
-    background-color: tomato;
+    background-color: rgb(251, 192, 52);
+    padding: 10px 10px 10px 10px;
 }
 
 .is-selected {
     /* outline: solid;
     outline-color: chartreuse;
  */
- border: 2px solid chartreuse;
+ /* border: 2px solid chartreuse; */
 }
 
 

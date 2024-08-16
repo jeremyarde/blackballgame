@@ -52,6 +52,7 @@ struct AppProps {
     server_base_url: String,
     server_ws_url: String,
     environment: Env,
+    debug_mode: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -84,7 +85,11 @@ fn StateProvider() -> Element {
         }
 
         Signal::new(AppProps {
-            username: String::from("player1"),
+            username: if is_prod {
+                String::new()
+            } else {
+                String::from("")
+            },
             // username: String::new(),
             lobby_code: String::new(),
             client_secret: String::new(),
@@ -97,6 +102,7 @@ fn StateProvider() -> Element {
             } else {
                 Env::Development
             },
+            debug_mode: false,
         })
     });
 
@@ -129,48 +135,48 @@ enum WsState {
 fn Home() -> Element {
     let mut app_props: Signal<AppProps> = use_context::<Signal<AppProps>>();
     let mut disabled = use_signal(|| true);
-    let mut gamestate = GameState::new(String::from("test"));
+    // let mut gamestate = GameState::new(String::from("test"));
 
     let ws_send: Coroutine<InnerMessage> = use_coroutine(|mut rx| async move {});
     let ws_send_signal = use_signal(|| ws_send);
 
-    gamestate.add_player(
-        "player1".to_string(),
-        common::PlayerRole::Player,
-        "0.0.0.0".to_string(),
-    );
-    gamestate.add_player(
-        "player2".to_string(),
-        common::PlayerRole::Player,
-        "0.0.0.0".to_string(),
-    );
-    gamestate.process_event(GameMessage {
-        username: "player1".to_string(),
-        message: GameEvent {
-            action: GameAction::StartGame(SetupGameOptions {
-                rounds: 4,
-                deterministic: true,
-                start_round: Some(3),
-            }),
-        },
-        timestamp: Utc::now(),
-    });
-    if let Some(x) = gamestate.players.get_mut(&"player1".to_string()) {
-        x.hand = vec![
-            // *x.hand = vec![
-            Card::new(Suit::Club, 5),
-            Card::new(Suit::Club, 14),
-            Card::new(Suit::Club, 1),
-            Card::new(Suit::Club, 10),
-        ];
-    }
-    gamestate.curr_played_cards = vec![
-        Card::new(Suit::Club, 5),
-        Card::new(Suit::Heart, 14),
-        Card::new(Suit::Diamond, 1),
-        Card::new(Suit::Spade, 10),
-    ];
-    let mut gamestate = use_signal(|| gamestate);
+    // gamestate.add_player(
+    //     "player1".to_string(),
+    //     common::PlayerRole::Player,
+    //     "0.0.0.0".to_string(),
+    // );
+    // gamestate.add_player(
+    //     "player2".to_string(),
+    //     common::PlayerRole::Player,
+    //     "0.0.0.0".to_string(),
+    // );
+    // gamestate.process_event(GameMessage {
+    //     username: "player1".to_string(),
+    //     message: GameEvent {
+    //         action: GameAction::StartGame(SetupGameOptions {
+    //             rounds: 4,
+    //             deterministic: true,
+    //             start_round: Some(3),
+    //         }),
+    //     },
+    //     timestamp: Utc::now(),
+    // });
+    // if let Some(x) = gamestate.players.get_mut(&"player1".to_string()) {
+    //     x.hand = vec![
+    //         // *x.hand = vec![
+    //         Card::new(Suit::Club, 5),
+    //         Card::new(Suit::Club, 14),
+    //         Card::new(Suit::Club, 1),
+    //         Card::new(Suit::Club, 10),
+    //     ];
+    // }
+    // gamestate.curr_played_cards = vec![
+    //     Card::new(Suit::Club, 5),
+    //     Card::new(Suit::Heart, 14),
+    //     Card::new(Suit::Diamond, 1),
+    //     Card::new(Suit::Spade, 10),
+    // ];
+    // let mut gamestate = use_signal(|| gamestate);
 
     rsx!(
         div { class: "container",
@@ -196,9 +202,6 @@ fn Home() -> Element {
                 }
             }
             Link { class: "link disabled_{disabled}", to: Route::Explorer {}, "Start or find a game" }
-        }
-        if app_props.read().environment == Env::Development {
-            GameStateComponent { gamestate, ws_send: ws_send_signal }
         }
     )
 }
@@ -235,7 +238,6 @@ fn Explorer() -> Element {
                 Err(err) => {
                     // log::info!("Request failed with error: {err:?}")
                     lobbies.set(GetLobbiesResponse { lobbies: vec![] });
-                    // create_lobby_response_msg.set(format!("{err}").into());
                 }
             }
         });
@@ -331,30 +333,30 @@ fn GameRoom(room_code: String) -> Element {
 
     let mut server_message = use_signal(|| Value::Null);
 
-    let mut gamestate = GameState::new(String::from("test"));
-    gamestate.add_player(
-        "player1".to_string(),
-        common::PlayerRole::Player,
-        "0.0.0.0".to_string(),
-    );
-    gamestate.add_player(
-        "player2".to_string(),
-        common::PlayerRole::Player,
-        "0.0.0.0".to_string(),
-    );
-    gamestate.process_event(GameMessage {
-        username: "player1".to_string(),
-        message: GameEvent {
-            action: GameAction::StartGame(SetupGameOptions {
-                rounds: 4,
-                deterministic: true,
-                start_round: Some(3),
-            }),
-        },
-        timestamp: Utc::now(),
-    });
-    let mut gamestate = use_signal(|| gamestate);
-    // let mut gamestate = use_signal(|| GameState::new(room_code.clone()));
+    // let mut gamestate = GameState::new(String::from("test"));
+    // gamestate.add_player(
+    //     "player1".to_string(),
+    //     common::PlayerRole::Player,
+    //     "0.0.0.0".to_string(),
+    // );
+    // gamestate.add_player(
+    //     "player2".to_string(),
+    //     common::PlayerRole::Player,
+    //     "0.0.0.0".to_string(),
+    // );
+    // gamestate.process_event(GameMessage {
+    //     username: "player1".to_string(),
+    //     message: GameEvent {
+    //         action: GameAction::StartGame(SetupGameOptions {
+    //             rounds: 4,
+    //             deterministic: true,
+    //             start_round: Some(3),
+    //         }),
+    //     },
+    //     timestamp: Utc::now(),
+    // });
+    // let mut gamestate = use_signal(|| gamestate);
+    let mut gamestate = use_signal(|| GameState::new(room_code.clone()));
 
     let mut ws_url = use_signal(|| {
         String::from(format!(
@@ -586,6 +588,8 @@ fn GameRoom(room_code: String) -> Element {
         info!("Finished listening to player actions");
     });
 
+    let ws_send_signal = use_signal(|| ws_send);
+
     rsx!(
         {
             if error().is_null() {
@@ -708,195 +712,9 @@ fn GameRoom(room_code: String) -> Element {
                 rsx!(div {})
             }
         },
-        {
-            if gamestate().gameplay_state != GameplayState::Pregame {
-                let curr_hand = gamestate
-                    .read()
-                    .players
-                    .get(&app_props.read().username)
-                    .expect("Player not found")
-                    .encrypted_hand
-                    .clone();
-
-                let is_turn_css = if gamestate()
-                    .curr_player_turn
-                    .unwrap_or("".to_string())
-                    .eq(&app_props.read().username)
-                {
-                    "bg-green-300"
-                } else {
-                    "bg-slate-100"
-                };
-
-                let is_turn_outline_css = if gamestate()
-                    .curr_player_turn
-                    .unwrap_or("".to_string())
-                    .eq(&app_props.read().username)
-                {
-                    "outline outline-4 outline-yellow-300"
-                } else {
-                    ""
-                };
-
-                rsx!(
-                    div { class: "container-row",
-                        div { class: "gameinfo container",
-                            h2 { "Phase: {gamestate().gameplay_state:?}" }
-                            div { "Trump: {gamestate().trump:?}" }
-                            ol {
-                                {gamestate().player_order.iter().map(|player| rsx!(li { class: "player-turn", "{player}" }))}
-                            }
-                            div { "Round: {gamestate().curr_round}" }
-                            div { "Dealer: {gamestate().curr_dealer}" }
-                            if gamestate().curr_player_turn.is_some() {
-                                div { "Player turn: {gamestate().curr_player_turn.unwrap()}" }
-                            } else {
-                                div { "Player turn: None" }
-                            }
-                        }
-                        div {
-                            class: "container",
-                                div { class: "scores",
-                                h2 { "Scores" }
-                                {gamestate().score.iter().map(|(player, bid)| {
-                                    rsx!(
-                                        div {
-                                            class: "container-row",
-                                            div { "{player}" }
-                                            div { "Score: {bid}" }
-                                        }
-                                    )
-                                })}
-                            }
-                            div { class: "bids",
-                                h2 { "Bids" }
-                                {gamestate().bids.iter().map(|(player, bid)| {
-                                    let wins = gamestate().wins.get(player).unwrap_or(&0).clone();
-                                    rsx!(
-                                        div {
-                                            class: "container-row",
-                                            div { "Player: {player}" }
-                                            div { "{wins}/{bid}" }
-                                        }
-                                    )
-                                })}
-                            }
-                        }
-                    }
-                    div { class: "container-row",
-                        "Play area"
-                        div { class: "w-full h-[100px] flex flex-row relative justify-center",
-                            {gamestate().curr_played_cards.iter().map(|card| rsx!(
-                                CardComponent {
-                                    onclick: move |_| { info!("Clicked a card: {:?}", "fake card") },
-                                    card: card.clone()
-                                }
-                            ))}
-                        }
-                    }
-                    div { class: "container-row",
-                        "Action area"
-                        div { class: "card-area",
-                            {GameState::decrypt_player_hand(
-                                curr_hand,
-                                &app_props.read().client_secret.clone(),
-                            ).iter().map(|card| {
-                                return rsx!(
-                                    CardComponent {
-                                        onclick: move |clicked_card: Card| {
-                                            ws_send.send(InnerMessage::GameMessage {
-                                                msg: GameMessage {
-                                                    username: app_props.read().username.clone(),
-                                                    message: GameEvent { action: GameAction::PlayCard(clicked_card) },
-                                                    timestamp: Utc::now()}
-                                            });
-                                        },
-                                        card: card.clone()
-                                    }
-                                );
-                            })}
-                        }
-                        if gamestate().gameplay_state == GameplayState::Bid {
-                            div { class: "container",
-                                label { class: "lg center", "How many hands do you want to win" }
-                                ul { class: "bid-list",
-                                    {(0..=6).map(|i| {
-                                        rsx!(
-                                            button {
-                                                class: "bid-item is-selected",
-                                                onclick: move |_| {
-                                                    info!("Clicked on bid {i}");
-                                                    ws_send.send(InnerMessage::GameMessage {
-                                                        msg: GameMessage {
-                                                            username: app_props.read().username.clone(),
-                                                            message: GameEvent {
-                                                                action: GameAction::Bid(i),
-                                                            },
-                                                            timestamp: Utc::now(),
-                                                }});
-                                            },
-                                                "{i}"
-                                            },
-                                        )
-                                        })
-                                    }
-                                }
-                            }
-                        }
-                        {if let GameplayState::PostHand(ps) = gamestate().gameplay_state {
-                            rsx!(
-                                div {
-                                    class: "content-center text-center",
-                                    button {
-                                        class: "bg-green-300 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded shadow-lg",
-                                        onclick: move |_| {
-                                            ws_send
-                                                .send(InnerMessage::GameMessage {
-                                                    msg: GameMessage {
-                                                        username: app_props.read().username.clone(),
-                                                        message: GameEvent {
-                                                            action: GameAction::Ack,
-                                                        },
-                                                        timestamp: Utc::now(),
-                                                    },
-                                                });
-                                        },
-                                        "Acknowledge"
-                                    }
-                                }
-                            )
-                        } else {
-                            rsx!()
-                        }}
-                        {if let GameplayState::PostRound = gamestate().gameplay_state {
-                            rsx!(
-                                div {
-                                    class: "content-center text-center",
-                                    button {
-                                        class: "bg-green-300 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded shadow-lg ",
-                                        onclick: move |_| {
-                                            ws_send
-                                                .send(InnerMessage::GameMessage {
-                                                    msg: GameMessage {
-                                                        username: app_props.read().username.clone(),
-                                                        message: GameEvent {
-                                                            action: GameAction::Ack,
-                                                        },
-                                                        timestamp: Utc::now(),
-                                                    },
-                                                });
-                                        },
-                                        "Acknowledge"
-                                    }
-                                }
-                            )
-                        } else {
-                            rsx!()
-                        }}
-                })
-            } else {
-                rsx! {div {"Something went wrong"}}
-            }
+        GameStateComponent {
+            gamestate,
+            ws_send: ws_send_signal
         }
     )
 }
@@ -1164,7 +982,6 @@ fn GameStateComponent(
                 div {
                     class: "container-row",
                     div { class: "card-area",
-                        "Play area"
                         div { class: "w-full h-[100px] flex flex-row relative justify-center",
                             {gamestate().curr_played_cards.iter().map(|card| rsx!(
                                 CardComponent {
@@ -1175,8 +992,13 @@ fn GameStateComponent(
                         }
                     }
                 }
+                if gamestate().curr_player_turn.unwrap_or("".to_string()) == app_props.read().username {
+                    {rsx!(div {
+                        class: "container-row",
+                        "Your turn"
+                    })}
+                }
                 div { class: "container-row",
-                    "Action area"
                     div { class: "card-area",
                         {GameState::decrypt_player_hand(
                             curr_hand,
@@ -1228,9 +1050,9 @@ fn GameStateComponent(
                 {if let GameplayState::PostHand(ps) = gamestate().gameplay_state {
                     rsx!(
                         div {
-                            class: "content-center text-center",
+                            class: "container",
                             button {
-                                class: "bg-green-300 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded shadow-lg",
+                                class: "button",
                                 onclick: move |_| {
                                     ws_send()
                                         .send(InnerMessage::GameMessage {
