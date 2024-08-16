@@ -222,7 +222,7 @@
 }
 
 
-.scores {
+/* .scores {
     z-index: 40;
     background: yellow;
     /* position: absolute; */
@@ -243,15 +243,15 @@
     height: 100px; */
     /* top: 40px;
     right: 40px; */
-    width: 100%;
+    width: 50%;
     /* height: 200px; */
     padding: 10px 10px 10px 10px;
-}
+} */
 
 .gameinfo {
     z-index: 40;
     background: #ff0;
-    width: 100%;
+    width: 50%;
     /* width: 200px;
     height: 100px; */
     /* height: 200px; */

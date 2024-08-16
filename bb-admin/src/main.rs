@@ -935,11 +935,195 @@ fn GameStateComponent(
                 ""
             };
 
+            let trump_svg = match gamestate().trump {
+                Suit::Spade => rsx!(
+                    svg {
+                        "fill": "none",
+                        "xmlns": "http://www.w3.org/2000/svg",
+                        height: "40",
+                        width: "40",
+                        "viewBox": "0 0 100 100",
+                        x: "15",
+                        y: "10",
+                        ellipse {
+                            "cy": "43.5",
+                            "rx": "25",
+                            "cx": "25",
+                            "ry": "43.5",
+                            "fill": "black"
+                        }
+                        rect {
+                            "y": "40",
+                            "x": "19",
+                            width: "12",
+                            "fill": "black",
+                            height: "68"
+                        }
+                    }
+                ),
+                Suit::Heart => rsx!(
+                    svg {
+                        "fill": "none",
+                        "xmlns": "http://www.w3.org/2000/svg",
+                        height: "40",
+                        "viewBox": "0 0 101 103",
+                        width: "40",
+                        x: "5",
+                        y: "10",
+                        ellipse {
+                            "rx": "25",
+                            "cx": "76",
+                            "cy": "25",
+                            "ry": "25",
+                            "transform": "rotate(180 76 25)",
+                            "fill": "#FF0000"
+                        }
+                        path {
+                            "fill": "#FF0000",
+                            "d": "M0 25C0 11.1929 11.1929 -3.8147e-06 25 -3.8147e-06C38.8071 -3.8147e-06 50 11.1929 50 25C50 38.8071 38.8071 50 25 50C11.1929 50 0 38.8071 0 25Z"
+                        }
+                        path {
+                            "d": "M50.5 99.5L97 37.9291L53.5 14L50.5 18.5L47.5 14L4 37.9291L50.5 99.5Z",
+                            "fill": "#FF0000"
+                        }
+                    }
+                ),
+                Suit::Diamond => rsx!(
+                    svg {
+                        width: "40",
+                        height: "40",
+                        "xmlns": "http://www.w3.org/2000/svg",
+                        "fill": "none",
+                        "viewBox": "0 0 114 114",
+                        x: "4",
+                        y: "10",
+                        rect {
+                            width: "80",
+                            height: "80",
+                            "y": "56.5685",
+                            "fill": "#FF0000",
+                            "transform": "rotate(-45 0 56.5685)"
+                        }
+                    }
+                ),
+                Suit::Club => rsx!(
+                    svg {
+                        "xmlns": "http://www.w3.org/2000/svg",
+                        "viewBox": "0 0 100 108",
+                        height: "40",
+                        width: "40",
+                        "fill": "none",
+                        x: "5",
+                        y: "10",
+                        circle {
+                            "fill": "black",
+                            "r": "25",
+                            "cx": "25",
+                            "cy": "62"
+                        }
+                        circle {
+                            "cx": "75",
+                            "cy": "62",
+                            "r": "25",
+                            "fill": "black"
+                        }
+                        circle {
+                            "fill": "black",
+                            "cy": "25",
+                            "cx": "50",
+                            "r": "25"
+                        }
+                        rect {
+                            "y": "40",
+                            "x": "44",
+                            width: "12",
+                            height: "68",
+                            "fill": "black"
+                        }
+                    }
+                ),
+                Suit::NoTrump => rsx!(
+
+                    svg {
+                        "fill": "none",
+                        height: "40",
+                        width: "40",
+                        "xmlns": "http://www.w3.org/2000/svg",
+                        "viewBox": "0 0 114 114",
+                        rect {
+                            "fill": "#F3ADCF",
+                            height: "112.137",
+                            "y": "0.499969",
+                            "x": "0.500031",
+                            width: "112.137"
+                        }
+                        rect {
+                            "x": "0.500031",
+                            "y": "0.499969",
+                            width: "112.137",
+                            height: "112.137",
+                            "stroke": "black"
+                        }
+                        g { "filter": "url(#filter0_d_13_7)",
+                            rect {
+                                "x": "3.05176e-05",
+                                height: "80",
+                                "rx": "25",
+                                "transform": "rotate(-45 3.05176e-05 56.5685)",
+                                width: "80",
+                                "fill": "white",
+                                "y": "56.5685"
+                            }
+                        }
+                        defs {
+                            filter {
+                                "filterUnits": "userSpaceOnUse",
+                                "y": "10.3553",
+                                "color-interpolation-filters": "sRGB",
+                                width: "100.426",
+                                "x": "6.35538",
+                                height: "100.426",
+                                id: "filter0_d_13_7",
+                                feFlood { "flood-opacity": "0", "result": "BackgroundImageFix" }
+                                feColorMatrix {
+                                    "values": "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0",
+                                    "result": "hardAlpha",
+                                    "in": "SourceAlpha",
+                                    r#type: "matrix"
+                                }
+                                feOffset { "dy": "4" }
+                                feGaussianBlur { "stdDeviation": "2" }
+                                feComposite { "operator": "out", "in2": "hardAlpha" }
+                                feColorMatrix {
+                                    "values": "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0",
+                                    r#type: "matrix"
+                                }
+                                feBlend {
+                                    "mode": "normal",
+                                    "in2": "BackgroundImageFix",
+                                    "result": "effect1_dropShadow_13_7"
+                                }
+                                feBlend {
+                                    "mode": "normal",
+                                    "in2": "effect1_dropShadow_13_7",
+                                    "in": "SourceGraphic",
+                                    "result": "shape"
+                                }
+                            }
+                        }
+                    }
+
+                ),
+            };
+
             rsx!(
                 div { class: "container-row",
                     div { class: "gameinfo container",
                         h2 { "Phase: {gamestate().gameplay_state:?}" }
-                        div { "Trump: {gamestate().trump:?}" }
+                        div {
+                            "Trump: {gamestate().trump:?}"
+                            {trump_svg}
+                        }
                         ol {
                             {gamestate().player_order.iter().map(|player| rsx!(li { class: "player-turn", "{player}" }))}
                         }
@@ -952,8 +1136,8 @@ fn GameStateComponent(
                         }
                     }
                     div {
-                        class: "container",
-                        div { class: "scores",
+                        class: "container gameinfo",
+                        div { class: "container",
                         h2 { "Scores" }
                         {gamestate().score.iter().map(|(player, bid)| {
                             rsx!(
@@ -1075,9 +1259,9 @@ fn GameStateComponent(
                     {if let GameplayState::PostRound = gamestate().gameplay_state {
                         rsx!(
                             div {
-                                class: "content-center text-center",
+                                class: "container",
                                 button {
-                                    class: "bg-green-300 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded shadow-lg ",
+                                    class: "button",
                                     onclick: move |_| {
                                         ws_send()
                                             .send(InnerMessage::GameMessage {
