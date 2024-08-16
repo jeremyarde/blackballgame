@@ -994,7 +994,7 @@ fn GameStateComponent(
                 }
                 if gamestate().curr_player_turn.unwrap_or("".to_string()) == app_props.read().username {
                     {rsx!(div {
-                        class: "container-row",
+                        class: "container-row turn-indicator",
                         "Your turn"
                     })}
                 }

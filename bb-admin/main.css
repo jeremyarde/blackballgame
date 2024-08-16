@@ -25,6 +25,11 @@
     text-align: center;
 }
 
+.turn-indicator {
+    font-size: x-large;
+  background: aquamarine;
+}
+
 * {
     font-family: Arial, Helvetica, sans-serif;
     background-color: #f0fdf4;
