@@ -740,11 +740,11 @@ fn CardComponent(card: Card, onclick: EventHandler<Card>) -> Element {
     };
 
     let textvalue = match card.value {
-        11 => "J",
-        12 => "Q",
-        13 => "K",
-        14 => "A",
-        val => &val.to_string().clone(),
+        11 => "J".to_string(),
+        12 => "Q".to_string(),
+        13 => "K".to_string(),
+        14 => "A".to_string(),
+        val => val.to_string().clone(),
     };
 
     let suit_svg = match card.suit {
