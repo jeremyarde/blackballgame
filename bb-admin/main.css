@@ -250,7 +250,7 @@
 
 .gameinfo {
     z-index: 40;
-    background: #ff0;
+    background: rgb(224, 255, 178);
     width: 50%;
     /* width: 200px;
     height: 100px; */
