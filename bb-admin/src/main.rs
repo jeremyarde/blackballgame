@@ -935,8 +935,8 @@ fn CardComponent(card: Card, onclick: EventHandler<Card>) -> Element {
                 "fill": "none",
                 "xmlns": "http://www.w3.org/2000/svg",
                 height: "40",
-                width: "25",
-                "viewBox": "-10 0 100 100",
+                width: "40",
+                "viewBox": "0 0 100 100",
                 x: "15",
                 y: "10",
                 ellipse {
@@ -1045,8 +1045,6 @@ fn CardComponent(card: Card, onclick: EventHandler<Card>) -> Element {
             onclick: move |evt| {
                 onclick(card.clone());
             },
-            div { class: "card-value", "{textvalue}" }
-
             svg {
                 "shape-rendering": "crispEdges",
                 "viewBox": "0 -0.5 48 64",
@@ -1077,6 +1075,7 @@ fn CardComponent(card: Card, onclick: EventHandler<Card>) -> Element {
                 path { "stroke": "#d8d2d2", "d": "M17 61h1M20 61h1M41 61h1" }
                 {suit_svg}
             }
+            div { class: "card-value", "{textvalue}" }
         }
     )
 }

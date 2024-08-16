@@ -137,6 +137,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
 }
 
 .card-bg {
@@ -178,11 +179,11 @@
     font-size: xxx-large;
     position: absolute;
     /* position: absolute; */
-    top: 0px;
+    /* top: 0px; */
     /* backface-visibility: hidden; */
     background: transparent;
     color: snow;
-    right: 0px;
+    /* right: 0px; */
     align-self: center;
 }
 
