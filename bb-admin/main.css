@@ -134,6 +134,9 @@
 .card {
     /* position: relative; */
     width: 96px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .card-bg {
@@ -166,11 +169,21 @@
 }
 
 .card-value {
-    position: relative;
-    z-index: 2;
-    /* top: 40px;
-    left: 10px; */
-    font-size: xx-large;
+    text-shadow:
+    -1px -1px 0 #000,
+    1px -1px 0 #000,
+    -1px 1px 0 #000,
+    1px 1px 0 #000;
+    z-index: 50;
+    font-size: xxx-large;
+    position: absolute;
+    /* position: absolute; */
+    top: 0px;
+    /* backface-visibility: hidden; */
+    background: transparent;
+    color: snow;
+    right: 0px;
+    align-self: center;
 }
 
 .bid-list {

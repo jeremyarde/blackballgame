@@ -903,6 +903,8 @@ fn GameRoom(room_code: String) -> Element {
 
 pub const CARD_ASSET: manganis::ImageAsset =
     manganis::mg!(image("./assets/outline.png").size(96, 128));
+// pub const CARD_BG_SVG: manganis::ImageAsset =
+//     manganis::mg!(image("./assets/outline.svg").format(ImageType::Svg));
 pub const SUIT_HEART: manganis::ImageAsset = manganis::mg!(image("./assets/suits/heart.png"));
 pub const SUIT_DIAMOND: manganis::ImageAsset = manganis::mg!(image("./assets/suits/diamond.png"));
 pub const SUIT_CLUB: manganis::ImageAsset = manganis::mg!(image("./assets/suits/club.png"));
@@ -927,15 +929,154 @@ fn CardComponent(card: Card, onclick: EventHandler<Card>) -> Element {
         val => &val.to_string().clone(),
     };
 
+    let suit_svg = match card.suit {
+        Suit::Spade => rsx!(
+            svg {
+                "fill": "none",
+                "xmlns": "http://www.w3.org/2000/svg",
+                height: "40",
+                width: "25",
+                "viewBox": "-10 0 100 100",
+                x: "15",
+                y: "10",
+                ellipse {
+                    "cy": "43.5",
+                    "rx": "25",
+                    "cx": "25",
+                    "ry": "43.5",
+                    "fill": "black"
+                }
+                rect {
+                    "y": "40",
+                    "x": "19",
+                    width: "12",
+                    "fill": "black",
+                    height: "68"
+                }
+            }
+        ),
+        Suit::Heart => rsx!(
+            svg {
+                "fill": "none",
+                "xmlns": "http://www.w3.org/2000/svg",
+                height: "40",
+                "viewBox": "0 0 101 103",
+                width: "40",
+                x: "5",
+                y: "10",
+                ellipse {
+                    "rx": "25",
+                    "cx": "76",
+                    "cy": "25",
+                    "ry": "25",
+                    "transform": "rotate(180 76 25)",
+                    "fill": "#FF0000"
+                }
+                path {
+                    "fill": "#FF0000",
+                    "d": "M0 25C0 11.1929 11.1929 -3.8147e-06 25 -3.8147e-06C38.8071 -3.8147e-06 50 11.1929 50 25C50 38.8071 38.8071 50 25 50C11.1929 50 0 38.8071 0 25Z"
+                }
+                path {
+                    "d": "M50.5 99.5L97 37.9291L53.5 14L50.5 18.5L47.5 14L4 37.9291L50.5 99.5Z",
+                    "fill": "#FF0000"
+                }
+            }
+        ),
+        Suit::Diamond => rsx!(
+            svg {
+                width: "40",
+                height: "40",
+                "xmlns": "http://www.w3.org/2000/svg",
+                "fill": "none",
+                "viewBox": "0 0 114 114",
+                x: "4",
+                y: "10",
+                rect {
+                    width: "80",
+                    height: "80",
+                    "y": "56.5685",
+                    "fill": "#FF0000",
+                    "transform": "rotate(-45 0 56.5685)"
+                }
+            }
+        ),
+        Suit::Club => rsx!(
+            svg {
+                "xmlns": "http://www.w3.org/2000/svg",
+                "viewBox": "0 0 100 108",
+                height: "40",
+                width: "40",
+                "fill": "none",
+                x: "5",
+                y: "10",
+                circle {
+                    "fill": "black",
+                    "r": "25",
+                    "cx": "25",
+                    "cy": "62"
+                }
+                circle {
+                    "cx": "75",
+                    "cy": "62",
+                    "r": "25",
+                    "fill": "black"
+                }
+                circle {
+                    "fill": "black",
+                    "cy": "25",
+                    "cx": "50",
+                    "r": "25"
+                }
+                rect {
+                    "y": "40",
+                    "x": "44",
+                    width: "12",
+                    height: "68",
+                    "fill": "black"
+                }
+            }
+        ),
+        Suit::NoTrump => rsx!(),
+    };
+
     rsx!(
         div {
             class: "card",
             onclick: move |evt| {
                 onclick(card.clone());
             },
-            img { class: "card-bg", src: "{CARD_ASSET}" }
-            img { class: "card-suit", src: "{suit}" }
             div { class: "card-value", "{textvalue}" }
+
+            svg {
+                "shape-rendering": "crispEdges",
+                "viewBox": "0 -0.5 48 64",
+                "xmlns": "http://www.w3.org/2000/svg",
+                meta { data: "false" }
+                "Made with Pixels to Svg https://codepen.io/shshaw/pen/XbxvNj"
+                path {
+                    "d": "M0 0h48M0 1h48M0 2h48M0 3h4M44 3h4M0 4h3M4 4h39M45 4h3M0 5h3M4 5h39M46 5h2M0 6h3M4 6h39M46 6h2M0 7h3M4 7h39M46 7h2M0 8h3M4 8h39M46 8h2M0 9h3M4 9h39M46 9h2M0 10h3M4 10h39M46 10h2M0 11h3M4 11h39M46 11h2M0 12h3M4 12h39M46 12h2M0 13h3M4 13h39M46 13h2M0 14h3M4 14h39M46 14h2M0 15h3M4 15h39M46 15h2M0 16h3M4 16h39M46 16h2M0 17h3M4 17h39M46 17h2M0 18h3M4 18h39M46 18h2M0 19h3M4 19h39M46 19h2M0 20h3M4 20h39M46 20h2M0 21h3M4 21h39M46 21h2M0 22h3M4 22h39M46 22h2M0 23h3M4 23h39M46 23h2M0 24h3M4 24h39M46 24h2M0 25h3M4 25h39M46 25h2M0 26h3M4 26h39M46 26h2M0 27h3M4 27h39M46 27h2M0 28h3M4 28h39M46 28h2M0 29h3M4 29h39M46 29h2M0 30h3M4 30h39M46 30h2M0 31h3M4 31h39M46 31h2M0 32h3M4 32h39M46 32h2M0 33h3M4 33h39M46 33h2M0 34h3M4 34h39M46 34h2M0 35h3M4 35h39M46 35h2M0 36h3M4 36h39M46 36h2M0 37h3M4 37h39M46 37h2M0 38h3M4 38h39M46 38h2M0 39h3M4 39h39M46 39h2M0 40h3M4 40h39M46 40h2M0 41h3M4 41h39M46 41h2M0 42h3M4 42h39M46 42h2M0 43h3M4 43h39M46 43h2M0 44h3M4 44h39M46 44h2M0 45h3M4 45h39M46 45h2M0 46h3M4 46h39M46 46h2M0 47h3M4 47h39M46 47h2M0 48h3M4 48h39M46 48h2M0 49h3M4 49h39M46 49h2M0 50h3M4 50h39M46 50h2M0 51h3M4 51h39M46 51h2M0 52h3M4 52h39M46 52h2M0 53h3M4 53h39M46 53h2M0 54h3M4 54h39M46 54h2M0 55h3M4 55h39M46 55h2M0 56h3M4 56h39M46 56h2M0 57h3M4 57h39M46 57h2M0 58h3M4 58h39M46 58h2M0 59h3M46 59h2M0 60h4M46 60h2M0 61h5M45 61h3M0 62h48M0 63h48",
+                    "stroke": "#ffffff"
+                }
+                path {
+                    "d": "M4 3h1M28 3h7M39 3h3M43 3h1M43 4h1M43 11h1M3 13h1M43 21h1M3 24h1M3 25h1M3 27h1M3 28h1M3 29h1M43 32h1M3 36h1M3 37h1M3 40h1M3 41h1M3 42h1M43 42h1M3 43h1M3 44h1M3 45h1M3 46h1M3 47h1M3 48h1M43 50h1M43 51h1M3 52h1M3 53h1M3 54h1M3 55h1M3 59h1M6 59h2M14 59h2M29 59h4M34 59h9",
+                    "stroke": "#000000"
+                }
+                path {
+                    "d": "M5 3h23M35 3h4M42 3h1M3 4h1M3 5h1M43 5h1M3 6h1M43 6h1M3 7h1M43 7h1M3 8h1M43 8h1M3 9h1M43 9h1M3 10h1M43 10h1M3 11h1M3 12h1M43 12h1M43 13h1M3 14h1M43 14h1M3 15h1M43 15h1M3 16h1M43 16h1M3 17h1M43 17h1M3 18h1M43 18h1M3 19h1M43 19h1M3 20h1M43 20h1M3 21h1M3 22h1M43 22h1M3 23h1M43 23h1M43 24h1M43 25h1M3 26h1M43 26h1M43 27h1M43 28h1M43 29h1M3 30h1M43 30h1M3 31h1M43 31h1M3 32h1M3 33h1M43 33h1M3 34h1M43 34h1M3 35h1M43 35h1M43 36h1M43 37h1M3 38h1M43 38h1M3 39h1M43 39h1M43 40h1M43 41h1M43 43h1M43 44h1M43 45h1M43 46h1M43 47h1M43 48h1M3 49h1M43 49h1M3 50h1M3 51h1M43 52h1M43 53h1M43 54h1M43 55h1M3 56h1M43 56h1M3 57h1M43 57h1M3 58h1M43 58h1M4 59h2M8 59h6M16 59h13M33 59h1",
+                    "stroke": "#010101"
+                }
+                path {
+                    "stroke": "#807f7f",
+                    "d": "M44 4h1M44 5h1M44 6h1M44 7h1M44 8h1M44 9h1M44 10h1M44 11h1M44 12h1M44 13h1M44 14h1M44 15h1M44 16h1M44 17h1M44 18h1M44 19h1M44 20h1M44 21h1M44 22h1M44 23h1M44 24h1M44 25h1M44 26h1M44 27h1M44 28h1M44 29h1M44 30h1M44 31h1M44 32h1M44 33h1M44 34h1M44 35h1M44 36h1M44 37h1M44 38h1M44 39h1M44 40h1M44 41h1M44 42h1M44 43h1M44 44h1M44 45h1M44 46h1M44 47h1M44 48h1M44 49h1M44 50h1M44 51h1M44 52h1M44 53h1M44 54h1M44 55h1M44 56h1M44 57h1M44 58h1M44 59h1M4 60h40"
+                }
+                path {
+                    "d": "M45 5h1M45 6h1M45 7h1M45 8h1M45 9h1M45 10h1M45 11h1M45 12h1M45 13h1M45 14h1M45 15h1M45 16h1M45 17h1M45 18h1M45 19h1M45 20h1M45 21h1M45 22h1M45 23h1M45 24h1M45 25h1M45 26h1M45 27h1M45 28h1M45 29h1M45 30h1M45 31h1M45 32h1M45 33h1M45 34h1M45 35h1M45 36h1M45 37h1M45 38h1M45 39h1M45 40h1M45 41h1M45 42h1M45 43h1M45 44h1M45 45h1M45 46h1M45 47h1M45 48h1M45 49h1M45 50h1M45 51h1M45 52h1M45 53h1M45 54h1M45 55h1M45 56h1M45 57h1M45 58h1M45 59h1M44 60h2M5 61h12M18 61h2M21 61h20M42 61h3",
+                    "stroke": "#d7d2d2"
+                }
+                path { "stroke": "#7f7e7e", "d": "M43 59h1" }
+                path { "stroke": "#d8d2d2", "d": "M17 61h1M20 61h1M41 61h1" }
+                {suit_svg}
+            }
         }
     )
 }
