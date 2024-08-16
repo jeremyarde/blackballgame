@@ -1117,7 +1117,7 @@ fn GameStateComponent(
             };
 
             rsx!(
-                div { class: "container-row",
+                div { class: "container-row score-bg",
                     div { class: "gameinfo container",
                         h2 { "Phase: {gamestate().gameplay_state:?}" }
                         div {
