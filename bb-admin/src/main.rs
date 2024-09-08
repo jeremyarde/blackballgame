@@ -1266,6 +1266,36 @@ fn GameStateComponent(
                     } else {
                         rsx!()
                     }}
+                    {if let GameplayState::End = gamestate().gameplay_state {
+                        rsx!(
+                            div {
+                                class: "container",
+                                div {"GAME OVER"}
+                                {gamestate().score.iter().map(|(player, score)| {rsx!(li { "{player}: {score}" })})}
+                            }
+                            div {
+                                class: "container",
+                                button {
+                                    class: "button",
+                                    onclick: move |_| {
+                                        ws_send()
+                                            .send(InnerMessage::GameMessage {
+                                                msg: GameMessage {
+                                                    username: app_props.read().username.clone(),
+                                                    message: GameEvent {
+                                                        action: GameAction::Ack,
+                                                    },
+                                                    timestamp: Utc::now(),
+                                                },
+                                            });
+                                    },
+                                    "Acknowledge"
+                                }
+                            }
+                        )
+                    } else {
+                        rsx!()
+                    }}
             )
         } else {
             rsx! {div {""}}

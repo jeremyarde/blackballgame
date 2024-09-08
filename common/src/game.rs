@@ -40,9 +40,22 @@ impl GameState {
                 }
             }
             GameplayState::PostRound => {
+                info!(
+                    "jere/ post round, maybe end game?? {} vs {}",
+                    self.curr_round, self.setup_game_options.rounds
+                );
+                if self.curr_round >= self.setup_game_options.rounds as i32 {
+                    GameplayState::End
+                } else {
+                    self.curr_played_cards = vec![];
+                    self.curr_winning_card = None;
+                    GameplayState::Bid
+                }
+            }
+            GameplayState::End => {
                 self.curr_played_cards = vec![];
                 self.curr_winning_card = None;
-                GameplayState::Bid
+                GameplayState::Pregame
             }
         };
 
@@ -262,6 +275,11 @@ impl GameState {
                     || event.message.action == GameAction::Deal
                 {
                     self.start_next_hand();
+                    self.update_to_next_state();
+                }
+            }
+            GameplayState::End => {
+                if event.message.action == GameAction::Ack {
                     self.update_to_next_state();
                 }
             }

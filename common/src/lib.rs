@@ -15,6 +15,7 @@ pub enum GameplayState {
     Pregame,
     PostRound,           // players played all cards
     PostHand(PlayState), // each player played a card
+    End,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
