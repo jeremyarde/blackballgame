@@ -557,7 +557,10 @@ function Lobby() {
                     Trump suit:
                     <Suit cardsuit={gamestate.trump}></Suit>
                   </label>
-                  <label>Round: {gamestate.curr_round}</label>
+                  <label>
+                    Round: {gamestate.curr_round}/
+                    {gamestate.setup_game_options.rounds}
+                  </label>
                   <label>Player Turn: {gamestate.curr_player_turn}</label>
                   <ul className="flex flex-row space-x-2">
                     <label>Player order:</label>

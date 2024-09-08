@@ -194,12 +194,6 @@ impl GameState {
 
         info!("Processing event: {:?}", event);
         match &event.message.action {
-            // GameAction::PlayCard(_) => todo!(),
-            // GameAction::Bid(_) => todo!(),
-            // GameAction::Ack => todo!(),
-            // GameAction::StartGame(_) => todo!(),
-            // GameAction::Deal => todo!(),
-            // GameAction::CurrentState => todo!(),
             GameAction::Connect {
                 username,
                 channel,

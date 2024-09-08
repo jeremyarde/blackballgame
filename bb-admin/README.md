@@ -13,6 +13,7 @@ Run the following command in the root of the project to start the Dioxus dev ser
 ```bash
 dx serve --hot-reload
 dx serve --port 5173 --hot-reload
+cargo install dioxus-cli
 ```
 
 - Open the browser to http://localhost:8080

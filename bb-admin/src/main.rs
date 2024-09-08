@@ -24,8 +24,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tracing::{info, Level};
 
-// static ASSET_PATH: &str = "bb-admin/assets/spade.svg";
-
 // All of our routes will be a variant of this Route enum
 #[derive(Routable, PartialEq, Clone)]
 #[rustfmt::skip]
@@ -191,7 +189,7 @@ fn Home() -> Element {
                         "Got username len, val: {}, {} - {}", event.value().len(), event.value(),
                         disabled.read()
                     );
-                    if event.value().len() > 3 {
+                    if event.value().len() >= 3 {
                         info!("Username length is good");
                         disabled.set(false);
                         app_props.write().username = event.value();
@@ -291,14 +289,24 @@ fn Explorer() -> Element {
             {if create_lobby_response_msg() == String::from("") { rsx!() } else { rsx!(div { "{create_lobby_response_msg.read()}" }) }},
             button { class: "", onclick: refresh_lobbies, "Refresh lobbies" }
         }
-        div {
+        div { class: "container",
             label { class: "lg", "Ongoing games" }
             {if lobbies.read().lobbies.len() == 0 {
                 rsx!(div { "No games" })
             } else {
-                rsx!({
-                    lobbies.read().lobbies.iter().map(|lobby| rsx!(LobbyComponent {lobby: lobby}))
-                })
+                rsx!{
+                    ul {
+                            {lobbies.read().lobbies.iter().map(|lobby|
+                                {
+                                    if lobby.eq("") {
+                                        rsx!()
+                                    } else {
+                                        rsx!(LobbyComponent {lobby: lobby})
+                                    }
+                                }
+                            )}
+                    }
+                }
             }}
         }
     }
@@ -309,20 +317,18 @@ fn LobbyComponent(lobby: String) -> Element {
     let mut app_props = use_context::<Signal<AppProps>>();
     let mut create_lobby_response_msg = use_signal(|| String::from(""));
 
+    let lobbyclone = lobby.clone();
     rsx!(
-        div { class: "container-row",
-            div { "{lobby}" }
-            Link {
-                class: "link",
-                to: Route::GameRoom {
-                    room_code: lobby.clone(),
-                },
-                onclick: move |_| {
-                    info!("Joining {}", & lobby);
-                    app_props.write().lobby_code = lobby.clone();
-                },
-                "Join game"
-            }
+
+        Link {
+            class: "lobby-link",
+            to: Route::GameRoom {
+                room_code: lobby.clone(),
+            },
+            onclick: move |_| {
+                app_props.write().lobby_code = lobbyclone.clone();
+            },
+            "Join game: {lobby}"
         }
     )
 }
@@ -330,32 +336,7 @@ fn LobbyComponent(lobby: String) -> Element {
 #[component]
 fn GameRoom(room_code: String) -> Element {
     let mut app_props = use_context::<Signal<AppProps>>();
-
     let mut server_message = use_signal(|| Value::Null);
-
-    // let mut gamestate = GameState::new(String::from("test"));
-    // gamestate.add_player(
-    //     "player1".to_string(),
-    //     common::PlayerRole::Player,
-    //     "0.0.0.0".to_string(),
-    // );
-    // gamestate.add_player(
-    //     "player2".to_string(),
-    //     common::PlayerRole::Player,
-    //     "0.0.0.0".to_string(),
-    // );
-    // gamestate.process_event(GameMessage {
-    //     username: "player1".to_string(),
-    //     message: GameEvent {
-    //         action: GameAction::StartGame(SetupGameOptions {
-    //             rounds: 4,
-    //             deterministic: true,
-    //             start_round: Some(3),
-    //         }),
-    //     },
-    //     timestamp: Utc::now(),
-    // });
-    // let mut gamestate = use_signal(|| gamestate);
     let mut gamestate = use_signal(|| GameState::new(room_code.clone()));
 
     let mut ws_url = use_signal(|| {
@@ -595,7 +576,11 @@ fn GameRoom(room_code: String) -> Element {
             if error().is_null() {
                 rsx!()
             } else {
-                error.read().as_str().map(|err| rsx!(div { "{err}" }))
+                error
+                    .read()
+                    .as_str()
+                    .map(|err| rsx!(div { "{err}" }))
+                    .unwrap()
             }
         },
         {
@@ -630,13 +615,13 @@ fn GameRoom(room_code: String) -> Element {
                                     });
                             }
                         },
-                        "Join this game",
+                        "Join this game"
                     }
                     div {
-                        class: "container",
+                        class: "container border",
                         h1 {class: "lg", "{lobby.read().lobby_code}" }
                         div { class: "container", "Players ({lobby.read().players.len()})"
-                            {lobby.read().players.iter().enumerate().map(|(i, player)| rsx!(div { "{i}: {player}" }))},
+                            {lobby.read().players.iter().enumerate().map(|(i, player)| rsx!(div { "{i}: {player}" }))}
                         }
                         div { class: "container",
                             h2 {
@@ -680,7 +665,7 @@ fn GameRoom(room_code: String) -> Element {
                                                 username: app_props.read().username.clone(),
                                                 message: GameEvent {
                                                     action: GameAction::StartGame(SetupGameOptions {
-                                                        rounds: gamestate().setup_game_options.rounds,
+                                                        rounds: num_rounds(),
                                                         deterministic: false,
                                                         start_round: None,
                                                     }),
@@ -1127,7 +1112,7 @@ fn GameStateComponent(
                         ol {
                             {gamestate().player_order.iter().map(|player| rsx!(li { class: "player-turn", "{player}" }))}
                         }
-                        div { "Round: {gamestate().curr_round}" }
+                        div { "Round: {gamestate().curr_round}/{gamestate().setup_game_options.rounds}" }
                         div { "Dealer: {gamestate().curr_dealer}" }
                         if gamestate().curr_player_turn.is_some() {
                             div { "Player turn: {gamestate().curr_player_turn.unwrap()}" }

@@ -290,22 +290,28 @@ pub async fn get_room(
             Some(room) => room,
             None => {
                 info!("Room \"{}\" not found", room_code);
-                return (StatusCode::NOT_FOUND, Json(json!({
-                    "error": {
-                        "type": "NotFound",
-                        "req_uuid": nanoid_gen(10).to_string(),
-                        "message": format!("Room \"{}\" not found", room_code),
-                    }
-                })));
+                return (
+                    StatusCode::NOT_FOUND,
+                    Json(json!({
+                        "error": {
+                            "type": "NotFound",
+                            "req_uuid": nanoid_gen(10).to_string(),
+                            "message": format!("Room \"{}\" not found", room_code),
+                        }
+                    })),
+                );
             }
         };
         info!("Room \"{}\" found", room_code);
-        info!("Room players \"{:?}\"", room.players.keys());  
+        info!("Room players \"{:?}\"", room.players.keys());
         let players = room.players.keys().cloned().collect::<Vec<String>>();
-        return (StatusCode::OK, Json(json!(GetLobbyResponse {
-            lobby_code: room_code,
-            players: players,
-        })));
+        return (
+            StatusCode::OK,
+            Json(json!(GetLobbyResponse {
+                lobby_code: room_code,
+                players: players,
+            })),
+        );
     }
 
     // rooms
@@ -417,28 +423,11 @@ async fn main() {
 
     let mut game_to_client_loop = {
         tokio::spawn(async move {
-            // let mut messages = Vec::with_capacity(event_cap);
-
             info!("[GAME-CLIENT] Waiting for messages");
-            // gamechannel_broadcast_recv
-            //     .recv_many(&mut game_messages, event_cap)
-            //     .await;
-
             while let Some((msg)) = toclient_recv.recv().await {
                 info!("[GAME-CLIENT] Got message: {:?}", msg);
-                // messages.push(msg);
 
-                let lobbycode = 
-
-                // let msg = InternalMessage::Client(
-                //     Destination::User {
-                //         lobby: .clone(),
-                //         username: username.clone(),
-                //     },
-                //     msg,
-                // );
-
-                gamechannel_broadcast_send.send(msg);
+                let lobbycode = gamechannel_broadcast_send.send(msg);
                 info!("[GAME-CLIENT] Sent message to client");
             }
             info!("[GAME-CLIENT] done recieving messages from game");
@@ -447,25 +436,18 @@ async fn main() {
 
     let mut game_loop = {
         tokio::spawn(async move {
-            // let event_cap = 5;
-            // let mut rooms: HashMap<String, GameState> = HashMap::new();
             info!("[GAME] - starting thread");
             while let Some(msg) = gamechannel_recv.recv().await {
                 info!("[GAME]: Got message: {:?}", msg);
                 // info!("[GAME]: doing some processing....");
-                
-                // let msg = InternalMessage::Game(Destination::Lobby(lobby_code.clone()), msg);
-                
-                let mut state_guard = stateclone.write().await; 
+                let mut state_guard = stateclone.write().await;
                 let mut rooms = &mut state_guard.rooms;
                 match msg {
-                    InternalMessage::ToGame {msg, lobby_code, from } => {
-                        // let lc: Vec<common::PlayerDetails> = if let Destination::Lobby(x) = dest {
-                        //     x
-                        // } else {
-                        //     continue;
-                        // };
-
+                    InternalMessage::ToGame {
+                        msg,
+                        lobby_code,
+                        from,
+                    } => {
                         let mut game = match rooms.get_mut(&lobby_code) {
                             Some(x) => x,
                             None => {
@@ -473,22 +455,21 @@ async fn main() {
                                 let mut newgame = GameState::new(lobby_code.clone());
                                 rooms.insert(lobby_code.clone(), newgame);
                                 rooms.get_mut(&lobby_code).unwrap()
-                            },
-                        }; 
+                            }
+                        };
                         info!("[GAME] jere/ game before: {:?}", game);
                         let eventresult = game.process_event(msg);
                         info!("[GAME] jere/ game after: {:?}", game);
 
                         // info!("[GAME]: Finished processing: {:?}", eventresult);
                         info!("[GAME]: Finished processing");
-                        let _ = toclient_send.send(InternalMessage::ToClient { 
+                        let _ = toclient_send.send(InternalMessage::ToClient {
                             to: eventresult.dest.clone(),
                             msg: eventresult,
                         });
-                    },
+                    }
                     _ => {}
                 }
-
             }
             info!("[GAME]: Failed to get message");
             info!("[GAME]: Exited?");

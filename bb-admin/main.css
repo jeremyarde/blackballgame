@@ -25,10 +25,16 @@
     text-align: center;
 }
 
+.border {
+    border: solid 1px black;
+}
+
 .turn-indicator {
     font-size: x-large;
   background: aquamarine;
 }
+
+
 
 * {
     font-family: Arial, Helvetica, sans-serif;
@@ -104,6 +110,31 @@
     color: #888;
     font-style: italic;
 }
+
+.lobby-link {
+    display: block;
+    padding: 10px 15px;
+    background-color: #00ff0a;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+    /* transition: background-color 0.3s ease; */
+    border: solid 1px black;
+  }
+
+  .lobby-link:hover {
+    background-color: #45a049;
+  }
+  
+  .lobby-link:active {
+    background-color: #3e8e41;
+  }
+  
+  .lobby-link:focus {
+    outline: none;
+    box-shadow: 0 0 5px #4CAF50;
+  }
 
 .button {
     text-align: center;
@@ -242,3 +273,13 @@
  
 }
 
+
+.game-container {
+    position: relative;
+    width: 352px;
+    height: 198px;
+    margin: 0 auto;
+    margin-top: 20px;
+    outline: 2px orangered solid;
+
+}

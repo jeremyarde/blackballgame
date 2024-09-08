@@ -164,7 +164,7 @@ impl Default for SetupGameOptions {
 impl SetupGameOptions {
     pub fn new() -> SetupGameOptions {
         SetupGameOptions {
-            rounds: 99,
+            rounds: 9,
             deterministic: false,
             start_round: None,
         }
