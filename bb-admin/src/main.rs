@@ -853,15 +853,13 @@ fn GameStateComponent(
                 }
             }
 
-            div { class: "flex flex-col items-center h-[100px] bg-blue-200 w-full h-full",
-                div { class: "w-full h-[100px] flex flex-row relative justify-center",
-                    {gamestate().curr_played_cards.iter().map(|card| rsx!(
-                        CardComponent {
-                            onclick: move |_| { info!("Clicked a card: {:?}", "fake card") },
-                            card: card.clone()
-                        }
-                    ))}
-                }
+            div { class: "flex flex-row items-center h-[100px] bg-blue-200 w-full max-h-[200px] relative justify-center",
+                {gamestate().curr_played_cards.iter().map(|card| rsx!(
+                    CardComponent {
+                        onclick: move |_| { info!("Clicked a card: {:?}", "fake card") },
+                        card: card.clone()
+                    }
+                ))}
             }
             if gamestate().curr_player_turn.unwrap_or("".to_string()) == app_props.read().username {
                 {rsx!(div {
