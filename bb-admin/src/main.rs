@@ -86,7 +86,7 @@ fn StateProvider() -> Element {
             username: if is_prod {
                 String::new()
             } else {
-                String::from("")
+                String::from("player1")
             },
             // username: String::new(),
             lobby_code: String::new(),
@@ -107,7 +107,12 @@ fn StateProvider() -> Element {
     rsx!(Outlet::<Route> {})
 }
 
-const _STYLE: &str = manganis::mg!(file("./main.css"));
+// const _STYLE: &str = manganis::mg!(file("main.css"));
+// const _STYLE: &str = manganis::mg!(file("./assets/tailwind.css"));
+// Urls are relative to your Cargo.toml file
+const _TAILWIND_URL: &str = manganis::mg!(file("./public/tailwind.css"));
+// const __TAILWIND_URL: &str = manganis::mg!(file("./public/tailwind.css"));
+
 fn main() {
     // Init logger
     dioxus_logger::init(Level::INFO).expect("failed to init logger");
@@ -133,75 +138,80 @@ enum WsState {
 fn Home() -> Element {
     let mut app_props: Signal<AppProps> = use_context::<Signal<AppProps>>();
     let mut disabled = use_signal(|| true);
-    // let mut gamestate = GameState::new(String::from("test"));
 
     let ws_send: Coroutine<InnerMessage> = use_coroutine(|mut rx| async move {});
     let ws_send_signal = use_signal(|| ws_send);
 
-    // gamestate.add_player(
-    //     "player1".to_string(),
-    //     common::PlayerRole::Player,
-    //     "0.0.0.0".to_string(),
-    // );
-    // gamestate.add_player(
-    //     "player2".to_string(),
-    //     common::PlayerRole::Player,
-    //     "0.0.0.0".to_string(),
-    // );
-    // gamestate.process_event(GameMessage {
-    //     username: "player1".to_string(),
-    //     message: GameEvent {
-    //         action: GameAction::StartGame(SetupGameOptions {
-    //             rounds: 4,
-    //             deterministic: true,
-    //             start_round: Some(3),
-    //         }),
-    //     },
-    //     timestamp: Utc::now(),
-    // });
-    // if let Some(x) = gamestate.players.get_mut(&"player1".to_string()) {
-    //     x.hand = vec![
-    //         // *x.hand = vec![
-    //         Card::new(Suit::Club, 5),
-    //         Card::new(Suit::Club, 14),
-    //         Card::new(Suit::Club, 1),
-    //         Card::new(Suit::Club, 10),
-    //     ];
-    // }
-    // gamestate.curr_played_cards = vec![
-    //     Card::new(Suit::Club, 5),
-    //     Card::new(Suit::Heart, 14),
-    //     Card::new(Suit::Diamond, 1),
-    //     Card::new(Suit::Spade, 10),
-    // ];
-    // let mut gamestate = use_signal(|| gamestate);
+    let mut gamestate = GameState::new(String::from("test"));
+    gamestate.add_player(
+        "player1".to_string(),
+        common::PlayerRole::Player,
+        "0.0.0.0".to_string(),
+    );
+    gamestate.add_player(
+        "player2".to_string(),
+        common::PlayerRole::Player,
+        "0.0.0.0".to_string(),
+    );
+    gamestate.process_event(GameMessage {
+        username: "player1".to_string(),
+        message: GameEvent {
+            action: GameAction::StartGame(SetupGameOptions {
+                rounds: 4,
+                deterministic: true,
+                start_round: Some(3),
+            }),
+        },
+        timestamp: Utc::now(),
+    });
+    if let Some(x) = gamestate.players.get_mut(&"player1".to_string()) {
+        x.hand = vec![
+            // *x.hand = vec![
+            Card::new(Suit::Club, 5),
+            Card::new(Suit::Club, 14),
+            Card::new(Suit::Club, 1),
+            Card::new(Suit::Club, 10),
+        ];
+    }
+    gamestate.curr_played_cards = vec![
+        Card::new(Suit::Club, 5),
+        Card::new(Suit::Heart, 14),
+        Card::new(Suit::Diamond, 1),
+        Card::new(Suit::Spade, 10),
+    ];
+    let mut gamestate = use_signal(|| gamestate);
 
-    rsx!(
-        div { class: "container",
-            h1 { class: "header", "Blackball" }
-            label { "Enter a username" }
-            input {
-                class: "input",
-                r#type: "text",
-                value: "{app_props.read().username}",
-                oninput: move |event| {
-                    info!(
-                        "Got username len, val: {}, {} - {}", event.value().len(), event.value(),
-                        disabled.read()
-                    );
-                    if event.value().len() >= 3 {
-                        info!("Username length is good");
-                        disabled.set(false);
-                        app_props.write().username = event.value();
-                    } else {
-                        disabled.set(true);
-                        app_props.write().username = event.value();
-                    }
-                }
-            }
-            Link { class: "link disabled_{disabled}", to: Route::Explorer {}, "Start or find a game" }
-        }
-    )
+    // rsx!(
+    //     div { class: "title",
+    //         h1 { class: "header", "Blackball" }
+    //         label { "Enter a username" }
+    //         input {
+    //             class: "input",
+    //             r#type: "text",
+    //             value: "{app_props.read().username}",
+    //             oninput: move |event| {
+    //                 info!(
+    //                     "Got username len, val: {}, {} - {}", event.value().len(), event.value(),
+    //                     disabled.read()
+    //                 );
+    //                 if event.value().len() >= 3 {
+    //                     info!("Username length is good");
+    //                     disabled.set(false);
+    //                     app_props.write().username = event.value();
+    //                 } else {
+    //                     disabled.set(true);
+    //                     app_props.write().username = event.value();
+    //                 }
+    //             }
+    //         }
+    //         Link { class: "link disabled_{disabled}", to: Route::Explorer {}, "Start or find a game" }
+    //     }
+    // )
+
+    rsx!(GameStateComponent {
+        gamestate,
+        ws_send: ws_send_signal
+    })
 }
 
 #[component]
@@ -844,7 +854,7 @@ fn CardComponent(card: Card, onclick: EventHandler<Card>) -> Element {
 
     rsx!(
         div {
-            class: "card",
+            class: "h-[120px] w-[120px] bg-white border border-black",
             onclick: move |evt| {
                 onclick(card.clone());
             },
@@ -890,415 +900,395 @@ fn GameStateComponent(
 ) -> Element {
     let mut app_props = use_context::<Signal<AppProps>>();
 
-    rsx!({
-        if gamestate().gameplay_state != GameplayState::Pregame {
-            let curr_hand = gamestate
-                .read()
-                .players
-                .get(&app_props.read().username)
-                .expect("Player not found")
-                .encrypted_hand
-                .clone();
+    let trump_svg = get_trump_svg(&gamestate.read().trump);
+    let curr_player = gamestate
+        .read()
+        .curr_player_turn
+        .clone()
+        .unwrap_or("".to_string());
+    let curr_hand = if gamestate.read().players.contains_key(&curr_player) {
+        gamestate
+            .read()
+            .players
+            .get(&curr_player)
+            .unwrap()
+            .encrypted_hand
+            .clone()
+    } else {
+        "".to_string()
+    };
 
-            let is_turn_css = if gamestate()
-                .curr_player_turn
-                .unwrap_or("".to_string())
-                .eq(&app_props.read().username)
-            {
-                "bg-green-300"
-            } else {
-                "bg-slate-100"
-            };
+    rsx!(
+        div { class: "flex flex-col w-dvw h-dvh bg-green-100",
 
-            let is_turn_outline_css = if gamestate()
-                .curr_player_turn
-                .unwrap_or("".to_string())
-                .eq(&app_props.read().username)
-            {
-                "outline outline-4 outline-yellow-300"
-            } else {
-                ""
-            };
-
-            let trump_svg = match gamestate().trump {
-                Suit::Spade => rsx!(
-                    svg {
-                        "fill": "none",
-                        "xmlns": "http://www.w3.org/2000/svg",
-                        height: "40",
-                        width: "40",
-                        "viewBox": "0 0 100 100",
-                        x: "15",
-                        y: "10",
-                        ellipse {
-                            "cy": "43.5",
-                            "rx": "25",
-                            "cx": "25",
-                            "ry": "43.5",
-                            "fill": "black"
-                        }
-                        rect {
-                            "y": "40",
-                            "x": "19",
-                            width: "12",
-                            "fill": "black",
-                            height: "68"
-                        }
-                    }
-                ),
-                Suit::Heart => rsx!(
-                    svg {
-                        "fill": "none",
-                        "xmlns": "http://www.w3.org/2000/svg",
-                        height: "40",
-                        "viewBox": "0 0 101 103",
-                        width: "40",
-                        x: "5",
-                        y: "10",
-                        ellipse {
-                            "rx": "25",
-                            "cx": "76",
-                            "cy": "25",
-                            "ry": "25",
-                            "transform": "rotate(180 76 25)",
-                            "fill": "#FF0000"
-                        }
-                        path {
-                            "fill": "#FF0000",
-                            "d": "M0 25C0 11.1929 11.1929 -3.8147e-06 25 -3.8147e-06C38.8071 -3.8147e-06 50 11.1929 50 25C50 38.8071 38.8071 50 25 50C11.1929 50 0 38.8071 0 25Z"
-                        }
-                        path {
-                            "d": "M50.5 99.5L97 37.9291L53.5 14L50.5 18.5L47.5 14L4 37.9291L50.5 99.5Z",
-                            "fill": "#FF0000"
-                        }
-                    }
-                ),
-                Suit::Diamond => rsx!(
-                    svg {
-                        width: "40",
-                        height: "40",
-                        "xmlns": "http://www.w3.org/2000/svg",
-                        "fill": "none",
-                        "viewBox": "0 0 114 114",
-                        x: "4",
-                        y: "10",
-                        rect {
-                            width: "80",
-                            height: "80",
-                            "y": "56.5685",
-                            "fill": "#FF0000",
-                            "transform": "rotate(-45 0 56.5685)"
-                        }
-                    }
-                ),
-                Suit::Club => rsx!(
-                    svg {
-                        "xmlns": "http://www.w3.org/2000/svg",
-                        "viewBox": "0 0 100 108",
-                        height: "40",
-                        width: "40",
-                        "fill": "none",
-                        x: "5",
-                        y: "10",
-                        circle {
-                            "fill": "black",
-                            "r": "25",
-                            "cx": "25",
-                            "cy": "62"
-                        }
-                        circle {
-                            "cx": "75",
-                            "cy": "62",
-                            "r": "25",
-                            "fill": "black"
-                        }
-                        circle {
-                            "fill": "black",
-                            "cy": "25",
-                            "cx": "50",
-                            "r": "25"
-                        }
-                        rect {
-                            "y": "40",
-                            "x": "44",
-                            width: "12",
-                            height: "68",
-                            "fill": "black"
-                        }
-                    }
-                ),
-                Suit::NoTrump => rsx!(
-
-                    svg {
-                        "fill": "none",
-                        height: "40",
-                        width: "40",
-                        "xmlns": "http://www.w3.org/2000/svg",
-                        "viewBox": "0 0 114 114",
-                        rect {
-                            "fill": "#F3ADCF",
-                            height: "112.137",
-                            "y": "0.499969",
-                            "x": "0.500031",
-                            width: "112.137"
-                        }
-                        rect {
-                            "x": "0.500031",
-                            "y": "0.499969",
-                            width: "112.137",
-                            height: "112.137",
-                            "stroke": "black"
-                        }
-                        g { "filter": "url(#filter0_d_13_7)",
-                            rect {
-                                "x": "3.05176e-05",
-                                height: "80",
-                                "rx": "25",
-                                "transform": "rotate(-45 3.05176e-05 56.5685)",
-                                width: "80",
-                                "fill": "white",
-                                "y": "56.5685"
-                            }
-                        }
-                        defs {
-                            filter {
-                                "filterUnits": "userSpaceOnUse",
-                                "y": "10.3553",
-                                "color-interpolation-filters": "sRGB",
-                                width: "100.426",
-                                "x": "6.35538",
-                                height: "100.426",
-                                id: "filter0_d_13_7",
-                                feFlood { "flood-opacity": "0", "result": "BackgroundImageFix" }
-                                feColorMatrix {
-                                    "values": "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0",
-                                    "result": "hardAlpha",
-                                    "in": "SourceAlpha",
-                                    r#type: "matrix"
-                                }
-                                feOffset { "dy": "4" }
-                                feGaussianBlur { "stdDeviation": "2" }
-                                feComposite { "operator": "out", "in2": "hardAlpha" }
-                                feColorMatrix {
-                                    "values": "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0",
-                                    r#type: "matrix"
-                                }
-                                feBlend {
-                                    "mode": "normal",
-                                    "in2": "BackgroundImageFix",
-                                    "result": "effect1_dropShadow_13_7"
-                                }
-                                feBlend {
-                                    "mode": "normal",
-                                    "in2": "effect1_dropShadow_13_7",
-                                    "in": "SourceGraphic",
-                                    "result": "shape"
-                                }
-                            }
-                        }
-                    }
-
-                ),
-            };
-
-            rsx!(
-                div { class: "container-row score-bg",
-                    div { class: "gameinfo container",
-                        h2 { "Phase: {gamestate().gameplay_state:?}" }
-                        div {
-                            "Trump: {gamestate().trump:?}"
-                            {trump_svg}
-                        }
-                        ol {
-                            {gamestate().player_order.iter().map(|player| rsx!(li { class: "player-turn", "{player}" }))}
-                        }
-                        div { "Round: {gamestate().curr_round}/{gamestate().setup_game_options.rounds}" }
-                        div { "Dealer: {gamestate().curr_dealer}" }
-                        if gamestate().curr_player_turn.is_some() {
-                            div { "Player turn: {gamestate().curr_player_turn.unwrap()}" }
-                        } else {
-                            div { "Player turn: None" }
-                        }
-                    }
+            div { class: " bg-gray-300",
+                div { class: "flex",
+                    h2 { "Phase: {gamestate().gameplay_state:?}" }
                     div {
-                        class: "container gameinfo",
-                        div { class: "container",
-                        h2 { "Scores" }
-                        {gamestate().score.iter().map(|(player, bid)| {
+                        "Trump: {gamestate().trump:?}"
+                        {trump_svg}
+                    }
+                    ol {
+                        {gamestate().player_order.iter().map(|player| rsx!(li { class: "player-turn", "{player}" }))}
+                    }
+                    div { "Round: {gamestate().curr_round}/{gamestate().setup_game_options.rounds}" }
+                    div { "Dealer: {gamestate().curr_dealer}" }
+                    if gamestate().curr_player_turn.is_some() {
+                        div { "Player turn: {gamestate().curr_player_turn.unwrap()}" }
+                    } else {
+                        div { "Player turn: None" }
+                    }
+                }
+                div { class: "gameinfo right",
+                    div { class: "flex flex-row",
+                        h2 { "Players" }
+                        {gamestate().players.iter().map(|(playername, client)| {
+                            let wins = gamestate().wins.get(playername).unwrap_or(&0).clone();
+                            let bid = gamestate().bids.get(playername).unwrap_or(&0).clone();
                             rsx!(
                                 div {
                                     class: "container-row",
-                                    div { "{player}" }
+                                    div { "{playername}" }
+                                    div { "{wins}/{bid}" }
                                     div { "Score: {bid}" }
                                 }
                             )
                         })}
                     }
-                    div { class: "bids",
-                        h2 { "Bids" }
-                        {gamestate().bids.iter().map(|(player, bid)| {
-                            let wins = gamestate().wins.get(player).unwrap_or(&0).clone();
-                            rsx!(
-                                div {
-                                    class: "container-row",
-                                    div { "Player: {player}" }
-                                    div { "{wins}/{bid}" }
-                                }
-                            )
-                        })}
-                    }}
                 }
-                div {
-                    class: "container-row",
-                    div { class: "card-area",
-                        div { class: "w-full h-[100px] flex flex-row relative justify-center",
-                            {gamestate().curr_played_cards.iter().map(|card| rsx!(
-                                CardComponent {
-                                    onclick: move |_| { info!("Clicked a card: {:?}", "fake card") },
-                                    card: card.clone()
-                                }
-                            ))}
+            }
+
+            div { class: "flex flex-col items-center h-[100px] bg-blue-200 w-full h-full",
+                div { class: "w-full h-[100px] flex flex-row relative justify-center",
+                    {gamestate().curr_played_cards.iter().map(|card| rsx!(
+                        CardComponent {
+                            onclick: move |_| { info!("Clicked a card: {:?}", "fake card") },
+                            card: card.clone()
                         }
-                    }
+                    ))}
                 }
-                if gamestate().curr_player_turn.unwrap_or("".to_string()) == app_props.read().username {
-                    {rsx!(div {
-                        class: "container-row turn-indicator",
-                        "Your turn"
+            }
+            if gamestate().curr_player_turn.unwrap_or("".to_string()) == app_props.read().username {
+                {rsx!(div {
+                    class: "container-row turn-indicator",
+                    "Your turn"
+                })}
+            }
+            div { class: "container-row",
+                div { class: "card-area",
+                    {GameState::decrypt_player_hand(
+                        curr_hand,
+                        &app_props.read().client_secret.clone(),
+                    ).iter().map(|card| {
+                        return rsx!(
+                            CardComponent {
+                                onclick: move |clicked_card: Card| {
+                                    ws_send().send(InnerMessage::GameMessage {
+                                        msg: GameMessage {
+                                            username: app_props.read().username.clone(),
+                                            message: GameEvent { action: GameAction::PlayCard(clicked_card) },
+                                            timestamp: Utc::now()}
+                                    });
+                                },
+                                card: card.clone()
+                            }
+                        );
                     })}
                 }
-                div { class: "container-row",
-                    div { class: "card-area",
-                        {GameState::decrypt_player_hand(
-                            curr_hand,
-                            &app_props.read().client_secret.clone(),
-                        ).iter().map(|card| {
-                            return rsx!(
-                                CardComponent {
-                                    onclick: move |clicked_card: Card| {
+            }
+            if gamestate().gameplay_state == GameplayState::Bid {
+                div { class: "container",
+                    label { class: "lg center", "How many hands do you want to win" }
+                    ul { class: "bid-list",
+                        {(0..=gamestate().curr_round).map(|i| {
+                            rsx!(
+                                button {
+                                    class: "bid-item is-selected",
+                                    onclick: move |_| {
+                                        info!("Clicked on bid {i}");
                                         ws_send().send(InnerMessage::GameMessage {
                                             msg: GameMessage {
                                                 username: app_props.read().username.clone(),
-                                                message: GameEvent { action: GameAction::PlayCard(clicked_card) },
-                                                timestamp: Utc::now()}
-                                        });
-                                    },
-                                    card: card.clone()
-                                }
-                            );
-                        })}
-                    }
-                }
-                if gamestate().gameplay_state == GameplayState::Bid {
-                    div { class: "container",
-                        label { class: "lg center", "How many hands do you want to win" }
-                        ul { class: "bid-list",
-                            {(0..=gamestate().curr_round).map(|i| {
-                                rsx!(
-                                    button {
-                                        class: "bid-item is-selected",
-                                        onclick: move |_| {
-                                            info!("Clicked on bid {i}");
-                                            ws_send().send(InnerMessage::GameMessage {
-                                                msg: GameMessage {
-                                                    username: app_props.read().username.clone(),
-                                                    message: GameEvent {
-                                                        action: GameAction::Bid(i),
-                                                    },
-                                                    timestamp: Utc::now(),
-                                        }});
-                                    },
-                                        "{i}"
-                                    },
-                                )
-                                })
-                        }
-                    }
-                    }
-                }
-                {if let GameplayState::PostHand(ps) = gamestate().gameplay_state {
-                    rsx!(
-                        div {
-                            class: "container",
-                            button {
-                                class: "button",
-                                onclick: move |_| {
-                                    ws_send()
-                                        .send(InnerMessage::GameMessage {
-                                            msg: GameMessage {
-                                                username: app_props.read().username.clone(),
                                                 message: GameEvent {
-                                                    action: GameAction::Ack,
+                                                    action: GameAction::Bid(i),
                                                 },
                                                 timestamp: Utc::now(),
-                                            },
-                                        });
+                                    }});
                                 },
-                                "Acknowledge"
-                            }
+                                    "{i}"
+                                },
+                            )
+                            })
                         }
-                    )
-                } else {
-                    rsx!()
-                }}
-                    {if let GameplayState::PostRound = gamestate().gameplay_state {
-                        rsx!(
-                            div {
-                                class: "container",
-                                button {
-                                    class: "button",
-                                    onclick: move |_| {
-                                        ws_send()
-                                            .send(InnerMessage::GameMessage {
-                                                msg: GameMessage {
-                                                    username: app_props.read().username.clone(),
-                                                    message: GameEvent {
-                                                        action: GameAction::Ack,
-                                                    },
-                                                    timestamp: Utc::now(),
-                                                },
-                                            });
-                                    },
-                                    "Acknowledge"
-                                }
-                            }
-                        )
-                    } else {
-                        rsx!()
-                    }}
-                    {if let GameplayState::End = gamestate().gameplay_state {
-                        rsx!(
-                            div {
-                                class: "container",
-                                div {"GAME OVER"}
-                                {gamestate().score.iter().map(|(player, score)| {rsx!(li { "{player}: {score}" })})}
-                            }
-                            div {
-                                class: "container",
-                                button {
-                                    class: "button",
-                                    onclick: move |_| {
-                                        ws_send()
-                                            .send(InnerMessage::GameMessage {
-                                                msg: GameMessage {
-                                                    username: app_props.read().username.clone(),
-                                                    message: GameEvent {
-                                                        action: GameAction::Ack,
-                                                    },
-                                                    timestamp: Utc::now(),
-                                                },
-                                            });
-                                    },
-                                    "Acknowledge"
-                                }
-                            }
-                        )
-                    } else {
-                        rsx!()
-                    }}
-            )
-        } else {
-            rsx! {div {""}}
+                    }
+                }
+            }
+            {if let GameplayState::PostHand(ps) = gamestate().gameplay_state {
+                rsx!(
+                    div {
+                        class: "container",
+                        button {
+                            class: "button",
+                            onclick: move |_| {
+                                ws_send()
+                                    .send(InnerMessage::GameMessage {
+                                        msg: GameMessage {
+                                            username: app_props.read().username.clone(),
+                                            message: GameEvent {
+                                                action: GameAction::Ack,
+                                            },
+                                            timestamp: Utc::now(),
+                                        },
+                                    });
+                            },
+                            "Acknowledge"
+                        }
+                    }
+                )
+            } else {
+                rsx!()
+            }},
+            {if let GameplayState::PostRound = gamestate().gameplay_state {
+                rsx!(
+                    div {
+                        class: "container",
+                        button {
+                            class: "button",
+                            onclick: move |_| {
+                                ws_send()
+                                    .send(InnerMessage::GameMessage {
+                                        msg: GameMessage {
+                                            username: app_props.read().username.clone(),
+                                            message: GameEvent {
+                                                action: GameAction::Ack,
+                                            },
+                                            timestamp: Utc::now(),
+                                        },
+                                    });
+                            },
+                            "Acknowledge"
+                        }
+                    }
+                )
+            } else {
+                rsx!()
+            }},
+            {if let GameplayState::End = gamestate().gameplay_state {
+                rsx!(
+                    div {
+                        class: "container",
+                        div {"GAME OVER"}
+                        {gamestate().score.iter().map(|(player, score)| {rsx!(li { "{player}: {score}" })})}
+                    }
+                    div {
+                        class: "container",
+                        button {
+                            class: "button",
+                            onclick: move |_| {
+                                ws_send()
+                                    .send(InnerMessage::GameMessage {
+                                        msg: GameMessage {
+                                            username: app_props.read().username.clone(),
+                                            message: GameEvent {
+                                                action: GameAction::Ack,
+                                            },
+                                            timestamp: Utc::now(),
+                                        },
+                                    });
+                            },
+                            "Acknowledge"
+                        }
+                    }
+                )
+            } else {
+                rsx!()
+            }}
         }
-    })
+    )
+}
+
+fn get_trump_svg(trump: &Suit) -> Element {
+    let trump_svg = match trump {
+        Suit::Spade => rsx!(
+            svg {
+                "fill": "none",
+                "xmlns": "http://www.w3.org/2000/svg",
+                height: "40",
+                width: "40",
+                "viewBox": "0 0 100 100",
+                x: "15",
+                y: "10",
+                ellipse {
+                    "cy": "43.5",
+                    "rx": "25",
+                    "cx": "25",
+                    "ry": "43.5",
+                    "fill": "black"
+                }
+                rect {
+                    "y": "40",
+                    "x": "19",
+                    width: "12",
+                    "fill": "black",
+                    height: "68"
+                }
+            }
+        ),
+        Suit::Heart => rsx!(
+            svg {
+                "fill": "none",
+                "xmlns": "http://www.w3.org/2000/svg",
+                height: "40",
+                "viewBox": "0 0 101 103",
+                width: "40",
+                x: "5",
+                y: "10",
+                ellipse {
+                    "rx": "25",
+                    "cx": "76",
+                    "cy": "25",
+                    "ry": "25",
+                    "transform": "rotate(180 76 25)",
+                    "fill": "#FF0000"
+                }
+                path {
+                    "fill": "#FF0000",
+                    "d": "M0 25C0 11.1929 11.1929 -3.8147e-06 25 -3.8147e-06C38.8071 -3.8147e-06 50 11.1929 50 25C50 38.8071 38.8071 50 25 50C11.1929 50 0 38.8071 0 25Z"
+                }
+                path {
+                    "d": "M50.5 99.5L97 37.9291L53.5 14L50.5 18.5L47.5 14L4 37.9291L50.5 99.5Z",
+                    "fill": "#FF0000"
+                }
+            }
+        ),
+        Suit::Diamond => rsx!(
+            svg {
+                width: "40",
+                height: "40",
+                "xmlns": "http://www.w3.org/2000/svg",
+                "fill": "none",
+                "viewBox": "0 0 114 114",
+                x: "4",
+                y: "10",
+                rect {
+                    width: "80",
+                    height: "80",
+                    "y": "56.5685",
+                    "fill": "#FF0000",
+                    "transform": "rotate(-45 0 56.5685)"
+                }
+            }
+        ),
+        Suit::Club => rsx!(
+            svg {
+                "xmlns": "http://www.w3.org/2000/svg",
+                "viewBox": "0 0 100 108",
+                height: "40",
+                width: "40",
+                "fill": "none",
+                x: "5",
+                y: "10",
+                circle {
+                    "fill": "black",
+                    "r": "25",
+                    "cx": "25",
+                    "cy": "62"
+                }
+                circle {
+                    "cx": "75",
+                    "cy": "62",
+                    "r": "25",
+                    "fill": "black"
+                }
+                circle {
+                    "fill": "black",
+                    "cy": "25",
+                    "cx": "50",
+                    "r": "25"
+                }
+                rect {
+                    "y": "40",
+                    "x": "44",
+                    width: "12",
+                    height: "68",
+                    "fill": "black"
+                }
+            }
+        ),
+        Suit::NoTrump => rsx!(
+            svg {
+                "fill": "none",
+                height: "40",
+                width: "40",
+                "xmlns": "http://www.w3.org/2000/svg",
+                "viewBox": "0 0 114 114",
+                rect {
+                    "fill": "#F3ADCF",
+                    height: "112.137",
+                    "y": "0.499969",
+                    "x": "0.500031",
+                    width: "112.137"
+                }
+                rect {
+                    "x": "0.500031",
+                    "y": "0.499969",
+                    width: "112.137",
+                    height: "112.137",
+                    "stroke": "black"
+                }
+                g { "filter": "url(#filter0_d_13_7)",
+                    rect {
+                        "x": "3.05176e-05",
+                        height: "80",
+                        "rx": "25",
+                        "transform": "rotate(-45 3.05176e-05 56.5685)",
+                        width: "80",
+                        "fill": "white",
+                        "y": "56.5685"
+                    }
+                }
+                defs {
+                    filter {
+                        "filterUnits": "userSpaceOnUse",
+                        "y": "10.3553",
+                        "color-interpolation-filters": "sRGB",
+                        width: "100.426",
+                        "x": "6.35538",
+                        height: "100.426",
+                        id: "filter0_d_13_7",
+                        feFlood {
+                            "flood-opacity": "0",
+                            "result": "BackgroundImageFix"
+                        }
+                        feColorMatrix {
+                            "values": "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0",
+                            "result": "hardAlpha",
+                            "in": "SourceAlpha",
+                            r#type: "matrix"
+                        }
+                        feOffset { "dy": "4" }
+                        feGaussianBlur { "stdDeviation": "2" }
+                        feComposite { "operator": "out", "in2": "hardAlpha" }
+                        feColorMatrix {
+                            "values": "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0",
+                            r#type: "matrix"
+                        }
+                        feBlend {
+                            "mode": "normal",
+                            "in2": "BackgroundImageFix",
+                            "result": "effect1_dropShadow_13_7"
+                        }
+                        feBlend {
+                            "mode": "normal",
+                            "in2": "effect1_dropShadow_13_7",
+                            "in": "SourceGraphic",
+                            "result": "shape"
+                        }
+                    }
+                }
+            }
+        ),
+    };
+
+    return trump_svg;
 }
