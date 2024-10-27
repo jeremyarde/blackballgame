@@ -854,11 +854,12 @@ fn CardComponent(card: Card, onclick: EventHandler<Card>) -> Element {
 
     rsx!(
         div {
-            class: "h-[120px] w-[120px] bg-white border border-black",
+            class: "h-[120px] w-[120px] bg-white border border-black grid justify-center text-center",
             onclick: move |evt| {
                 onclick(card.clone());
             },
             svg {
+                class: "col-start-1 row-start-1 w-full h-full",
                 "shape-rendering": "crispEdges",
                 "viewBox": "0 -0.5 48 64",
                 "xmlns": "http://www.w3.org/2000/svg",
@@ -888,7 +889,9 @@ fn CardComponent(card: Card, onclick: EventHandler<Card>) -> Element {
                 path { "stroke": "#d8d2d2", "d": "M17 61h1M20 61h1M41 61h1" }
                 {suit_svg}
             }
-            div { class: "card-value", "{textvalue}" }
+            span { class: "text-white content-center text-center text-5xl self-center h-full col-start-1 justify-center row-start-1 drop-shadow-[0_2.2px_2.2px_rgba(0,0,0,0.8)]",
+                "{textvalue}"
+            }
         }
     )
 }
