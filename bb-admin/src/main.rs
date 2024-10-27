@@ -890,13 +890,13 @@ fn GameStateComponent(
                 }
             }
             if gamestate().gameplay_state == GameplayState::Bid {
-                div { class: "container",
-                    label { class: "lg center", "How many hands do you want to win" }
-                    ul { class: "bid-list",
+                div { class: "flex flex-col items-center",
+                    label { class: "text-2xl p-2", "How many hands do you want to win" }
+                    ul { class: "flex flex-row gap-2 items-center p-2",
                         {(0..=gamestate().curr_round).map(|i| {
                             rsx!(
                                 button {
-                                    class: "bid-item is-selected",
+                                    class: "bg-yellow-300 p-4 rounded-lg",
                                     onclick: move |_| {
                                         info!("Clicked on bid {i}");
                                         ws_send().send(InnerMessage::GameMessage {
