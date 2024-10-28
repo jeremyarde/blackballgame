@@ -677,12 +677,12 @@ fn GameRoom(room_code: String) -> Element {
                         "Join this game"
                     }
                     div {
-                        class: "container border",
+                        class: "flex flex-col border border-black rounded-md p-4 text-center",
                         h1 {class: "lg", "{lobby.read().lobby_code}" }
                         div { class: "container", "Players ({lobby.read().players.len()})"
                             {lobby.read().players.iter().enumerate().map(|(i, player)| rsx!(div { "{i}: {player}" }))}
                         }
-                        div { class: "container",
+                        div { class: "flex flex-col",
                             h2 {
                                 class: "lg",
                                 "Game options"
@@ -698,7 +698,7 @@ fn GameRoom(room_code: String) -> Element {
                             }
 
                         button {
-                            class: "button lg",
+                            class: "bg-yellow-300 border border-solid border-black text-center rounded-md",
                             onclick: move |evt| {
                                 info!("Starting game");
                                 listen_for_server_messages.send(("ready".to_string()));
@@ -736,7 +736,7 @@ fn GameRoom(room_code: String) -> Element {
                         }
                     }
                     div {
-                        class: "container",
+                        class: "flex flex-col",
                         h2 {"System messages"}
                         {if gamestate().system_status.len() > 0 {
                             rsx!(
