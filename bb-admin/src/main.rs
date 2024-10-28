@@ -863,7 +863,7 @@ fn GameStateComponent(
     };
 
     rsx!(
-        div { class: "flex flex-col w-dvw h-dvh bg-[--bg-color]",
+        div { class: "flex flex-col w-dvw h-dvh bg-[--bg-color] items-center gap-4",
             div { class: " bg-gray-300",
                 div { class: "flex content-between",
                     div {
@@ -902,9 +902,11 @@ fn GameStateComponent(
                 }
             }
 
-            div {
-                "Played cards"
-                div { class: "flex flex-row items-center h-[100px] bg-blue-200 w-full max-h-[200px] relative justify-center",
+            div { class: "relative w-full md:w-1/2 bg-[var(--bg-color)] rounded-lg p-4 shadow-lg text-gray-100 border border-black",
+                div { class: "absolute top-2 left-2 px-3 py-1 text-sm font-bold text-white bg-indigo-600 rounded-md shadow",
+                    "Played cards"
+                }
+                div { class: "grid grid-rows-1 gap-4 mt-8",
                     {gamestate().curr_played_cards.iter().map(|card| rsx!(
                         CardComponent {
                             onclick: move |_| { info!("Clicked a card: {:?}", "fake card") },
@@ -919,7 +921,11 @@ fn GameStateComponent(
                     "Your turn"
                 })}
             }
-            div { class: "flex flex-col text-center",
+            div { class: "relative w-full md:w-1/2 bg-[var(--bg-color)] rounded-lg p-4 shadow-lg text-gray-100 border border-black",
+                div { class: "absolute top-2 left-2 px-3 py-1 text-sm font-bold text-white bg-yellow-700 rounded-md shadow",
+                    "Your hand"
+                }
+                div { class: "grid grid-rows-1 gap-4 mt-8",
                 {GameState::decrypt_player_hand(curr_hand, &app_props.read().client_secret.clone())
                     .iter()
                     .map(|card| {
@@ -938,7 +944,7 @@ fn GameStateComponent(
                             card: card.clone()
                         });
                     })},
-                span { class: "text-2xl", "Your hand" }
+                }
             }
             if gamestate().gameplay_state == GameplayState::Bid {
                 div { class: "flex flex-col items-center",
