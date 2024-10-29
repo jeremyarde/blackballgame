@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Blackball</title>
+    <script>
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js");
+      }
+    </script>
+    <link rel="manifest" href="manifest.json" />
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/tailwindcss2c1229177f71dd6.css">
+
+  </head>
+  <body>
+    <div
+      id="main"
+      style="
+        width: 100%;
+        height: 100%;
+        position: fixed;
+        left: 0;
+        top: 0;
+        overflow: hidden;
+      "
+    ></div>
+    <script type="module">
+      import init from "/./assets/dioxus/bb-admin.js";
+      init("/./assets/dioxus/bb-admin_bg.wasm").then((wasm) => {
+        if (wasm.__wbindgen_start == undefined) {
+          wasm.main();
+        }
+      });
+    </script>
+    
+  </body>
+</html>
