@@ -3,16 +3,19 @@
 
 use std::{collections::HashMap, path::Path};
 
-use api_types::{GetLobbiesResponse, GetLobbyResponse};
+use api_types::{GetLobbiesResponse, GetLobbyResponse, Lobby};
 use chrono::Utc;
 use common::{
     Card, Connect, Destination, GameAction, GameClient, GameEvent, GameEventResult, GameMessage,
     GameState, GameplayState, InternalMessage, PlayState, PlayerDetails, PlayerSecret,
     SetupGameOptions, Suit,
 };
+use components::lobbylist;
 use dioxus::prelude::*;
 use dioxus_elements::link;
 use dotenvy::dotenv;
+
+mod components;
 
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::TryStreamExt;
@@ -210,6 +213,8 @@ fn Home() -> Element {
                     rounds: 4,
                     deterministic: true,
                     start_round: Some(3),
+                    max_players: 4,
+                    game_mode: "Standard".to_string(),
                 }),
             },
             timestamp: Utc::now(),
@@ -328,10 +333,10 @@ fn Explorer() -> Element {
                 {if create_lobby_response_msg() == String::from("") { rsx!() } else { rsx!(div { "{create_lobby_response_msg.read()}" }) }}
             }
             div { class: "flex flex-col justify-center align-top max-w-[600px] border border-black rounded-md p-4",
-                div { class: "flex flex-col justify-center",
+                div { class: "flex flex-row justify-center gap-2",
                     span { class: "text-lg font-bold", "Join ongoing games" }
                     button {
-                        class: "bg-gray-300 flex flex-row text-center w-full border border-solid border-black rounded-md p-2 justify-center items-center",
+                        class: "bg-gray-300 flex flex-row text-center border p-1 border-solid border-black rounded-md justify-center items-center",
                         onclick: refresh_lobbies,
                         svg {
                             class: "w-6 h-6",
@@ -353,13 +358,14 @@ fn Explorer() -> Element {
                         rsx!(div { "No games" })
                     } else {
                         rsx!{
+                            lobbylist::LobbyList {}
                             ul {
                                 {lobbies.read().lobbies.iter().map(|lobby|
                                     {
-                                        if lobby.eq("") {
+                                        if lobby.name.eq("") {
                                             rsx!()
                                         } else {
-                                            rsx!(LobbyComponent {lobby: lobby})
+                                            rsx!(LobbyComponent {lobby: lobby.name.clone()})
                                         }
                                     }
                                 )}
@@ -406,9 +412,13 @@ fn GameRoom(room_code: String) -> Element {
         ))
     });
 
-    let mut lobby = use_signal(|| GetLobbyResponse {
-        lobby_code: room_code.clone(),
-        players: vec![],
+    let mut get_lobby_response = use_signal(|| GetLobbyResponse {
+        lobby: Lobby {
+            name: room_code.clone(),
+            players: vec![],
+            max_players: 4,
+            game_mode: "Standard".to_string(),
+        },
     });
     // let mut username = use_signal(|| String::new());
     let mut error = use_signal(|| Value::Null);
@@ -503,15 +513,19 @@ fn GameRoom(room_code: String) -> Element {
                 Ok(data) => {
                     // log::info!("Got response: {:?}", resp);
                     match data.json::<GetLobbyResponse>().await {
-                        Ok(resp) => lobby.set(resp),
+                        Ok(resp) => get_lobby_response.set(resp),
                         Err(err) => error.set(json!(format!("Failed to parse lobby: {:?}", err))),
                     }
                 }
                 Err(err) => {
                     // log::info!("Request failed with error: {err:?}")
-                    lobby.set(GetLobbyResponse {
-                        lobby_code: room_code.clone(),
-                        players: vec![format!("{err}")],
+                    get_lobby_response.set(GetLobbyResponse {
+                        lobby: Lobby {
+                            name: room_code.clone(),
+                            players: vec![],
+                            max_players: 4,
+                            game_mode: "Standard".to_string(),
+                        },
                     });
                 }
             }
@@ -629,136 +643,181 @@ fn GameRoom(room_code: String) -> Element {
     });
 
     let ws_send_signal = use_signal(|| ws_send);
-
     rsx!(
-        {
-            if error().is_null() {
-                rsx!()
-            } else {
-                error
-                    .read()
-                    .as_str()
-                    .map(|err| rsx!(div { "{err}" }))
-                    .unwrap()
-            }
-        },
-        {
-            if gamestate().gameplay_state == GameplayState::Pregame {
-                rsx!(
-                    button {
-                        class: "button",
-                        onclick: move |evt| get_game_details(app_props.read().lobby_code.clone()),
-                        "Refresh player list"
-                    }
-                    button {
-                        class: "button",
-                        onclick: move |evt| {
-                            // let room_code_clone = room_code_clone.clone();
-                            async move {
-                                info!("Clicked join game");
-                                listen_for_server_messages.send(("ready".to_string()));
-                                ws_send
-                                    .send(InnerMessage::GameMessage {
-                                        msg: GameMessage {
-                                            username: app_props().username.clone(),
-                                            timestamp: Utc::now(),
-                                            message: GameEvent {
-                                                action: GameAction::JoinGame(
-                                                    PlayerDetails{
-                                                        username: app_props.read().username.clone(),
-                                                        ip: String::new(),
-                                                        client_secret: app_props.read().client_secret.clone(),
-                                                    })
-                                            },
-                                        },
-                                    });
-                            }
-                        },
-                        "Join this game"
-                    }
-                    div {
-                        class: "flex flex-col border border-black rounded-md p-4 text-center",
-                        h1 {class: "lg", "{lobby.read().lobby_code}" }
-                        div { class: "container", "Players ({lobby.read().players.len()})"
-                            {lobby.read().players.iter().enumerate().map(|(i, player)| rsx!(div { "{i}: {player}" }))}
-                        }
-                        div { class: "flex flex-col",
-                            h2 {
-                                class: "lg",
-                                "Game options"
-                            }
-                            div { class: "flex flex-row align-middle w-full",
-                                label { "Rounds" }
-                                input {
-                                    class: "input",
-                                    r#type: "number",
-                                    onchange: move |evt| num_rounds.set(evt.value().parse::<usize>().unwrap_or(9)),
-                                    value: "{num_rounds}"
-                                }
-                            }
-
-                        button {
-                            class: "bg-yellow-300 border border-solid border-black text-center rounded-md",
-                            onclick: move |evt| {
-                                info!("Starting game");
-                                listen_for_server_messages.send(("ready".to_string()));
-                                ws_send
-                                    .send(InnerMessage::GameMessage {
-                                        msg: GameMessage {
-                                            username: app_props().username.clone(),
-                                            timestamp: Utc::now(),
-                                            message: GameEvent {
-                                                action: GameAction::JoinGame(
-                                                    PlayerDetails{
-                                                        username: app_props.read().username.clone(),
-                                                        ip: String::new(),
-                                                        client_secret: app_props.read().client_secret.clone(),
-                                                    })
-                                            },
-                                        },
-                                    });
-                                ws_send
-                                    .send(
-                                        InnerMessage::GameMessage {
-                                            msg: GameMessage {
-                                                username: app_props.read().username.clone(),
-                                                message: GameEvent {
-                                                    action: GameAction::StartGame(SetupGameOptions {
-                                                        rounds: num_rounds(),
-                                                        deterministic: false,
-                                                        start_round: None,
-                                                    }),
-                                                },
-                                                timestamp: Utc::now(),
-                                        }});
-                            },
-                            "Start game"
-                        }
-                    }
-                    div {
-                        class: "flex flex-col",
-                        h2 {"System messages"}
-                        {if gamestate().system_status.len() > 0 {
-                            rsx!(
-                                ul {
-                                {gamestate().system_status.iter().map(|issue| rsx!(li { "{issue}" }))}
-                            }
-                        )
-                        } else {
-                            rsx!(
-                            div { "Join the game first" }
-                        )}
-                    }
-                    }
+        div { class: "items-center flex flex-col",
+            {
+                if error().is_null() {
+                    rsx!()
+                } else {
+                    error
+                        .read()
+                        .as_str()
+                        .map(|err| rsx!(div { "{err}" }))
+                        .unwrap()
                 }
-                )
-            } else {
-                rsx!(div {})
+            },
+            {
+                if gamestate().gameplay_state == GameplayState::Pregame {
+                    rsx!(
+                        button {
+                            class: "button",
+                            onclick: move |evt| get_game_details(app_props.read().lobby_code.clone()),
+                            "Refresh player list"
+                        }
+                        button {
+                            class: "button",
+                            onclick: move |evt| {
+                                // let room_code_clone = room_code_clone.clone();
+                                async move {
+                                    info!("Clicked join game");
+                                    listen_for_server_messages.send(("ready".to_string()));
+                                    ws_send
+                                        .send(InnerMessage::GameMessage {
+                                            msg: GameMessage {
+                                                username: app_props().username.clone(),
+                                                timestamp: Utc::now(),
+                                                message: GameEvent {
+                                                    action: GameAction::JoinGame(
+                                                        PlayerDetails{
+                                                            username: app_props.read().username.clone(),
+                                                            ip: String::new(),
+                                                            client_secret: app_props.read().client_secret.clone(),
+                                                        })
+                                                },
+                                            },
+                                        });
+                                }
+                            },
+                            "Join this game"
+                        }
+                        div {
+                            class: "flex flex-col justify-center align-top text-center items-center max-w-[600px] border border-black rounded-md p-4",
+                            h1 {class: "lg", "{get_lobby_response.read().lobby.name}" }
+                            div { class: "container", "Players ({get_lobby_response.read().lobby.players.len()})"
+                                {get_lobby_response.read().lobby.players.iter().enumerate().map(|(i, player)| rsx!(div { "{i}: {player}" }))}
+                            }
+                            div { class: "flex flex-col",
+                                h2 {
+                                    class: "lg",
+                                    "Game options"
+                                }
+                                div { class: "flex flex-row align-middle justify-center",
+                                    label { "Rounds" }
+                                    div { class: "relative flex items-center max-w-[8rem]",
+                                        button {
+                                            "data-input-counter-decrement": "quantity-input",
+                                            r#type: "button",
+                                            class: "bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 dark:border-gray-600 hover:bg-gray-200 border border-gray-300 rounded-s-lg p-3 h-11 focus:ring-gray-100 dark:focus:ring-gray-700 focus:ring-2 focus:outline-none",
+                                            id: "decrement-button",
+                                            svg {
+                                                "viewBox": "0 0 18 2",
+                                                "fill": "none",
+                                                "xmlns": "http://www.w3.org/2000/svg",
+                                                "aria-hidden": "true",
+                                                class: "w-3 h-3 text-gray-900 dark:text-white",
+                                                path {
+                                                    "stroke-width": "2",
+                                                    "d": "M1 1h16",
+                                                    "stroke": "currentColor",
+                                                    "stroke-linecap": "round",
+                                                    "stroke-linejoin": "round"
+                                                }
+                                            }
+                                        }
+                                        input {
+                                            "aria-describedby": "helper-text-explanation",
+                                            r#type: "text",
+                                            "data-input-counter": "false",
+                                            placeholder: "9",
+                                            required: "false",
+                                            onchange: move |evt| num_rounds.set(evt.value().parse::<usize>().unwrap_or(9)),
+                                            value: "{num_rounds}",
+                                            class: "bg-gray-50 border-x-0 border-gray-300 h-11 text-center text-gray-900 text-sm focus:ring-blue-500 focus:border-blue-500 block w-full py-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500",
+                                            id: "quantity-input"
+                                        }
+                                        button {
+                                            "data-input-counter-increment": "quantity-input",
+                                            r#type: "button",
+                                            class: "bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 dark:border-gray-600 hover:bg-gray-200 border border-gray-300 rounded-e-lg p-3 h-11 focus:ring-gray-100 dark:focus:ring-gray-700 focus:ring-2 focus:outline-none",
+                                            id: "increment-button",
+                                            svg {
+                                                "xmlns": "http://www.w3.org/2000/svg",
+                                                "aria-hidden": "true",
+                                                "fill": "none",
+                                                "viewBox": "0 0 18 18",
+                                                class: "w-3 h-3 text-gray-900 dark:text-white",
+                                                path {
+                                                    "stroke-linejoin": "round",
+                                                    "stroke": "currentColor",
+                                                    "stroke-width": "2",
+                                                    "stroke-linecap": "round",
+                                                    "d": "M9 1v16M1 9h16"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                            button {
+                                class: "bg-yellow-300 border border-solid border-black text-center rounded-md",
+                                onclick: move |evt| {
+                                    info!("Starting game");
+                                    listen_for_server_messages.send(("ready".to_string()));
+                                    ws_send
+                                        .send(InnerMessage::GameMessage {
+                                            msg: GameMessage {
+                                                username: app_props().username.clone(),
+                                                timestamp: Utc::now(),
+                                                message: GameEvent {
+                                                    action: GameAction::JoinGame(
+                                                        PlayerDetails{
+                                                            username: app_props.read().username.clone(),
+                                                            ip: String::new(),
+                                                            client_secret: app_props.read().client_secret.clone(),
+                                                        })
+                                                },
+                                            },
+                                        });
+                                    ws_send
+                                        .send(
+                                            InnerMessage::GameMessage {
+                                                msg: GameMessage {
+                                                    username: app_props.read().username.clone(),
+                                                    message: GameEvent {
+                                                        action: GameAction::StartGame(SetupGameOptions {
+                                                            rounds: num_rounds(),
+                                                            deterministic: false,
+                                                            start_round: None,
+                                                            max_players: 4,
+                                                            game_mode: "Standard".to_string(),
+                                                        }),
+                                                    },
+                                                    timestamp: Utc::now(),
+                                            }});
+                                },
+                                "Start game"
+                            }
+                        }
+                        div {
+                            class: "flex flex-col",
+                            {if gamestate().system_status.len() > 0 {
+                                rsx!(
+                                    ul {
+                                    {gamestate().system_status.iter().map(|issue| rsx!(li { "{issue}" }))}
+                                }
+                            )
+                            } else {
+                                rsx!(
+                                div { "Please join the game" }
+                            )}
+                        }
+                        }
+                    }
+                    )
+                } else {
+                    rsx!{GameStateComponent { gamestate, ws_send: ws_send_signal }}
+                }
             }
-        },
-        GameStateComponent {
-            gamestate,
-            ws_send: ws_send_signal
         }
     )
 }
@@ -926,24 +985,24 @@ fn GameStateComponent(
                     "Your hand"
                 }
                 div { class: "grid grid-rows-1 gap-4 mt-8",
-                {GameState::decrypt_player_hand(curr_hand, &app_props.read().client_secret.clone())
-                    .iter()
-                    .map(|card| {
-                        return rsx!(CardComponent {
-                            onclick: move |clicked_card: Card| {
-                                ws_send().send(InnerMessage::GameMessage {
-                                    msg: GameMessage {
-                                        username: app_props.read().username.clone(),
-                                        message: GameEvent {
-                                            action: GameAction::PlayCard(clicked_card),
+                    {GameState::decrypt_player_hand(curr_hand, &app_props.read().client_secret.clone())
+                        .iter()
+                        .map(|card| {
+                            return rsx!(CardComponent {
+                                onclick: move |clicked_card: Card| {
+                                    ws_send().send(InnerMessage::GameMessage {
+                                        msg: GameMessage {
+                                            username: app_props.read().username.clone(),
+                                            message: GameEvent {
+                                                action: GameAction::PlayCard(clicked_card),
+                                            },
+                                            timestamp: Utc::now(),
                                         },
-                                        timestamp: Utc::now(),
-                                    },
-                                });
-                            },
-                            card: card.clone()
-                        });
-                    })},
+                                    });
+                                },
+                                card: card.clone()
+                            });
+                        })}
                 }
             }
             if gamestate().gameplay_state == GameplayState::Bid {

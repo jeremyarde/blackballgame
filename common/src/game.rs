@@ -863,7 +863,13 @@ mod tests {
         game.process_event(GameMessage {
             username: PLAYER_ONE.clone(),
             message: crate::GameEvent {
-                action: crate::GameAction::StartGame(SetupGameOptions::from(5, true, Some(3))),
+                action: crate::GameAction::StartGame(SetupGameOptions::from(
+                    5,
+                    true,
+                    Some(3),
+                    4,
+                    "Standard".to_string(),
+                )),
                 // origin: crate::Actioner::Player(PLAYER_ONE.clone()),
             },
             timestamp: Utc::now(),
@@ -928,7 +934,13 @@ mod tests {
         game.process_event(GameMessage {
             username: PLAYER_ONE.clone(),
             message: crate::GameEvent {
-                action: crate::GameAction::StartGame(SetupGameOptions::from(5, true, Some(1))),
+                action: crate::GameAction::StartGame(SetupGameOptions::from(
+                    5,
+                    true,
+                    Some(1),
+                    4,
+                    "Standard".to_string(),
+                )),
                 // origin: crate::Actioner::Player(PLAYER_ONE.clone()),
             },
             timestamp: Utc::now(),

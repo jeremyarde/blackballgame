@@ -154,6 +154,8 @@ pub struct SetupGameOptions {
     pub rounds: usize,
     pub deterministic: bool,
     pub start_round: Option<usize>,
+    pub max_players: usize,
+    pub game_mode: String,
 }
 
 impl Default for SetupGameOptions {
@@ -168,6 +170,8 @@ impl SetupGameOptions {
             rounds: 9,
             deterministic: false,
             start_round: None,
+            max_players: 4,
+            game_mode: "Standard".to_string(),
         }
     }
 
@@ -175,11 +179,15 @@ impl SetupGameOptions {
         max_rounds: usize,
         deterministic: bool,
         start_round: Option<usize>,
+        max_players: usize,
+        game_mode: String,
     ) -> SetupGameOptions {
         SetupGameOptions {
             rounds: max_rounds,
             deterministic,
             start_round,
+            max_players,
+            game_mode,
         }
     }
 }

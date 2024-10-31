@@ -24,6 +24,6 @@
 
 .animate-gradient-shine {
   background-size: 200% 200%;
-  animation: spin 10s linear infinite;
-  /* animation: gradient-shine 10s linear infinite; */
+  /* animation: spin 10s linear infinite; */
+  animation: gradient-shine 10s linear infinite;
 }

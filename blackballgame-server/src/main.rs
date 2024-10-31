@@ -10,6 +10,7 @@ use api_types::CreateGameRequest;
 use api_types::CreateGameResponse;
 use api_types::GetLobbiesResponse;
 use api_types::GetLobbyResponse;
+use api_types::Lobby;
 use axum::body::Body;
 use axum::extract::ws::Message;
 use axum::extract::Path;
@@ -154,9 +155,14 @@ pub async fn get_rooms(
                     .read()
                     .await
                     .rooms
-                    .keys()
-                    .cloned()
-                    .collect::<Vec<String>>(),
+                    .iter()
+                    .map(|(roomkey, room)| Lobby {
+                        name: room.lobby_code.clone(),
+                        players: room.players.keys().cloned().collect::<Vec<String>>(),
+                        max_players: room.setup_game_options.max_players.clone(),
+                        game_mode: room.setup_game_options.game_mode.clone(),
+                    })
+                    .collect::<Vec<Lobby>>(),
             }),
         );
     }
@@ -302,14 +308,18 @@ pub async fn get_room(
                 );
             }
         };
-        info!("Room \"{}\" found", room_code);
-        info!("Room players \"{:?}\"", room.players.keys());
+        // info!("Room \"{}\" found", room_code);
+        // info!("Room players \"{:?}\"", room.players.keys());
         let players = room.players.keys().cloned().collect::<Vec<String>>();
         return (
             StatusCode::OK,
             Json(json!(GetLobbyResponse {
-                lobby_code: room_code,
-                players: players,
+                lobby: Lobby {
+                    name: room.lobby_code.clone(),
+                    players: room.players.keys().cloned().collect::<Vec<String>>(),
+                    max_players: room.setup_game_options.max_players.clone(),
+                    game_mode: room.setup_game_options.game_mode.clone(),
+                },
             })),
         );
     }
