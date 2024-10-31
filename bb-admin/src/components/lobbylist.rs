@@ -1,11 +1,50 @@
+use api_types::Lobby;
 use dioxus::prelude::*;
 
 #[component]
-pub fn LobbyList() -> Element {
+pub fn LobbyComponent(lobby: Lobby) -> Element {
+    rsx!(
+        tr { key: "{lobby.name}",
+            td { class: "px-6 py-4 whitespace-nowrap", "lobby.name" }
+            td { class: "px-6 py-4 whitespace-nowrap", "players in lobby/allowed players" }
+            td { class: "px-6 py-4 whitespace-nowrap", "lobby.gameMode" }
+            td { class: "px-6 py-4 whitespace-nowrap",
+                button {
+                    // onclick: move || {},
+                    disabled: true,
+                    class: "px-4 py-2 rounded-md text-sm font-medium",
+                    "lobby.players >= lobby.maxPlayers"
+                }
+            }
+        }
+    )
+}
+
+#[component]
+pub fn LobbyList(lobbies: Vec<Lobby>, refresh_lobbies: EventHandler) -> Element {
     let lobby = String::from("test");
     rsx!(
         div { class: "container mx-auto p-4",
-            h1 { class: "text-2xl font-bold mb-4", "Game Lobbies" }
+            div { class: "flex flex-row justify-center gap-2",
+                h1 { class: "text-2xl font-bold mb-4", "Game Lobbies" }
+                button {
+                    class: "bg-gray-300 flex flex-row text-center border p-1 border-solid border-black rounded-md justify-center items-center",
+                    onclick: move |evt| refresh_lobbies.call(()),
+                    svg {
+                        class: "w-6 h-6",
+                        fill: "none",
+                        stroke: "currentColor",
+                        "stroke-width": "1",
+                        "view-box": "0 0 24 24",
+                        path {
+                            "stroke-linecap": "round",
+                            "stroke-linejoin": "round",
+                            d: "M4 4v5h.582c.523-1.838 1.856-3.309 3.628-4.062A7.978 7.978 0 0112 4c4.418 0 8 3.582 8 8s-3.582 8-8 8a7.978 7.978 0 01-7.658-5.125c-.149-.348-.54-.497-.878-.365s-.507.537-.355.885A9.956 9.956 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2c-2.045 0-3.94.613-5.514 1.653A6.978 6.978 0 004.582 4H4z"
+                        }
+                    }
+                    label { class: "text-lg", "Refresh" }
+                }
+            }
             div { class: "relative mb-4",
                 svg {
                     class: "absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5",
@@ -49,20 +88,14 @@ pub fn LobbyList() -> Element {
                         }
                         tbody { class: "divide-y divide-gray-200",
                             "filteredlobbies"
-                            tr { key: "{lobby}",
-                                td { class: "px-6 py-4 whitespace-nowrap", "lobby.name" }
-                                td { class: "px-6 py-4 whitespace-nowrap",
-                                    "players in lobby/allowed players"
-                                }
-                                td { class: "px-6 py-4 whitespace-nowrap", "lobby.gameMode" }
-                                td { class: "px-6 py-4 whitespace-nowrap",
-                                    button {
-                                        // onclick: move || {},
-                                        disabled: true,
-                                        class: "px-4 py-2 rounded-md text-sm font-medium",
-                                        "lobby.players >= lobby.maxPlayers"
+
+                            {lobbies.iter().map(|lobby| {
+                                rsx!(
+                                    LobbyComponent {
+                                        lobby: lobby.clone()
                                     }
-                                }
+                                )
+                            })
                             }
                         }
                     }

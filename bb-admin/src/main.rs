@@ -30,7 +30,7 @@ use tracing::{info, Level};
 // All of our routes will be a variant of this Route enum
 #[derive(Routable, PartialEq, Clone)]
 #[rustfmt::skip]
-enum Route {
+pub enum AppRoutes {
     #[layout(StateProvider)]
     #[route("/")]
     Home {},
@@ -107,7 +107,7 @@ fn StateProvider() -> Element {
         })
     });
 
-    rsx!(Outlet::<Route> {})
+    rsx!(Outlet::<AppRoutes> {})
 }
 
 // const _STYLE: &str = manganis::mg!(file("main.css"));
@@ -126,7 +126,7 @@ fn main() {
             //     // link { rel: "stylesheet", href: "./bb-admin/assets/main.css" }
             // }
             // link::Head { rel: "stylesheet", href: asset!("./assets/style.css") }
-            Router::<Route> {}
+            Router::<AppRoutes> {}
         }
     });
 }
@@ -187,7 +187,7 @@ fn Home() -> Element {
                     }
                     Link {
                         class: "bg-green-400 text-xl rounded-md border border-solid w-full",
-                        to: Route::Explorer {},
+                        to: AppRoutes::Explorer {},
                         "Play"
                     }
                 }
@@ -324,7 +324,7 @@ fn Explorer() -> Element {
                     }
                 }
                 Link {
-                    to: Route::GameRoom {
+                    to: AppRoutes::GameRoom {
                         room_code: app_props.read().lobby_code.clone(),
                     },
                     class: "bg-yellow-400 border border-solid border-black text-center rounded-md",
@@ -333,45 +333,19 @@ fn Explorer() -> Element {
                 {if create_lobby_response_msg() == String::from("") { rsx!() } else { rsx!(div { "{create_lobby_response_msg.read()}" }) }}
             }
             div { class: "flex flex-col justify-center align-top max-w-[600px] border border-black rounded-md p-4",
-                div { class: "flex flex-row justify-center gap-2",
-                    span { class: "text-lg font-bold", "Join ongoing games" }
-                    button {
-                        class: "bg-gray-300 flex flex-row text-center border p-1 border-solid border-black rounded-md justify-center items-center",
-                        onclick: refresh_lobbies,
-                        svg {
-                            class: "w-6 h-6",
-                            fill: "none",
-                            stroke: "currentColor",
-                            "stroke-width": "1",
-                            "view-box": "0 0 24 24",
-                            path {
-                                "stroke-linecap": "round",
-                                "stroke-linejoin": "round",
-                                d: "M4 4v5h.582c.523-1.838 1.856-3.309 3.628-4.062A7.978 7.978 0 0112 4c4.418 0 8 3.582 8 8s-3.582 8-8 8a7.978 7.978 0 01-7.658-5.125c-.149-.348-.54-.497-.878-.365s-.507.537-.355.885A9.956 9.956 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2c-2.045 0-3.94.613-5.514 1.653A6.978 6.978 0 004.582 4H4z"
-                            }
-                        }
-                        label { class: "text-lg", "Refresh" }
-                    }
-                }
                 div { class: "border border-solid border-black bg-white rounded-md",
-                    {if lobbies.read().lobbies.len() == 0 {
-                        rsx!(div { "No games" })
-                    } else {
-                        rsx!{
-                            lobbylist::LobbyList {}
-                            ul {
-                                {lobbies.read().lobbies.iter().map(|lobby|
-                                    {
-                                        if lobby.name.eq("") {
-                                            rsx!()
-                                        } else {
-                                            rsx!(LobbyComponent {lobby: lobby.name.clone()})
-                                        }
-                                    }
-                                )}
+                    lobbylist::LobbyList { lobbies: lobbies.read().lobbies.clone(), refresh_lobbies }
+                    ul {
+                        {lobbies.read().lobbies.iter().map(|lobby|
+                            {
+                                if lobby.name.eq("") {
+                                    rsx!()
+                                } else {
+                                    rsx!(LobbyComponent {lobby: lobby.name.clone()})
+                                }
                             }
-                        }
-                    }}
+                        )}
+                    }
                 }
             }
         }
@@ -387,7 +361,7 @@ fn LobbyComponent(lobby: String) -> Element {
     rsx!(
         Link {
             class: "lobby-link",
-            to: Route::GameRoom {
+            to: AppRoutes::GameRoom {
                 room_code: lobby.clone(),
             },
             onclick: move |_| {
