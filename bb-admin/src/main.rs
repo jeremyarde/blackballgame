@@ -124,9 +124,10 @@ const TAILWIND_URL: Asset = asset!("./assets/tailwind.css");
 fn main() {
     // Init logger
     dioxus_logger::init(Level::INFO).expect("failed to init logger");
-    // launch(App);
+    info!("Starting app");
     launch(|| {
         rsx! {
+            link { rel: "stylesheet", href: asset!("./assets/tailwind.css") }
             // head {
             //     link { rel: "stylesheet", href: "{TAILWIND_URL.bundled}" }
             // }

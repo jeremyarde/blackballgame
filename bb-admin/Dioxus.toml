@@ -28,7 +28,7 @@ title = "Blackball"
 reload_html = true
 
 # which files or dirs will be watcher monitoring
-watch_path = ["src", "assets", "input.css", "index.html"]
+watch_path = ["src", "assets", "input.css"]
 
 # include `assets` in web platform
 [web.resource]
