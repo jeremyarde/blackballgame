@@ -6,13 +6,14 @@
 
 ```bash
 npx tailwindcss -i ./input.css -o ./assets/tailwind.css --watch
+npx tailwindcss -i ./input.css -o ./assets/tailwind.css --watch
 ```
 
 Run the following command in the root of the project to start the Dioxus dev server:
 
 ```bash
 dx serve --hot-reload
-dx serve --port 5173 --hot-reload
+dx serve --port 5173 --hot-reload true
 cargo install dioxus-cli
 ```
 

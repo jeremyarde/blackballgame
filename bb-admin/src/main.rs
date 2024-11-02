@@ -20,6 +20,7 @@ mod components;
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::TryStreamExt;
 use futures_util::{SinkExt, StreamExt};
+use manganis::{asset, Asset, ImageAsset, ImageAssetBuilder};
 use reqwest::Client;
 use reqwest_websocket::WebSocket;
 use reqwest_websocket::{Message, RequestBuilderExt};
@@ -113,7 +114,11 @@ fn StateProvider() -> Element {
 // const _STYLE: &str = manganis::mg!(file("main.css"));
 // const _STYLE: &str = manganis::mg!(file("./assets/tailwind.css"));
 // Urls are relative to your Cargo.toml file
-const _TAILWIND_URL: &str = manganis::mg!(file("./public/tailwind.css"));
+// const _TAILWIND_URL: &str = manganis::mg!(file("./public/tailwind.css"));
+// const _TAILWIND_URL: &str = manganis::mg!(file("/bb-admin/assets/tailwind.css"));
+// const TAILWIND_URL: &str = asset!("./assets/tailwind.css").bundled;
+const TAILWIND_URL: Asset = asset!("./assets/tailwind.css");
+
 // const __TAILWIND_URL: &str = manganis::mg!(file("./public/tailwind.css"));
 
 fn main() {
@@ -123,7 +128,7 @@ fn main() {
     launch(|| {
         rsx! {
             // head {
-            //     // link { rel: "stylesheet", href: "./bb-admin/assets/main.css" }
+            //     link { rel: "stylesheet", href: "{TAILWIND_URL.bundled}" }
             // }
             // link::Head { rel: "stylesheet", href: asset!("./assets/style.css") }
             Router::<AppRoutes> {}
@@ -620,7 +625,7 @@ fn GameRoom(room_code: String) -> Element {
     };
 
     let listen_for_server_messages =
-        use_coroutine(|mut rx: UnboundedReceiver<String>| async move {
+        use_coroutine(move |mut rx: UnboundedReceiver<String>| async move {
             info!("[SERVER-LISTENER] listen_for_server_messages coroutine starting...");
             let _ = rx.next().await; // waiting for start message
                                      // while server_websocket_listener.read().is_none() {
@@ -684,7 +689,7 @@ fn GameRoom(room_code: String) -> Element {
         });
 
     // this is internal messaging, between frontend to connection websocket
-    let ws_send: Coroutine<InnerMessage> = use_coroutine(|mut rx| async move {
+    let ws_send: Coroutine<InnerMessage> = use_coroutine(move |mut rx| async move {
         info!("ws_send coroutine starting...");
 
         info!("Ready to listen to player actions");
@@ -878,7 +883,7 @@ fn GameRoom(room_code: String) -> Element {
                                                 r#type: "text",
                                                 placeholder: "",
                                                 required: "false",
-                                                value: if setupgameoptions.read().password.is_some() {"{setupgameoptions.read().password}"} else {""},
+                                                value: if setupgameoptions.read().password.is_some() {"{setupgameoptions.read().password:?}"} else {""},
                                                 class: "bg-gray-50 border-x-0 border-gray-300 h-11 text-center text-gray-900 text-sm focus:ring-blue-500 focus:border-blue-500 block w-full py-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500",
                                                 // id: "quantity-input"
                                                 onchange: move |evt| {
@@ -945,15 +950,14 @@ fn GameRoom(room_code: String) -> Element {
     )
 }
 
-pub const CARD_ASSET: manganis::ImageAsset =
-    manganis::mg!(image("./assets/outline.png").size(96, 128));
+pub const CARD_ASSET: manganis::ImageAsset = asset!("./assets/outline.png").image();
 // pub const CARD_BG_SVG: manganis::ImageAsset =
 //     manganis::mg!(image("./assets/outline.svg").format(ImageType::Svg));
-pub const SUIT_HEART: manganis::ImageAsset = manganis::mg!(image("./assets/suits/heart.png"));
-pub const SUIT_DIAMOND: manganis::ImageAsset = manganis::mg!(image("./assets/suits/diamond.png"));
-pub const SUIT_CLUB: manganis::ImageAsset = manganis::mg!(image("./assets/suits/club.png"));
-pub const SUIT_SPADE: manganis::ImageAsset = manganis::mg!(image("./assets/suits/spade.png"));
-pub const SUIT_NOTRUMP: manganis::ImageAsset = manganis::mg!(image("./assets/suits/notrump.png"));
+pub const SUIT_CLUB: ImageAsset = asset!("./assets/suits/club.png").image();
+pub const SUIT_HEART: manganis::ImageAsset = asset!("./assets/suits/heart.png").image();
+pub const SUIT_DIAMOND: manganis::ImageAsset = asset!("./assets/suits/diamond.png").image();
+pub const SUIT_SPADE: manganis::ImageAsset = asset!("./assets/suits/spade.png").image();
+pub const SUIT_NOTRUMP: ImageAsset = asset!("./assets/suits/notrump.png").image();
 
 #[component]
 fn CardComponent(card: Card, onclick: EventHandler<Card>) -> Element {

@@ -11,12 +11,13 @@ version = "0.1.0"
 api_types = {path = "../api_types"}
 chrono = "0.4.38"
 common = {path = "../common"}
-dioxus = {version = "0.5.6", features = ["web", "router"]}
+dioxus = {version = "0.6.0-alpha.4", features = ["web", "router"]}
+# dioxus = {version = "0.5.6", features = ["web", "router"]}
 # dioxus = {git = "https://github.com/DioxusLabs/dioxus", branch = "main", features = ["web", "router"]}
 dioxus-logger = "0.5.0"
 dotenvy = "0.15.7"
 futures-util = "0.3.30"
-manganis = "0.2.2"
+manganis = "=0.6.0-alpha.4"
 # manganis = "0.2.2"
 reqwest = {version = "0.12.5", features = ["json"]}
 reqwest-websocket = "0.4.1"
