@@ -156,6 +156,14 @@ pub struct SetupGameOptions {
     pub start_round: Option<usize>,
     pub max_players: usize,
     pub game_mode: String,
+    pub visibility: GameVisibility,
+    pub password: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum GameVisibility {
+    Public,
+    Private,
 }
 
 impl Default for SetupGameOptions {
@@ -172,6 +180,8 @@ impl SetupGameOptions {
             start_round: None,
             max_players: 4,
             game_mode: "Standard".to_string(),
+            visibility: GameVisibility::Public,
+            password: None,
         }
     }
 
@@ -181,6 +191,8 @@ impl SetupGameOptions {
         start_round: Option<usize>,
         max_players: usize,
         game_mode: String,
+        visibility: GameVisibility,
+        password: Option<String>,
     ) -> SetupGameOptions {
         SetupGameOptions {
             rounds: max_rounds,
@@ -188,6 +200,8 @@ impl SetupGameOptions {
             start_round,
             max_players,
             game_mode,
+            visibility,
+            password,
         }
     }
 }
