@@ -343,6 +343,41 @@ fn Explorer() -> Element {
         });
     };
 
+    let create_lobby_function = move || {
+        #[derive(Deserialize, Serialize)]
+        pub struct CreateGameRequest {
+            lobby_code: String,
+        }
+
+        let cloned_room_code = lobby_name.clone();
+        spawn(async move {
+            let resp = reqwest::Client::new()
+                .post(format!(
+                    "{}{}",
+                    app_props.read().server_url.clone(),
+                    "/rooms"
+                ))
+                .json(&CreateGameRequest {
+                    lobby_code: cloned_room_code.read().clone(),
+                })
+                .send()
+                .await;
+
+            match resp {
+                Ok(data) => {
+                    info!("create_lobby success");
+                    // log::info!("Got response: {:?}", resp);
+                    create_lobby_response_msg.set(format!("response: {:?}", data).into());
+                }
+                Err(err) => {
+                    info!("create_lobby failed");
+                    // log::info!("Request failed with error: {err:?}")
+                    create_lobby_response_msg.set(format!("{err}").into());
+                }
+            }
+        });
+    };
+
     rsx! {
 
         div { class: "flex flex-row text-center w-dvw h-dvh bg-[--bg-color] items-baseline flex-nowrap justify-center gap-2 p-4",
@@ -371,7 +406,7 @@ fn Explorer() -> Element {
                     // },
                     class: "bg-yellow-400 border border-solid border-black text-center rounded-md",
                     onclick: move |_| {
-                        current_route.set("GameRoom".to_string());
+                        create_lobby_function();
                     },
                     "Create lobby"
                 }
@@ -547,44 +582,7 @@ fn GameRoom(room_code: String) -> Element {
     let room_code_clone = room_code.clone();
 
     use_effect(move || {
-        info!("create_lobby on lobby creation");
-        info!(
-            "jere/ lobby: {:?}, username: {:?}",
-            room_code,
-            app_props.read().username
-        );
-        #[derive(Deserialize, Serialize)]
-        pub struct CreateGameRequest {
-            lobby_code: String,
-        }
-
-        let cloned_room_code = room_code.clone();
         spawn(async move {
-            let resp = reqwest::Client::new()
-                .post(format!(
-                    "{}{}",
-                    app_props.read().server_url.clone(),
-                    "/rooms"
-                ))
-                .json(&CreateGameRequest {
-                    lobby_code: cloned_room_code.clone(),
-                })
-                .send()
-                .await;
-
-            match resp {
-                Ok(data) => {
-                    info!("create_lobby success");
-                    // log::info!("Got response: {:?}", resp);
-                    create_lobby_response_msg.set(format!("response: {:?}", data).into());
-                }
-                Err(err) => {
-                    info!("create_lobby failed");
-                    // log::info!("Request failed with error: {err:?}")
-                    create_lobby_response_msg.set(format!("{err}").into());
-                }
-            }
-
             info!("Attempting to connect to websocket server during startup: {server_websocket_listener:?}");
             if server_websocket_listener.try_read().is_err() {
                 info!("[SERVER-LISTENER] Server websocket listener already exists");
@@ -782,6 +780,7 @@ fn GameRoom(room_code: String) -> Element {
                                     class: "button",
                                     onclick: move |evt| {
                                         // let room_code_clone = room_code_clone.clone();
+
                                         async move {
                                             info!("Clicked join game");
                                             listen_for_server_messages.send(("ready".to_string()));
