@@ -257,6 +257,7 @@ fn Explorer() -> Element {
     let mut create_lobby_response_msg = use_signal(|| String::from(""));
 
     let mut app_props: Signal<AppProps> = use_context::<Signal<AppProps>>();
+    let mut lobby_name = use_signal(|| String::new());
 
     let mut lobbies = use_signal(|| GetLobbiesResponse { lobbies: vec![] });
 
@@ -326,14 +327,14 @@ fn Explorer() -> Element {
                     input {
                         class: "input",
                         r#type: "text",
-                        value: "{app_props.read().lobby_code}",
-                        oninput: move |event| app_props.write().lobby_code = event.value(),
+                        value: "{lobby_name.read()}",
+                        oninput: move |event| lobby_name.set(event.value()),
                         "lobby"
                     }
                 }
                 Link {
                     to: AppRoutes::GameRoom {
-                        room_code: app_props.read().lobby_code.clone(),
+                        room_code: lobby_name.read().to_string(),
                     },
                     class: "bg-yellow-400 border border-solid border-black text-center rounded-md",
                     "Create lobby"
@@ -348,26 +349,6 @@ fn Explorer() -> Element {
         }
     }
 }
-
-// #[component]
-// fn LobbyComponent(lobby: String) -> Element {
-//     let mut app_props = use_context::<Signal<AppProps>>();
-//     let mut create_lobby_response_msg = use_signal(|| String::from(""));
-
-//     let lobbyclone = lobby.clone();
-//     rsx!(
-//         Link {
-//             class: "lobby-link",
-//             to: AppRoutes::GameRoom {
-//                 room_code: lobby.clone(),
-//             },
-//             onclick: move |_| {
-//                 app_props.write().lobby_code = lobbyclone.clone();
-//             },
-//             "Join game: {lobby}"
-//         }
-//     )
-// }
 
 #[component]
 pub fn LobbyComponent(lobby: Lobby) -> Element {
@@ -406,7 +387,7 @@ pub fn LobbyList(lobbies: Vec<Lobby>, refresh_lobbies: EventHandler) -> Element 
             div { class: "flex flex-row justify-center gap-2 space-between",
                 h1 { class: "text-2xl font-bold mb-4", "Game Lobbies" }
                 button {
-                    class: "bg-gray-300 flex flex-row text-center border p-1 border-solid border-black rounded-md justify-center items-center",
+                    class: "bg-gray-300 flex flex-row text-center border p-1 border-solid border-black rounded-md justify-center items-center cursor-pointer",
                     onclick: move |evt| refresh_lobbies.call(()),
                     svg {
                         class: "w-6 h-6",
@@ -512,7 +493,7 @@ fn GameRoom(room_code: String) -> Element {
             game_mode: "Standard".to_string(),
         },
     });
-    let isChecked = use_signal(|| false);
+
     // let mut username = use_signal(|| String::new());
     let mut error = use_signal(|| Value::Null);
     let mut player_secret = use_signal(|| String::new());
@@ -524,13 +505,13 @@ fn GameRoom(room_code: String) -> Element {
     let mut ws_action = use_signal(|| WsState::Resume);
 
     let mut create_lobby_response_msg = use_signal(|| String::from(""));
-
     let room_code_clone = room_code.clone();
+
     use_effect(move || {
         info!("create_lobby on lobby creation");
         info!(
             "jere/ lobby: {:?}, username: {:?}",
-            app_props.read().lobby_code,
+            room_code,
             app_props.read().username
         );
         #[derive(Deserialize, Serialize)]
@@ -538,6 +519,7 @@ fn GameRoom(room_code: String) -> Element {
             lobby_code: String,
         }
 
+        let cloned_room_code = room_code.clone();
         spawn(async move {
             let resp = reqwest::Client::new()
                 .post(format!(
@@ -546,7 +528,7 @@ fn GameRoom(room_code: String) -> Element {
                     "/rooms"
                 ))
                 .json(&CreateGameRequest {
-                    lobby_code: app_props.read().lobby_code.clone(),
+                    lobby_code: cloned_room_code.clone(),
                 })
                 .send()
                 .await;
@@ -591,13 +573,14 @@ fn GameRoom(room_code: String) -> Element {
         });
     });
 
-    let get_game_details = move |room_code: String| {
+    let get_details_room_code = room_code_clone.clone();
+    let get_game_details = move |get_details_room_code: String| {
         spawn(async move {
             let resp = reqwest::Client::new()
                 .get(format!(
                     "{}{}",
                     app_props.read().server_url.clone(),
-                    format!("/rooms/{}", room_code)
+                    format!("/rooms/{}", get_details_room_code)
                 ))
                 .send()
                 .await;
@@ -614,7 +597,7 @@ fn GameRoom(room_code: String) -> Element {
                     // log::info!("Request failed with error: {err:?}")
                     get_lobby_response.set(GetLobbyResponse {
                         lobby: Lobby {
-                            name: room_code.clone(),
+                            name: get_details_room_code.clone(),
                             players: vec![],
                             max_players: 4,
                             game_mode: "Standard".to_string(),
@@ -735,6 +718,7 @@ fn GameRoom(room_code: String) -> Element {
         info!("Finished listening to player actions");
     });
 
+    let clone_room_code = room_code.clone();
     let ws_send_signal = use_signal(|| ws_send);
     rsx!(
         div { class: "items-center flex flex-col",
@@ -746,67 +730,71 @@ fn GameRoom(room_code: String) -> Element {
                         .read()
                         .as_str()
                         .map(|err| rsx!(div { "{err}" }))
-                        .unwrap()
+                        .expect("Failed to parse error")
                 }
             },
             {
                 if gamestate().gameplay_state == GameplayState::Pregame {
                     rsx!(
-                        button {
-                            class: "button",
-                            onclick: move |evt| get_game_details(app_props.read().lobby_code.clone()),
-                            "Refresh player list"
-                        }
-                        button {
-                            class: "button",
-                            onclick: move |evt| {
-                                // let room_code_clone = room_code_clone.clone();
-                                async move {
-                                    info!("Clicked join game");
-                                    listen_for_server_messages.send(("ready".to_string()));
-                                    ws_send
-                                        .send(InnerMessage::GameMessage {
-                                            msg: GameMessage {
-                                                username: app_props().username.clone(),
-                                                timestamp: Utc::now(),
-                                                message: GameEvent {
-                                                    action: GameAction::JoinGame(
-                                                        PlayerDetails{
-                                                            username: app_props.read().username.clone(),
-                                                            ip: String::new(),
-                                                            client_secret: app_props.read().client_secret.clone(),
-                                                        })
-                                                },
-                                            },
-                                        });
-                                }
-                            },
-                            "Join this game"
-                        }
                         div {
-                            class: "flex flex-col justify-center align-top text-center items-center max-w-[600px] border border-black rounded-md p-4",
-                            h1 {class: "lg", "{get_lobby_response.read().lobby.name}" }
-                            div { class: "container", "Players ({get_lobby_response.read().lobby.players.len()})"
-                                {get_lobby_response.read().lobby.players.iter().enumerate().map(|(i, player)| rsx!(div { "{i}: {player}" }))}
+                            class: "flex flex-row",
+                            div {
+                                class: "flex flex-col max-w-[600px] border border-black rounded-md p-4",
+                                button {
+                                    class: "button",
+                                    onclick: move |evt| get_game_details(room_code.clone()),
+                                    "Refresh player list"
+                                }
+                                button {
+                                    class: "button",
+                                    onclick: move |evt| {
+                                        // let room_code_clone = room_code_clone.clone();
+                                        async move {
+                                            info!("Clicked join game");
+                                            listen_for_server_messages.send(("ready".to_string()));
+                                            ws_send
+                                                .send(InnerMessage::GameMessage {
+                                                    msg: GameMessage {
+                                                        username: app_props().username.clone(),
+                                                        timestamp: Utc::now(),
+                                                        message: GameEvent {
+                                                            action: GameAction::JoinGame(
+                                                                PlayerDetails{
+                                                                    username: app_props.read().username.clone(),
+                                                                    ip: String::new(),
+                                                                    client_secret: app_props.read().client_secret.clone(),
+                                                                })
+                                                        },
+                                                    },
+                                                });
+                                        }
+                                    },
+                                    "Join this game"
+                                }
+                                div {
+                                    class: "flex flex-row justify-center align-top text-center items-center max-w-[600px] border border-black rounded-md p-4",
+                                    h1 {class: "lg", "{get_lobby_response.read().lobby.name}" }
+                                    div { class: "container", "Players ({get_lobby_response.read().lobby.players.len()})"
+                                        {get_lobby_response.read().lobby.players.iter().enumerate().map(|(i, player)| rsx!(div { "{i}: {player}" }))}
+                                    }
+                                }
                             }
-                            div { class: "flex flex-col",
+                            div { class: "flex flex-col max-w-[600px] border border-black rounded-md p-4",
                                 h2 {
                                     class: "lg",
                                     "Game options"
                                 }
-                                div { class: "flex flex-col align-middle justify-center text-center",
-                                    div { class: "relative flex flex-row items-center max-w-[8rem]",
+                                // settings
+                                div { class: "flex flex-col align-middle justify-center text-center w-full",
+                                    div { class: "flex flex-row items-center",
                                         label { "Rounds" }
                                         input {
-                                            "aria-describedby": "helper-text-explanation",
                                             r#type: "text",
                                             "data-input-counter": "false",
                                             placeholder: "9",
                                             required: "false",
-                                            // onchange: move |evt| setupgameoptions.write().rounds -= 1,
                                             value: "{setupgameoptions.read().rounds}",
-                                            class: "bg-gray-50 border-x-0 border-gray-300 h-11 text-center text-gray-900 text-sm focus:ring-blue-500 focus:border-blue-500 block w-full py-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500",
-                                            id: "quantity-input"
+                                            class: "",
                                         }
                                         button {
                                             "data-input-counter-decrement": "quantity-input",
@@ -853,48 +841,52 @@ fn GameRoom(room_code: String) -> Element {
                                     }
                                     div {
                                         class: "flex flex-row align-middle justify-center text-center",
-                                        label { "Game visibility" }
-                                        div { class: "flex flex-row items-center justify-center min-h-screen bg-gray-100",
-                                            label {
-                                                class: "flex items-center cursor-pointer",
-                                                div {
-                                                    class: "relative",
-                                                    input {
-                                                        checked: "{isChecked}",
-                                                        class: "sr-only",
-                                                        r#type: "checkbox",
-                                                        onchange: move |evt| setupgameoptions.write().visibility = if isChecked() { GameVisibility::Private } else { GameVisibility::Public },
-                                                    }
-                                                    div {
-                                                        class: format!("w-14 h-8 bg-gray-300 rounded-full shadow-inner transition-colors duration-300 ease-in-out {}", {if isChecked() {"bg-green"} else {""} }),
-                                                    }
+                                        span { "Public" }
+                                        label {
+                                            class: "relative items-center cursor-pointer",
+                                            div {
+                                                class: "relative",
+                                                input {
+                                                    checked: "{setupgameoptions.read().visibility == GameVisibility::Private}",
+                                                    class: "sr-only",
+                                                    r#type: "checkbox",
+                                                    onchange: move |evt| {
+                                                        setupgameoptions.write().visibility = if setupgameoptions.read().visibility == GameVisibility::Private { GameVisibility::Public } else { GameVisibility::Private };
+                                                    },
                                                 }
                                                 div {
-                                                    class: format!("absolute left-1 top-1 w-6 h-6 bg-white rounded-full shadow transition-transform duration-300 ease-in-out {}", {if isChecked() {"transform translate-x-6"} else {""}}),
-                                                    span { class: "ml-3 text-gray-700 font-medium",
-                                                        {if isChecked() { "ON" } else {"OFF"}}
-                                                    }
+                                                    class: format!("block w-14 h-8 rounded-full {}", if setupgameoptions.read().visibility == GameVisibility::Private { "bg-red-300" } else { "bg-green-200" }) }
+                                                div {
+                                                    class: format!("absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform duration-300 ease-in-out {}", if setupgameoptions.read().visibility == GameVisibility::Private { "transform translate-x-full" } else { "" })
                                                 }
                                             }
                                         }
-                                        div {
-                                            class: "flex flex-row align-middle justify-center text-center",
-                                            "Password"
-                                            input {
-                                                r#type: "text",
-                                                placeholder: "",
-                                                required: "false",
-                                                value: if setupgameoptions.read().password.is_some() {"{setupgameoptions.read().password:?}"} else {""},
-                                                class: "bg-gray-50 border-x-0 border-gray-300 h-11 text-center text-gray-900 text-sm focus:ring-blue-500 focus:border-blue-500 block w-full py-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500",
-                                                // id: "quantity-input"
-                                                onchange: move |evt| {
-                                                    setupgameoptions.write().password = evt.value().parse::<String>().ok();
-                                                }
-                                            }
-                                        }
+                                        span { "Private" }
+
                                     }
+                                    {if setupgameoptions.read().visibility == GameVisibility::Private {
+                                        rsx!(
+                                            div {
+                                                class: "flex flex-row align-middle justify-center text-center",
+                                                "Password"
+                                                input {
+                                                    r#type: "text",
+                                                    placeholder: "",
+                                                    required: "false",
+                                                    value: if setupgameoptions.read().password.is_some() {"{setupgameoptions.read().password:?}"} else {""},
+                                                    class: "bg-gray-50 border-x-0 border-gray-300 h-11 text-center text-gray-900 text-sm focus:ring-blue-500 focus:border-blue-500 block w-full py-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500",
+                                                    // id: "quantity-input"
+                                                    onchange: move |evt| {
+                                                        setupgameoptions.write().password = evt.value().parse::<String>().ok();
+                                                    }
+                                                }
+                                            }
+                                        )
+                                    } else {
+                                        rsx!()
+                                    }}
                                 }
-                            }
+
                             button {
                                 class: "bg-yellow-300 border border-solid border-black text-center rounded-md",
                                 onclick: move |evt| {
@@ -928,19 +920,20 @@ fn GameRoom(room_code: String) -> Element {
                                 },
                                 "Start game"
                             }
-                        }
-                        div {
-                            class: "flex flex-col",
-                            {if gamestate().system_status.len() > 0 {
-                                rsx!(
-                                    ul {
-                                        {gamestate().system_status.iter().map(|issue| rsx!(li { "{issue}" }))}
+                            div {
+                                class: "flex flex-col",
+                                {if gamestate().system_status.len() > 0 {
+                                    rsx!(
+                                        ul {
+                                            {gamestate().system_status.iter().map(|issue| rsx!(li { "{issue}" }))}
+                                        }
+                                    )
+                                    } else {
+                                        rsx!(div { "Please join the game" })
                                     }
-                                )
-                                } else {
-                                    rsx!(div { "Please join the game" })
                                 }
                             }
+                        }
                         }
                     )
                 } else {
@@ -1042,7 +1035,7 @@ fn GameStateComponent(
             .read()
             .players
             .get(&curr_player)
-            .unwrap()
+            .expect("Failed to get player in gamestate")
             .encrypted_hand
             .clone()
     } else {
@@ -1066,7 +1059,7 @@ fn GameStateComponent(
                         div { "Round: {gamestate().curr_round}/{gamestate().setup_game_options.rounds}" }
                         div { "Dealer: {gamestate().curr_dealer}" }
                         if gamestate().curr_player_turn.is_some() {
-                            div { "Player turn: {gamestate().curr_player_turn.unwrap()}" }
+                            div { "{gamestate().curr_player_turn.unwrap()}" }
                         } else {
                             div { "Player turn: None" }
                         }
