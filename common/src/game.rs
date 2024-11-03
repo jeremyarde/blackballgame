@@ -6,7 +6,7 @@ use data_encoding::BASE64;
 use nanoid::nanoid_gen;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::{
     create_deck, Card, Connect, Destination, GameAction, GameClient, GameError, GameEventResult,
@@ -325,6 +325,7 @@ impl GameState {
     }
 
     pub fn decrypt_player_hand(hand: String, player_secret: &String) -> Vec<Card> {
+        debug!("Decrypting hand: {:?}, {:?}", hand, player_secret);
         if player_secret.is_empty() {
             error!("Player secret is empty");
             return vec![];

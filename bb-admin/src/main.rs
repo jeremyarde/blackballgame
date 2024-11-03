@@ -216,7 +216,7 @@ fn Home() -> Element {
         ),
         "Explorer" => rsx!(Explorer {}),
         "GameRoom" => rsx!(GameRoom {
-            room_code: String::new()
+            room_code: app_props.read().lobby_code.clone()
         }),
         _ => rsx!(Home {}),
     };
@@ -612,6 +612,7 @@ fn GameRoom(room_code: String) -> Element {
 
     let get_details_room_code = room_code_clone.clone();
     let get_game_details = move |get_details_room_code: String| {
+        info!("Getting details of game: {get_details_room_code}");
         spawn(async move {
             let resp = reqwest::Client::new()
                 .get(format!(
