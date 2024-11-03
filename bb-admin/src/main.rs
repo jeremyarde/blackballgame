@@ -494,10 +494,8 @@ fn GameRoom(room_code: String) -> Element {
         },
     });
 
-    // let mut username = use_signal(|| String::new());
     let mut error = use_signal(|| Value::Null);
     let mut player_secret = use_signal(|| String::new());
-    // let mut num_rounds = use_signal(|| 9);
 
     let mut server_websocket_listener: Signal<Option<SplitStream<WebSocket>>> = use_signal(|| None);
     let mut server_websocket_sender: Signal<Option<SplitSink<WebSocket, Message>>> =
@@ -546,12 +544,12 @@ fn GameRoom(room_code: String) -> Element {
                 }
             }
 
+            info!("Attempting to connect to websocket server during startup: {server_websocket_listener:?}");
             if server_websocket_listener.try_read().is_err() {
                 info!("[SERVER-LISTENER] Server websocket listener already exists");
                 return;
             }
 
-            info!("Attempting to connect to websocket server during startup");
             let response = Client::default()
                 .get(ws_url())
                 .upgrade() // Prepares the WebSocket upgrade.
@@ -611,19 +609,13 @@ fn GameRoom(room_code: String) -> Element {
     let listen_for_server_messages =
         use_coroutine(move |mut rx: UnboundedReceiver<String>| async move {
             info!("[SERVER-LISTENER] listen_for_server_messages coroutine starting...");
-            let _ = rx.next().await; // waiting for start message
-                                     // while server_websocket_listener.read().is_none() {
-                                     //     info!("No websocket listener, waiting...");
-                                     //     // sleep(Duration::from_millis(5000));
-                                     //     // tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-                                     // }
-
-            // if server_websocket_listener.read().is_none() {
-            //     info!("No websocket listener");
-            //     return;
-            // }
+            let _ = rx.next().await;
 
             info!("[SERVER-LISTENER] Unpaused server websocket listener");
+
+            if server_websocket_listener.read().is_none() {
+                info!("[SERVER-LISTENER] Server websocket listener is not available...");
+            }
 
             if server_websocket_listener.read().is_some() {
                 info!("[SERVER-LISTENER] Server websocket listener already exists");
@@ -678,6 +670,7 @@ fn GameRoom(room_code: String) -> Element {
 
         info!("Ready to listen to player actions");
         'pauseloop: while let Some(internal_msg) = rx.next().await {
+            info!("Received internal message: {:?}", internal_msg);
             if server_websocket_sender.read().is_none() {
                 info!("No websocket sender");
                 return;
