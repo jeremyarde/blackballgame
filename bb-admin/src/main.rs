@@ -718,7 +718,6 @@ fn GameRoom(room_code: String) -> Element {
         info!("Finished listening to player actions");
     });
 
-    let clone_room_code = room_code.clone();
     let ws_send_signal = use_signal(|| ws_send);
     rsx!(
         div { class: "items-center flex flex-col",
@@ -742,7 +741,7 @@ fn GameRoom(room_code: String) -> Element {
                                 class: "flex flex-col max-w-[600px] border border-black rounded-md p-4",
                                 button {
                                     class: "button",
-                                    onclick: move |evt| get_game_details(room_code.clone()),
+                                    onclick: move |evt| get_game_details(room_code_clone.clone()),
                                     "Refresh player list"
                                 }
                                 button {
@@ -1059,7 +1058,8 @@ fn GameStateComponent(
                         div { "Round: {gamestate().curr_round}/{gamestate().setup_game_options.rounds}" }
                         div { "Dealer: {gamestate().curr_dealer}" }
                         if gamestate().curr_player_turn.is_some() {
-                            div { "{gamestate().curr_player_turn.unwrap()}" }
+                            // div { "{gamestate().curr_player_turn.unwrap()}" }
+                            div { "Player turn: TODO" }
                         } else {
                             div { "Player turn: None" }
                         }
