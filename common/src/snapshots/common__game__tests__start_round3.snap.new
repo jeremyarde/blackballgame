@@ -1,6 +1,6 @@
 ---
 source: common/src/game.rs
-assertion_line: 1117
+assertion_line: 1227
 expression: game
 ---
 lobby_code: lobby
@@ -8,6 +8,10 @@ setup_game_options:
   rounds: 5
   deterministic: true
   start_round: 3
+  max_players: 4
+  game_mode: Standard
+  visibility: Public
+  password: ~
 secret_key: mysecretkey
 players:
   p1:
@@ -18,7 +22,7 @@ players:
     details:
       username: p1
       ip: ip
-      client_secret: ~
+      client_secret: sky_1uc7lbc4282q
   p2:
     id: p2
     encrypted_hand: "[encrypted_hand]"
@@ -27,7 +31,7 @@ players:
     details:
       username: p2
       ip: ip
-      client_secret: ~
+      client_secret: sky_i9q2mf1kvqkq
 curr_round: 3
 trump: heart
 player_order:
@@ -49,4 +53,4 @@ gameplay_state: Bid
 event_log: []
 system_status: []
 is_public: true
-latest_update: "2024-08-14T22:49:27.644486Z"
+latest_update: "2024-11-03T14:49:53.475346Z"

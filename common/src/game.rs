@@ -33,7 +33,12 @@ impl GameState {
                 // GameplayState::PostHand(ps.clone())
             }
             GameplayState::PostHand(ps) => {
-                if ps.hand_num >= self.curr_round.try_into().unwrap() {
+                if ps.hand_num
+                    >= self
+                        .curr_round
+                        .try_into()
+                        .expect("Could not convert round to usize")
+                {
                     GameplayState::PostRound
                 } else {
                     GameplayState::Play(PlayState::from(ps.hand_num + 1))
@@ -76,21 +81,17 @@ impl GameState {
     }
 
     fn is_correct_player_turn(&mut self, event: &GameMessage) -> bool {
-        if &self.curr_player_turn.clone().unwrap_or("".to_string()) != &event.username {
-            info!(
-                "{}'s turn, not {}'s turn.",
-                self.curr_player_turn.clone().unwrap(),
-                event.username
-            );
+        let curr_turn = &self.curr_player_turn.clone().unwrap_or("".to_string());
+
+        if curr_turn != &event.username {
+            info!("{}'s turn, not {}'s turn.", curr_turn, event.username);
             self.broadcast_message(format!(
                 "{}'s turn, not {}'s turn.",
-                self.curr_player_turn.clone().unwrap(),
-                event.username
+                curr_turn, event.username
             ));
             self.system_status.push(format!(
                 "{}'s turn, not {}'s turn.",
-                self.curr_player_turn.clone().unwrap(),
-                event.username
+                curr_turn, event.username
             ));
             return false;
         }
@@ -145,7 +146,10 @@ impl GameState {
         let player_id = event.username.clone();
 
         if let GameAction::PlayCard(card) = &event.message.action {
-            let player = self.players.get_mut(&player_id).unwrap();
+            let player = self
+                .players
+                .get_mut(&player_id)
+                .expect("Did not find player");
 
             match is_played_card_valid(
                 &self.curr_played_cards.clone(),
@@ -163,7 +167,9 @@ impl GameState {
                             cardloc = Some(i)
                         }
                     });
-                    player.hand.remove(cardloc.unwrap());
+                    player
+                        .hand
+                        .remove(cardloc.expect("Did not find card location in hand"));
 
                     // encrypt player hand again
                     self.encrypt_player_hand(&player_id);
@@ -224,7 +230,7 @@ impl GameState {
                         client_secret: self
                             .players
                             .get(username)
-                            .unwrap()
+                            .expect("Failed to get player")
                             .details
                             .client_secret
                             .clone(),
@@ -250,7 +256,11 @@ impl GameState {
                 );
                 return GameEventResult {
                     dest: Destination::User(
-                        self.players.get(&event.username).unwrap().clone().details,
+                        self.players
+                            .get(&event.username)
+                            .expect("Failed to get player")
+                            .clone()
+                            .details,
                     ),
                     msg: crate::GameActionResponse::Connect(Connect {
                         username: event.username.clone(),
@@ -298,10 +308,16 @@ impl GameState {
     }
 
     pub fn encrypt_player_hand(&mut self, player_id: &String) {
-        let player = self.players.get_mut(player_id).unwrap();
+        let player = self
+            .players
+            .get_mut(player_id)
+            .expect("Did not find player");
         let hand = player.hand.clone();
         let plaintext_hand = json!(hand).to_string();
-        let player_secret = self.players_secrets.get(player_id).unwrap();
+        let player_secret = self
+            .players_secrets
+            .get(player_id)
+            .expect("Did not find player secret");
         let encoded = xor_encrypt_decrypt(&plaintext_hand, player_secret);
         let secret_data = BASE64.encode(&encoded);
 
@@ -318,12 +334,15 @@ impl GameState {
             info!("Hand is empty");
             return vec![];
         }
-        let hand = BASE64.decode(hand.as_bytes()).unwrap();
-        let str_hand = String::from_utf8(hand).unwrap();
+        let hand = BASE64
+            .decode(hand.as_bytes())
+            .expect("Could not decode hand");
+        let str_hand = String::from_utf8(hand).expect("Could not convert hand to string");
         let secret_data = xor_encrypt_decrypt(&str_hand, player_secret);
-        // let str_hand2 = String::from_utf8(secret_data.clone()).unwrap();
+        // let str_hand2 = String::from_utf8(secret_data.clone()).expect();
         // println!("Decrypting hand: {:?}", str_hand2);
-        let actual_hand: Vec<Card> = serde_json::from_slice(&secret_data).unwrap();
+        let actual_hand: Vec<Card> =
+            serde_json::from_slice(&secret_data).expect("Could not parse hand");
         actual_hand
     }
 
@@ -352,7 +371,12 @@ impl GameState {
             .iter()
             .for_each(|c| tracing::info!("{}", c));
 
-        let winner = self.curr_winning_card.clone().unwrap().played_by.unwrap();
+        let winner = self
+            .curr_winning_card
+            .clone()
+            .expect("No winner")
+            .played_by
+            .expect("No winner");
 
         if let Some(x) = self.wins.get_mut(&winner) {
             *x += 1;
@@ -380,11 +404,11 @@ impl GameState {
     pub fn start_next_round(&mut self) {
         tracing::info!("Bids won: {:#?}\nBids wanted: {:#?}", self.wins, self.bids);
         for (player_id, player) in self.players.iter_mut() {
-            // let player = self.players.get_mut(player_id).unwrap();
+            // let player = self.players.get_mut(player_id).expect();
 
             if self.wins.get(&player.id) == self.bids.get(&player.id) {
-                let bidscore = self.bids.get(&player.id).unwrap() + 10;
-                let curr_score = self.score.get_mut(&player.id).unwrap();
+                let bidscore = self.bids.get(&player.id).expect("Did not find bid") + 10;
+                let curr_score = self.score.get_mut(&player.id).expect("did not find score");
                 *curr_score += bidscore;
             }
 
@@ -460,12 +484,16 @@ impl GameState {
         self.curr_dealer_idx = 0;
         self.curr_player_turn_idx = 1;
 
-        self.curr_dealer = self.player_order.get(self.curr_dealer_idx).unwrap().clone();
+        self.curr_dealer = self
+            .player_order
+            .get(self.curr_dealer_idx)
+            .expect("Did not find dealer")
+            .clone();
         // person after dealer
         self.curr_player_turn = Some(
             self.player_order
                 .get(self.curr_player_turn_idx)
-                .unwrap()
+                .expect("Did not find player turn")
                 .clone(),
         );
 
@@ -480,9 +508,9 @@ impl GameState {
         self.curr_round = if self.setup_game_options.start_round.is_some() {
             self.setup_game_options
                 .start_round
-                .unwrap()
+                .expect("Could not get start round")
                 .try_into()
-                .unwrap()
+                .expect("Could not convert start round to usize")
         } else {
             1
         };
@@ -510,7 +538,10 @@ impl GameState {
 
     fn update_bid(&mut self, player_id: String, bid: &i32) -> Result<i32, String> {
         tracing::info!("Player {} to bid", player_id);
-        let client = self.players.get_mut(&player_id).unwrap();
+        let client = self
+            .players
+            .get_mut(&player_id)
+            .expect("Did not find player");
 
         match validate_bid(
             bid,
@@ -543,8 +574,11 @@ impl GameState {
         for i in 1..=self.curr_round {
             // get random card, give to a player
             for player_id in self.player_order.iter() {
-                let card = self.deck.pop().unwrap();
-                let player: &mut GameClient = self.players.get_mut(player_id).unwrap();
+                let card = self.deck.pop().expect("Could not get card");
+                let player: &mut GameClient = self
+                    .players
+                    .get_mut(player_id)
+                    .expect("Could not get player");
 
                 let mut new_card = card.clone();
                 new_card.played_by = Some(player.id.clone());
@@ -569,10 +603,13 @@ impl GameState {
     }
 
     pub fn get_hand_from_encrypted(encrypted_hand: String, secret_key: &String) -> Vec<Card> {
-        let hand = BASE64.decode(encrypted_hand.as_bytes()).unwrap();
-        let str_hand = String::from_utf8(hand).unwrap();
+        let hand = BASE64
+            .decode(encrypted_hand.as_bytes())
+            .expect("Could not decode hand");
+        let str_hand = String::from_utf8(hand).expect("Could not convert hand to string");
         let secret_data = xor_encrypt_decrypt(&str_hand, secret_key);
-        let actual_hand: Vec<Card> = serde_json::from_slice(&secret_data).unwrap();
+        let actual_hand: Vec<Card> =
+            serde_json::from_slice(&secret_data).expect("Could not parse hand");
         actual_hand
     }
 
@@ -702,7 +739,11 @@ fn is_played_card_valid(
         }
     }
 
-    let led_suit = played_cards.first().unwrap().suit.clone();
+    let led_suit = played_cards
+        .first()
+        .expect("Could not get led suit")
+        .suit
+        .clone();
     if led_suit != played_card.suit {
         // make sure player does not have that suit
         for c in hand {
@@ -727,7 +768,7 @@ mod tests {
 
     use crate::{
         create_deck, game::find_winning_card, Card, GameAction, GameMessage, GameState,
-        GameplayState, PlayState, PlayerRole, SetupGameOptions, Suit,
+        GameVisibility, GameplayState, PlayState, PlayerRole, SetupGameOptions, Suit,
     };
 
     #[test]
@@ -869,15 +910,17 @@ mod tests {
                     Some(3),
                     4,
                     "Standard".to_string(),
+                    GameVisibility::Public,
+                    None,
                 )),
                 // origin: crate::Actioner::Player(PLAYER_ONE.clone()),
             },
             timestamp: Utc::now(),
         });
 
-        let firstplayer = game.curr_player_turn.clone().unwrap();
+        let firstplayer = game.curr_player_turn.clone().expect("No player turn");
         game.process_event(GameMessage {
-            username: game.curr_player_turn.clone().unwrap(),
+            username: game.curr_player_turn.clone().expect("No player turn"),
             message: crate::GameEvent {
                 action: GameAction::Bid(4),
             },
@@ -886,12 +929,12 @@ mod tests {
 
         assert!(game
             .bids
-            .get(&game.curr_player_turn.clone().unwrap())
+            .get(&game.curr_player_turn.clone().expect("No player turn"))
             .is_none());
 
         // should be able to bid the round number
         game.process_event(GameMessage {
-            username: game.curr_player_turn.clone().unwrap(),
+            username: game.curr_player_turn.clone().expect("No player turn"),
             message: crate::GameEvent {
                 action: GameAction::Bid(3),
             },
@@ -902,7 +945,7 @@ mod tests {
         assert_eq!(game.bids.get(&firstplayer).clone(), Some(&3));
 
         // curr player turn updates, and we should not be able to bid 0
-        let secondplayer = game.curr_player_turn.clone().unwrap();
+        let secondplayer = game.curr_player_turn.clone().expect("No player turn");
         game.process_event(GameMessage {
             username: secondplayer.clone(),
             message: crate::GameEvent {
@@ -940,6 +983,8 @@ mod tests {
                     Some(1),
                     4,
                     "Standard".to_string(),
+                    GameVisibility::Public,
+                    None,
                 )),
                 // origin: crate::Actioner::Player(PLAYER_ONE.clone()),
             },
@@ -952,7 +997,10 @@ mod tests {
 
         assert_ne!(has_first_turn, has_second_turn);
         assert_eq!(first_dealer, has_second_turn); // first dealer goes second
-        assert_eq!(game.curr_player_turn.clone().unwrap(), has_first_turn);
+        assert_eq!(
+            game.curr_player_turn.clone().expect("No player turn"),
+            has_first_turn
+        );
         assert_eq!(game.gameplay_state, GameplayState::Bid);
 
         game.process_event(GameMessage {
@@ -964,7 +1012,10 @@ mod tests {
         });
 
         assert_eq!(game.bids[&has_first_turn], 0);
-        assert_eq!(game.curr_player_turn.clone().unwrap(), has_second_turn);
+        assert_eq!(
+            game.curr_player_turn.clone().expect("No player turn"),
+            has_second_turn
+        );
 
         game.process_event(GameMessage {
             username: has_second_turn.clone(),
@@ -987,7 +1038,10 @@ mod tests {
         // });
 
         // first player that bid 0 goes first because both bid 0
-        assert_eq!(game.curr_player_turn.clone().unwrap(), has_first_turn);
+        assert_eq!(
+            game.curr_player_turn.clone().expect("No player turn"),
+            has_first_turn
+        );
         assert_eq!(
             game.gameplay_state,
             GameplayState::Play(crate::PlayState::new())
@@ -997,21 +1051,24 @@ mod tests {
         let p1_card = game
             .players
             .get(&has_first_turn)
-            .unwrap()
+            .expect("Did not find player")
             .hand
             .first()
-            .unwrap()
+            .expect("Could not get first card")
             .clone();
         let p2_card = game
             .players
             .get(&has_second_turn)
-            .unwrap()
+            .expect("Did not find player")
             .hand
             .first()
-            .unwrap()
+            .expect("Could not get first card")
             .clone();
 
-        assert_eq!(game.curr_player_turn.clone().unwrap(), has_first_turn);
+        assert_eq!(
+            game.curr_player_turn.clone().expect("No player turn"),
+            has_first_turn
+        );
         game.process_event(GameMessage {
             username: has_first_turn.clone(),
             message: crate::GameEvent {
@@ -1021,10 +1078,17 @@ mod tests {
             timestamp: Utc::now(),
         });
 
-        assert_eq!(game.curr_player_turn.clone().unwrap(), has_second_turn);
+        assert_eq!(
+            game.curr_player_turn.clone().expect("No player turn"),
+            has_second_turn
+        );
         assert_eq!(game.curr_played_cards.len(), 1);
         assert_eq!(
-            *game.curr_played_cards.first().clone().unwrap(),
+            *game
+                .curr_played_cards
+                .first()
+                .clone()
+                .expect("Could not get first card"),
             p1_card.clone()
         );
         assert_eq!(game.gameplay_state, GameplayState::Play(PlayState::from(1)));
@@ -1078,8 +1142,14 @@ mod tests {
         assert_eq!(game.gameplay_state, GameplayState::Bid);
         assert_eq!(game.curr_played_cards.len(), 0);
         assert_eq!(has_first_turn, game.curr_dealer); // round 1 first player is now dealer
-        assert_eq!(has_second_turn, game.curr_player_turn.clone().unwrap()); // round 1 second player is now going first
-        assert_eq!(first_dealer, game.curr_player_turn.clone().unwrap()); // round 1 dealer goes first in round 2
+        assert_eq!(
+            has_second_turn,
+            game.curr_player_turn.clone().expect("No player turn")
+        ); // round 1 second player is now going first
+        assert_eq!(
+            first_dealer,
+            game.curr_player_turn.clone().expect("No player turn")
+        ); // round 1 dealer goes first in round 2
 
         // insta::assert_yaml_snapshot!(game, {
         //     ".timestamp" => "[utc]",
@@ -1110,7 +1180,7 @@ mod tests {
         assert!(res.len() == 1);
         assert!(res.first().is_some());
         assert_eq!(
-            *res.first().unwrap(),
+            *res.first().expect("Could not get first card"),
             Card {
                 id: 20,
                 suit: Suit::Diamond,
@@ -1140,7 +1210,15 @@ mod tests {
         game.process_event(GameMessage {
             username: player_one.clone(),
             message: crate::GameEvent {
-                action: crate::GameAction::StartGame(SetupGameOptions::from(5, true, Some(3))),
+                action: crate::GameAction::StartGame(SetupGameOptions::from(
+                    5,
+                    true,
+                    Some(3),
+                    4,
+                    "Standard".to_string(),
+                    GameVisibility::Public,
+                    None,
+                )),
                 // origin: crate::Actioner::Player(PLAYER_ONE.clone()),
             },
             timestamp: Utc::now(),
@@ -1178,11 +1256,11 @@ mod tests {
                 action: crate::GameAction::PlayCard(
                     game.players
                         .get(&player_two)
-                        .unwrap()
+                        .expect("Did not find player")
                         .hand
                         .first()
                         .clone()
-                        .unwrap()
+                        .expect("Could not get first card")
                         .clone(),
                 ),
                 // origin: crate::Actioner::Player(has_second_turn.clone()),
@@ -1195,11 +1273,11 @@ mod tests {
                 action: crate::GameAction::PlayCard(
                     game.players
                         .get(&player_one)
-                        .unwrap()
+                        .expect("Did not find player")
                         .hand
                         .first()
                         .clone()
-                        .unwrap()
+                        .expect("Could not get first card")
                         .clone(),
                 ), // origin: crate::Actioner::Player(has_second_turn.clone()),
             },

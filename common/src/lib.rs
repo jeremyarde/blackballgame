@@ -50,7 +50,9 @@ impl PlayState {
     }
     fn from(new_hand_num: usize) -> PlayState {
         PlayState {
-            hand_num: new_hand_num.try_into().unwrap(),
+            hand_num: new_hand_num
+                .try_into()
+                .expect("Failed to convert hand num into usize"),
         }
     }
 }

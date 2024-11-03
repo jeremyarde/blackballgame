@@ -40,7 +40,11 @@ impl GameClient {
 
         let mut parse_result = input.trim().parse::<i32>();
         while parse_result.is_err()
-            || !(0..self.hand.len()).contains(&(parse_result.clone().unwrap() as usize))
+            || !(0..self.hand.len()).contains(
+                &(parse_result
+                    .clone()
+                    .expect("Did not find card number in hand") as usize),
+            )
         {
             info!(
                 "{:?} is invalid, please enter a valid card position.",
@@ -55,8 +59,10 @@ impl GameClient {
         info!("range: {:?}, selected: {}", (0..self.hand.len() - 1), input);
 
         (
-            parse_result.clone().unwrap() as usize,
-            self.hand[(parse_result.unwrap()) as usize].clone(),
+            parse_result
+                .clone()
+                .expect("Did not find card number in hand") as usize,
+            self.hand[(parse_result.expect("did not find correct card in hand")) as usize].clone(),
         )
     }
 
@@ -78,7 +84,7 @@ impl GameClient {
             if client_bid.is_err() {
                 continue;
             } else {
-                let bid = client_bid.unwrap();
+                let bid = client_bid.expect("Could not parse bid");
                 if allowed_bids.contains(&bid) {
                     return bid;
                 } else {

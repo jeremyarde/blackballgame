@@ -59,7 +59,6 @@ use websocket::AppState;
 // use websocket::GameRoomState;
 
 mod admin;
-mod game;
 mod websocket;
 
 static FRONTEND_DIR: Dir = include_dir::include_dir!("$CARGO_MANIFEST_DIR/dist");
@@ -83,7 +82,7 @@ async fn serve_asset(path: Option<Path<String>>) -> impl IntoResponse {
                     format!("max-age={}", cache.as_secs_f32()),
                 )
                 .body(Body::from(file.contents().to_owned()))
-                .unwrap()
+                .expect("Failed to build response for serving assets")
         };
 
     let serve_not_found = || match FRONTEND_DIR.get_file(NOT_FOUND) {
@@ -91,7 +90,7 @@ async fn serve_asset(path: Option<Path<String>>) -> impl IntoResponse {
         None => Response::builder()
             .status(StatusCode::NOT_FOUND)
             .body(Body::from("File Not Found"))
-            .unwrap(),
+            .expect("Failed to build response for serving not found"),
     };
 
     let serve_default = |path: &str| {
@@ -101,7 +100,9 @@ async fn serve_asset(path: Option<Path<String>>) -> impl IntoResponse {
 
             if FRONTEND_DIR.get_file(default_file_path.clone()).is_some() {
                 return serve_file(
-                    FRONTEND_DIR.get_file(default_file_path).unwrap(),
+                    FRONTEND_DIR
+                        .get_file(default_file_path)
+                        .expect("Did not find default file"),
                     None,
                     Duration::ZERO,
                     None,
@@ -377,13 +378,21 @@ async fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::from_default_env()
-                .add_directive("blackballgame=debug".parse().unwrap())
-                .add_directive("blackballgame-server=debug".parse().unwrap())
-                // .add_directive("tokio=debug".parse().unwrap())
-                .add_directive("axum::rejection=trace".parse().unwrap())
-                .add_directive("axum=debug".parse().unwrap())
-                // .add_directive("runtime=trace".parse().unwrap())
-                .add_directive("common=debug".parse().unwrap()),
+                .add_directive("blackballgame=debug".parse().expect("blackballgame debug"))
+                .add_directive(
+                    "blackballgame-server=debug"
+                        .parse()
+                        .expect("blackballgame-server debug"),
+                )
+                // .add_directive("tokio=debug".parse().expect("tokio debug"))
+                .add_directive(
+                    "axum::rejection=trace"
+                        .parse()
+                        .expect("axum::rejection trace"),
+                )
+                .add_directive("axum=debug".parse().expect("axum debug"))
+                // .add_directive("runtime=trace".parse().expect("runtime trace"))
+                .add_directive("common=debug".parse().expect("common debug")),
         )
         .with_span_events(FmtSpan::FULL)
         // .with_thread_names(true) // only says "tokio-runtime-worker"
@@ -464,7 +473,9 @@ async fn main() {
                                 info!("[GAME] Creating new game");
                                 let mut newgame = GameState::new(lobby_code.clone());
                                 rooms.insert(lobby_code.clone(), newgame);
-                                rooms.get_mut(&lobby_code).unwrap()
+                                rooms
+                                    .get_mut(&lobby_code)
+                                    .expect("[GAME] Failed to get game after creating it")
                             }
                         };
                         info!("[GAME] jere/ game before: {:?}", game);
@@ -510,11 +521,13 @@ async fn main() {
     // run our app with hyper, listening globally on port 3000
     let port = "0.0.0.0:8080";
     info!("Serving application on {}", port);
-    let listener = tokio::net::TcpListener::bind(port).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(port)
+        .await
+        .expect("Failed to bind to port");
     axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
     .await
-    .unwrap();
+    .expect("Failed to serve application");
 }
