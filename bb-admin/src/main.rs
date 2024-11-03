@@ -29,21 +29,21 @@ use serde_json::{json, Value};
 use tracing::{info, Level};
 
 // All of our routes will be a variant of this Route enum
-#[derive(Routable, PartialEq, Clone)]
-#[rustfmt::skip]
-pub enum AppRoutes {
-    #[layout(StateProvider)]
-    #[route("/")]
-    Home {},
+// #[derive(Routable, PartialEq, Clone)]
+// #[rustfmt::skip]
+// pub enum AppRoutes {
+//     #[layout(StateProvider)]
+//     #[route("/")]
+//     Home {},
 
-    #[nest("/games")]
-    #[route("")]
-    Explorer {},
-    #[route("/:room_code")]
-    GameRoom { room_code: String },
-    // #[route("/game/:room_code")]
-    // Game { room_code: String },
-}
+//     #[nest("/games")]
+//     #[route("")]
+//     Explorer {},
+//     #[route("/:room_code")]
+//     GameRoom { room_code: String },
+//     // #[route("/game/:room_code")]
+//     // Game { room_code: String },
+// }
 
 #[derive(Clone, Debug)]
 struct AppProps {
@@ -108,7 +108,9 @@ fn StateProvider() -> Element {
         })
     });
 
-    rsx!(Outlet::<AppRoutes> {})
+    let mut current_route = use_context_provider(|| Signal::new("Home".to_string()));
+
+    rsx!(Home {})
 }
 
 // const _STYLE: &str = manganis::mg!(file("main.css"));
@@ -132,7 +134,10 @@ fn main() {
             //     link { rel: "stylesheet", href: "{TAILWIND_URL.bundled}" }
             // }
             // link::Head { rel: "stylesheet", href: asset!("./assets/style.css") }
-            Router::<AppRoutes> {}
+            // Router::<AppRoutes> {}
+            // Home {}
+
+            StateProvider {}
         }
     });
 }
@@ -159,13 +164,15 @@ const TEST: bool = false;
 #[component]
 fn Home() -> Element {
     let mut app_props: Signal<AppProps> = use_context::<Signal<AppProps>>();
+    let mut current_route: Signal<String> = use_context::<Signal<String>>();
+
     let mut disabled = use_signal(|| true);
 
     let ws_send: Coroutine<InnerMessage> = use_coroutine(|mut rx| async move {});
     let ws_send_signal = use_signal(|| ws_send);
 
-    if !TEST {
-        rsx!(
+    let current_component = match current_route.read().as_str() {
+        "Home" => rsx!(
             div { class: "flex flex-col items-center justify-center text-center w-dvw h-dvh bg-[--bg-color]",
                 {get_title_logo()},
                 div { class: "flex flex-col",
@@ -191,14 +198,31 @@ fn Home() -> Element {
                             }
                         }
                     }
-                    Link {
+                    // Link {
+                    //     class: "bg-green-400 text-xl rounded-md border border-solid w-full",
+                    //     to: AppRoutes::Explorer {},
+                    //     "Play"
+                    // }
+                    button {
                         class: "bg-green-400 text-xl rounded-md border border-solid w-full",
-                        to: AppRoutes::Explorer {},
+                        // to: AppRoutes::Explorer {},
+                        onclick: move |_| {
+                            current_route.set("Explorer".to_string());
+                        },
                         "Play"
                     }
                 }
             }
-        )
+        ),
+        "Explorer" => rsx!(Explorer {}),
+        "GameRoom" => rsx!(GameRoom {
+            room_code: String::new()
+        }),
+        _ => rsx!(Home {}),
+    };
+
+    if !TEST {
+        rsx!({ current_component })
     } else {
         let mut gamestate = GameState::new(String::from("test"));
 
@@ -257,6 +281,8 @@ fn Explorer() -> Element {
     let mut create_lobby_response_msg = use_signal(|| String::from(""));
 
     let mut app_props: Signal<AppProps> = use_context::<Signal<AppProps>>();
+    let mut current_route: Signal<String> = use_context::<Signal<String>>();
+
     let mut lobby_name = use_signal(|| String::new());
 
     let mut lobbies = use_signal(|| GetLobbiesResponse { lobbies: vec![] });
@@ -332,11 +358,21 @@ fn Explorer() -> Element {
                         "lobby"
                     }
                 }
-                Link {
-                    to: AppRoutes::GameRoom {
-                        room_code: lobby_name.read().to_string(),
-                    },
+                // Link {
+                //     to: AppRoutes::GameRoom {
+                //         room_code: lobby_name.read().to_string(),
+                //     },
+                //     class: "bg-yellow-400 border border-solid border-black text-center rounded-md",
+                //     "Create lobby"
+                // }
+                button {
+                    // to: AppRoutes::GameRoom {
+                    //     room_code: lobby_name.read().to_string(),
+                    // },
                     class: "bg-yellow-400 border border-solid border-black text-center rounded-md",
+                    onclick: move |_| {
+                        current_route.set("GameRoom".to_string());
+                    },
                     "Create lobby"
                 }
                 {if create_lobby_response_msg() == String::from("") { rsx!() } else { rsx!(div { "{create_lobby_response_msg.read()}" }) }}
@@ -353,6 +389,7 @@ fn Explorer() -> Element {
 #[component]
 pub fn LobbyComponent(lobby: Lobby) -> Element {
     let mut app_props = use_context::<Signal<AppProps>>();
+    let mut current_route: Signal<String> = use_context::<Signal<String>>();
 
     rsx!(
         tr { key: "{lobby.name}",
@@ -366,11 +403,15 @@ pub fn LobbyComponent(lobby: Lobby) -> Element {
                 //     class: "px-4 py-2 rounded-md text-sm font-medium bg-yellow-300",
                 //     "Join lobby"
                 // }
-                Link {
-                    to: AppRoutes::GameRoom {
-                        room_code: lobby.name.clone(),
+                button {
+                    // to: GameRoom {
+                    //     room_code: lobby.name.clone(),
+                    // },
+
+                    onclick: move |evt| {
+                        app_props.write().lobby_code = lobby.name.clone();
+                        current_route.set("GameRoom".to_string());
                     },
-                    onclick: move |evt| { app_props.write().lobby_code = lobby.name.clone() },
                     class: "px-4 py-2 rounded-md text-sm font-medium bg-yellow-300",
                     "Join lobby"
                 }
