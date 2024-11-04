@@ -325,7 +325,7 @@ impl GameState {
     }
 
     pub fn decrypt_player_hand(hand: String, player_secret: &String) -> Vec<Card> {
-        debug!("Decrypting hand: {:?}, {:?}", hand, player_secret);
+        info!("Decrypting hand: {:?}, {:?}", hand, player_secret);
         if player_secret.is_empty() {
             error!("Player secret is empty");
             return vec![];
@@ -792,6 +792,20 @@ mod tests {
         let res = find_winning_card(cards, trump);
         println!("Winning: {}", res);
         assert!(res.id == 51)
+    }
+
+    #[test]
+    fn test_decrypt_hand_v2() {
+        // INFO bb-admin/src/main.rs:685 Got game state: GameState { lobby_code: "a", setup_game_options:
+        // SetupGameOptions { rounds: 4, deterministic: true, start_round: None, max_players: 4, game_mode: "Standard", visibility: Public, password: None },
+        // secret_key: "mysecretkey", players: {"e": GameClient { id: "e", hand: [], encrypted_hand: "KBBbNhVHXklWRRAWDgVMUxc0GyZTX0YfTEUQFRcNQRRJSRozBAdGVkwfUwoXARcMQl8EAg==", num_cards: 0, role: Player, details: PlayerDetails { username: "e", ip: "127.0.0.1:49678", client_secret: "sky_qedzni2fbd56" } }, "a": GameClient { id: "a", hand: [], encrypted_hand: "KBBbNgxFD0ICFFVBDlYTFxc0GyZKXRcWERRVQhdeHlBJSQovCQNQVR8aAVAOQg9QSVpNIjU=", num_cards: 0, role: Player, details: PlayerDetails { username: "a", ip: "127.0.0.1:49684", client_secret: "sky_hg5w38w1b7jr" } }}, players_secrets: {}, deck: [], curr_round: 1, trump: Heart, player_order: ["a", "e"], curr_played_cards: [], curr_player_turn: Some("e"), curr_player_turn_idx: 0, curr_winning_card: None, curr_dealer: "a", curr_dealer_idx: 0, bids: {}, bid_order: [], wins: {"e": 0, "a": 0}, score: {"a": 0, "e": 0}, gameplay_state: Bid, event_log: [], system_status: [], is_public: true, latest_update: 2024-11-03T23:55:39.023714Z }
+
+        let hand = "KBBbNgxFD0ICFFVBDlYTFxc0GyZKXRcWERRVQhdeHlBJSQovCQNQVR8aAVAOQg9QSVpNIjU=";
+        // let hand = "KBBbNhVHXklWRRAWDgVMUxc0GyZTX0YfTEUQFRcNQRRJSRozBAdGVkwfUwoXARcMQl8EAg==";
+        let secret = "sky_hg5w38w1b7jr";
+
+        let decrypted_hand = GameState::decrypt_player_hand(hand.to_string(), &secret.to_string());
+        println!("Decrypted: {:?}", decrypted_hand);
     }
 
     #[test]

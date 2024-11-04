@@ -1,6 +1,6 @@
 ---
 source: common/src/game.rs
-assertion_line: 1227
+assertion_line: 1228
 expression: game
 ---
 lobby_code: lobby
@@ -22,7 +22,7 @@ players:
     details:
       username: p1
       ip: ip
-      client_secret: sky_1uc7lbc4282q
+      client_secret: sky_wdpxu1zzt9ye
   p2:
     id: p2
     encrypted_hand: "[encrypted_hand]"
@@ -31,7 +31,7 @@ players:
     details:
       username: p2
       ip: ip
-      client_secret: sky_i9q2mf1kvqkq
+      client_secret: sky_333jwx4z42ng
 curr_round: 3
 trump: heart
 player_order:
@@ -53,4 +53,4 @@ gameplay_state: Bid
 event_log: []
 system_status: []
 is_public: true
-latest_update: "2024-11-03T14:49:53.475346Z"
+latest_update: "2024-11-04T00:02:42.856038Z"

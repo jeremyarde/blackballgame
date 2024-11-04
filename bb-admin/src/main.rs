@@ -1064,15 +1064,17 @@ fn GameStateComponent(
         .clone()
         .unwrap_or("".to_string());
     let curr_hand = if gamestate.read().players.contains_key(&curr_player) {
-        gamestate
-            .read()
-            .players
-            .get(&curr_player)
-            .expect("Failed to get player in gamestate")
-            .encrypted_hand
-            .clone()
+        Some(
+            gamestate
+                .read()
+                .players
+                .get(&curr_player)
+                .expect("Failed to get player in gamestate")
+                .encrypted_hand
+                .clone(),
+        )
     } else {
-        "".to_string()
+        None
     };
 
     rsx!(
@@ -1140,24 +1142,29 @@ fn GameStateComponent(
                     "Your hand"
                 }
                 div { class: "grid grid-rows-1 gap-4 mt-8",
-                    {GameState::decrypt_player_hand(curr_hand, &app_props.read().client_secret.clone())
-                        .iter()
-                        .map(|card| {
-                            return rsx!(CardComponent {
-                                onclick: move |clicked_card: Card| {
-                                    ws_send().send(InnerMessage::GameMessage {
-                                        msg: GameMessage {
-                                            username: app_props.read().username.clone(),
-                                            message: GameEvent {
-                                                action: GameAction::PlayCard(clicked_card),
+                    {if curr_hand.is_none() {
+                        rsx!()
+                    } else {
+                        rsx!({GameState::decrypt_player_hand(curr_hand.unwrap(), &app_props.read().client_secret.clone())
+                            .iter()
+                            .map(|card| {
+                                return rsx!(CardComponent {
+                                    onclick: move |clicked_card: Card| {
+                                        ws_send().send(InnerMessage::GameMessage {
+                                            msg: GameMessage {
+                                                username: app_props.read().username.clone(),
+                                                message: GameEvent {
+                                                    action: GameAction::PlayCard(clicked_card),
+                                                },
+                                                timestamp: Utc::now(),
                                             },
-                                            timestamp: Utc::now(),
-                                        },
-                                    });
-                                },
-                                card: card.clone()
-                            });
-                        })}
+                                        });
+                                    },
+                                    card: card.clone()
+                                });
+                            })})
+                        }
+                    }
                 }
             }
             if gamestate().gameplay_state == GameplayState::Bid {
