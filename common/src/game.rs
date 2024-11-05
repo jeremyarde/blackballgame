@@ -352,12 +352,12 @@ impl GameState {
     }
 
     pub fn add_player(&mut self, player_id: String, role: PlayerRole, ip: String) -> String {
-        info!("Adding player: {}", player_id);
         let client_secret = format!("sky_{}", nanoid_gen(12));
 
         self.players_secrets
             .insert(player_id.clone(), client_secret.clone());
 
+        info!("Adding player: {}, {}", player_id, client_secret);
         self.players.insert(
             player_id.clone(),
             GameClient::new(player_id, role, ip, client_secret.clone()),

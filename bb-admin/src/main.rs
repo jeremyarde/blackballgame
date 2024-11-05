@@ -198,11 +198,6 @@ fn Home() -> Element {
                             }
                         }
                     }
-                    // Link {
-                    //     class: "bg-green-400 text-xl rounded-md border border-solid w-full",
-                    //     to: AppRoutes::Explorer {},
-                    //     "Play"
-                    // }
                     button {
                         class: "bg-green-400 text-xl rounded-md border border-solid w-full",
                         // to: AppRoutes::Explorer {},
@@ -765,6 +760,14 @@ fn GameRoom(room_code: String) -> Element {
                         .expect("Failed to parse error")
                 }
             },
+            div { "Debug details:",
+                div {
+                    class: " bg-gray-300", "Secret: {app_props.read().client_secret}"
+                }
+                div {
+                    class: " bg-gray-300", "Game: {gamestate():#?}"
+                }
+            }
             {
                 if gamestate().gameplay_state == GameplayState::Pregame {
                     rsx!(
