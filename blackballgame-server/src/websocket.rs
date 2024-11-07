@@ -7,8 +7,7 @@ use chrono::Utc;
 // use common::Connect;
 use common::Destination;
 use common::GameAction;
-use common::GameEvent;
-use common::InternalMessage;
+use common::GameEventResult;
 use common::PlayerSecret;
 use futures_util::TryStreamExt;
 use serde_json::Value;
@@ -53,8 +52,8 @@ pub struct AppState {
     pub rooms: HashMap<String, GameState>,
     pub room_broadcast_channel: HashMap<String, tokio::sync::broadcast::Sender<GameState>>,
     pub lobby_to_game_channel_send: HashMap<String, tokio::sync::mpsc::Sender<GameMessage>>,
-    pub game_thread_channel: tokio::sync::mpsc::UnboundedSender<InternalMessage>,
-    pub game_to_client_sender: tokio::sync::broadcast::Sender<InternalMessage>,
+    pub game_thread_channel: tokio::sync::mpsc::UnboundedSender<GameMessage>,
+    pub game_to_client_sender: tokio::sync::broadcast::Sender<GameEventResult>,
     // pub game_threads: HashMap<String, tokio::task::JoinHandle<()>>,
 }
 
@@ -133,23 +132,13 @@ async fn handle_socket(
             info!("[CLIENT-RECEIVER] looping over messages now");
             while let Some(Ok(Message::Text(msg))) = receiver.next().await {
                 info!("[CLIENT-RECEIVER] reciever got message");
-                let internalmsg = match serde_json::from_str::<InternalMessage>(&msg) {
-                    Ok(mut im) => {
-                        // let mut im_clone = im.clone();
-                        if let InternalMessage::ToGame {
-                            msg: ref mut game_message,
-                            lobby_code,
-                            from,
-                        } = &mut im
-                        {
-                            if let GameAction::JoinGame(ref mut playerdetails) =
-                                &mut game_message.message.action
-                            {
-                                playerdetails.ip = recv_user_ip.clone();
-                            }
+                let internalmsg = match serde_json::from_str::<GameMessage>(&msg) {
+                    Ok(mut gm) => {
+                        if let GameAction::JoinGame(ref mut playerdetails) = &mut gm.action {
+                            playerdetails.ip = recv_user_ip.clone();
                         }
 
-                        let _ = gamesender.send(im);
+                        let _ = gamesender.send(gm);
                     }
                     Err(err) => info!("[CLIENT-RECEIVER] Error deserializing GameMessage: {}", err),
                 };
@@ -180,43 +169,14 @@ async fn handle_socket(
 
         // let user_ip = who.ip().to_string();
 
-        while let Ok(im) = broadcast_channel.recv().await {
+        while let Ok(game_event_result) = broadcast_channel.recv().await {
             info!(
                 "[CLIENT-SENDER] Got a message from broadcast channel: {:?}",
-                im
+                game_event_result
             );
-            match im {
-                InternalMessage::ToClient { to, msg } => match to {
-                    Destination::Lobby(lobby) => {
-                        info!("[CLIENT-SENDER] Lobby: {:?}", lobby);
-                        // if lobby == this_lobby_code {
-                        // }
-                        let lobbyips = lobby.iter().map(|ply| &ply.ip).collect::<Vec<&String>>();
-                        if lobbyips.contains(&&user_ip) {
-                            info!("[CLIENT-SENDER] SUCCESS - User IP is in lobby users: user:{} vs lobby:{:?}", user_ip, lobbyips);
-                            let _ = sender
-                                .send(Message::Text(json!(msg.clone()).to_string()))
-                                .await;
-                        } else {
-                            info!("[CLIENT-SENDER] FAIL - User IP is not in lobby users: user:{} vs lobby:{:?}", user_ip, lobbyips);
-                        }
-                    }
-                    Destination::User(playerdetails) => {
-                        info!("[CLIENT-SENDER] Player details: {:?}", playerdetails);
-                        if playerdetails.ip == user_ip {
-                            info!("[CLIENT-SENDER] SUCCESS - User IP matches receiver: user:{} vs recv:{}", user_ip, playerdetails.ip);
-                            let _ = sender
-                                .send(Message::Text(json!(msg.clone()).to_string()))
-                                .await;
-                        } else {
-                            info!("[CLIENT-SENDER] User IP does not match receiver: user:{} vs recv:{}", user_ip, playerdetails.ip);
-                        }
-                        // if this_username == username && lobby == this_lobby_code {
-                        // }
-                    }
-                },
-                _ => {}
-            }
+            let _ = sender
+                .send(Message::Text(json!(game_event_result.clone()).to_string()))
+                .await;
         }
 
         info!("[CLIENT-SENDER] Exiting sender thread for user={}", who);

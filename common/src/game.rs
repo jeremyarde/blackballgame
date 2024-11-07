@@ -74,7 +74,7 @@ impl GameState {
     }
 
     pub fn process_event_pregame(&mut self, event: GameMessage) {
-        if let GameAction::StartGame(sgo) = event.message.action {
+        if let GameAction::StartGame(sgo) = event.action {
             let result = self.setup_game(sgo);
             info!("Setup game result: {:?}", result);
         }
@@ -103,7 +103,7 @@ impl GameState {
             return;
         };
 
-        if let GameAction::Bid(bid) = event.message.action {
+        if let GameAction::Bid(bid) = event.action {
             let res = self.update_bid(event.username.clone(), &bid);
             info!("Bid result: {:?}", res);
             if res.is_ok() {
@@ -131,7 +131,7 @@ impl GameState {
         //     return None;
         // };
 
-        match event.message.action {
+        match event.action {
             GameAction::Deal | GameAction::Ack => {
                 self.start_next_round();
             }
@@ -145,7 +145,7 @@ impl GameState {
         };
         let player_id = event.username.clone();
 
-        if let GameAction::PlayCard(card) = &event.message.action {
+        if let GameAction::PlayCard(card) = &event.action {
             let player = self
                 .players
                 .get_mut(&player_id)
@@ -212,7 +212,7 @@ impl GameState {
         // self.event_log.extend(events.clone());
 
         info!("Processing event: {:?}", event);
-        match &event.message.action {
+        match &event.action {
             GameAction::Connect {
                 username,
                 channel,
@@ -281,15 +281,13 @@ impl GameState {
             GameplayState::Play(ps) => self.process_event_play(event),
             GameplayState::PostRound => self.process_event_postround(event),
             GameplayState::PostHand(ps) => {
-                if event.message.action == GameAction::Ack
-                    || event.message.action == GameAction::Deal
-                {
+                if event.action == GameAction::Ack || event.action == GameAction::Deal {
                     self.start_next_hand();
                     self.update_to_next_state();
                 }
             }
             GameplayState::End => {
-                if event.message.action == GameAction::Ack {
+                if event.action == GameAction::Ack {
                     self.update_to_next_state();
                 }
             }
@@ -918,28 +916,25 @@ mod tests {
 
         game.process_event(GameMessage {
             username: PLAYER_ONE.clone(),
-            message: crate::GameEvent {
-                action: crate::GameAction::StartGame(SetupGameOptions::from(
-                    5,
-                    true,
-                    Some(3),
-                    4,
-                    "Standard".to_string(),
-                    GameVisibility::Public,
-                    None,
-                )),
-                // origin: crate::Actioner::Player(PLAYER_ONE.clone()),
-            },
+            action: crate::GameAction::StartGame(SetupGameOptions::from(
+                5,
+                true,
+                Some(3),
+                4,
+                "Standard".to_string(),
+                GameVisibility::Public,
+                None,
+            )),
             timestamp: Utc::now(),
+            lobby: "lobby".to_string(),
         });
 
         let firstplayer = game.curr_player_turn.clone().expect("No player turn");
         game.process_event(GameMessage {
             username: game.curr_player_turn.clone().expect("No player turn"),
-            message: crate::GameEvent {
-                action: GameAction::Bid(4),
-            },
+            action: GameAction::Bid(4),
             timestamp: Utc::now(),
+            lobby: "lobby".to_string(),
         });
 
         assert!(game
@@ -950,10 +945,9 @@ mod tests {
         // should be able to bid the round number
         game.process_event(GameMessage {
             username: game.curr_player_turn.clone().expect("No player turn"),
-            message: crate::GameEvent {
-                action: GameAction::Bid(3),
-            },
+            action: GameAction::Bid(3),
             timestamp: Utc::now(),
+            lobby: "lobby".to_string(),
         });
 
         println!("Bids: {:?}", game.bids);
@@ -963,18 +957,16 @@ mod tests {
         let secondplayer = game.curr_player_turn.clone().expect("No player turn");
         game.process_event(GameMessage {
             username: secondplayer.clone(),
-            message: crate::GameEvent {
-                action: GameAction::Bid(0),
-            },
+            action: GameAction::Bid(0),
+            lobby: "lobby".to_string(),
             timestamp: Utc::now(),
         });
         assert!(game.bids.get(&secondplayer).is_none());
 
         game.process_event(GameMessage {
             username: secondplayer.clone(),
-            message: crate::GameEvent {
-                action: GameAction::Bid(1),
-            },
+            action: GameAction::Bid(1),
+            lobby: "lobby".to_string(),
             timestamp: Utc::now(),
         });
         assert_eq!(game.bids.get(&secondplayer).clone(), Some(&1));
@@ -991,18 +983,17 @@ mod tests {
 
         game.process_event(GameMessage {
             username: PLAYER_ONE.clone(),
-            message: crate::GameEvent {
-                action: crate::GameAction::StartGame(SetupGameOptions::from(
-                    5,
-                    true,
-                    Some(1),
-                    4,
-                    "Standard".to_string(),
-                    GameVisibility::Public,
-                    None,
-                )),
-                // origin: crate::Actioner::Player(PLAYER_ONE.clone()),
-            },
+            lobby: "lobby".to_string(),
+            action: crate::GameAction::StartGame(SetupGameOptions::from(
+                5,
+                true,
+                Some(1),
+                4,
+                "Standard".to_string(),
+                GameVisibility::Public,
+                None,
+            )),
+            // origin: crate::Actioner::Player(PLAYER_ONE.clone()),
             timestamp: Utc::now(),
         });
 
@@ -1020,9 +1011,9 @@ mod tests {
 
         game.process_event(GameMessage {
             username: has_first_turn.clone(),
-            message: crate::GameEvent {
-                action: crate::GameAction::Bid(0),
-            },
+            lobby: "lobby".to_string(),
+            action: crate::GameAction::Bid(0),
+
             timestamp: Utc::now(),
         });
 
@@ -1034,10 +1025,9 @@ mod tests {
 
         game.process_event(GameMessage {
             username: has_second_turn.clone(),
-            message: crate::GameEvent {
-                action: crate::GameAction::Bid(0),
-                // origin: crate::Actioner::Player(has_second_turn.clone()),
-            },
+            lobby: "lobby".to_string(),
+            action: crate::GameAction::Bid(0),
+            // origin: crate::Actioner::Player(has_second_turn.clone()),
             timestamp: Utc::now(),
         });
         assert_eq!(game.bids[&has_second_turn], 0);
@@ -1086,10 +1076,9 @@ mod tests {
         );
         game.process_event(GameMessage {
             username: has_first_turn.clone(),
-            message: crate::GameEvent {
-                action: crate::GameAction::PlayCard(p1_card.clone()),
-                // origin: crate::Actioner::Player(has_first_turn.clone()),
-            },
+            lobby: "lobby".to_string(),
+            action: crate::GameAction::PlayCard(p1_card.clone()),
+            // origin: crate::Actioner::Player(has_first_turn.clone()),
             timestamp: Utc::now(),
         });
 
@@ -1110,11 +1099,10 @@ mod tests {
 
         game.process_event(GameMessage {
             username: has_second_turn.clone(),
-            message: crate::GameEvent {
-                action: crate::GameAction::PlayCard(p2_card.clone()),
-                // origin: crate::Actioner::Player(has_second_turn.clone()),
-            },
+            action: crate::GameAction::PlayCard(p2_card.clone()),
+            // origin: crate::Actioner::Player(has_second_turn.clone()),
             timestamp: Utc::now(),
+            lobby: "lobby".to_string(),
         });
 
         assert_eq!(
@@ -1126,22 +1114,20 @@ mod tests {
         // Send "start next round" message
         game.process_event(GameMessage {
             username: has_first_turn.clone(),
-            message: crate::GameEvent {
-                action: crate::GameAction::Ack,
-                // origin: crate::Actioner::Player(has_first_turn.clone()),
-            },
+            action: crate::GameAction::Ack,
+            // origin: crate::Actioner::Player(has_first_turn.clone()),
             timestamp: Utc::now(),
+            lobby: "lobby".to_string(),
         });
 
         assert_eq!(game.gameplay_state, GameplayState::PostRound);
 
         game.process_event(GameMessage {
             username: has_first_turn.clone(),
-            message: crate::GameEvent {
-                action: crate::GameAction::Deal,
-                // origin: crate::Actioner::Player(has_first_turn.clone()),
-            },
+            action: crate::GameAction::Deal,
+            // origin: crate::Actioner::Player(has_first_turn.clone()),
             timestamp: Utc::now(),
+            lobby: "lobby".to_string(),
         });
 
         // insta::assert_yaml_snapshot!(game, {
@@ -1224,18 +1210,17 @@ mod tests {
 
         game.process_event(GameMessage {
             username: player_one.clone(),
-            message: crate::GameEvent {
-                action: crate::GameAction::StartGame(SetupGameOptions::from(
-                    5,
-                    true,
-                    Some(3),
-                    4,
-                    "Standard".to_string(),
-                    GameVisibility::Public,
-                    None,
-                )),
-                // origin: crate::Actioner::Player(PLAYER_ONE.clone()),
-            },
+            action: crate::GameAction::StartGame(SetupGameOptions::from(
+                5,
+                true,
+                Some(3),
+                4,
+                "Standard".to_string(),
+                GameVisibility::Public,
+                None,
+            )),
+            lobby: "lobby".to_string(),
+            // origin: crate::Actioner::Player(PLAYER_ONE.clone()),
             timestamp: Utc::now(),
         });
 
@@ -1251,51 +1236,47 @@ mod tests {
 
         game.process_event(GameMessage {
             username: player_two.clone(),
-            message: crate::GameEvent {
-                action: crate::GameAction::Bid(0),
-            },
+            action: crate::GameAction::Bid(0),
             timestamp: Utc::now(),
+            lobby: "lobby".to_string(),
         });
         game.process_event(GameMessage {
             username: player_one.clone(),
-            message: crate::GameEvent {
-                action: crate::GameAction::Bid(0), // origin: crate::Actioner::Player(has_second_turn.clone()),
-            },
+            action: crate::GameAction::Bid(0), // origin: crate::Actioner::Player(has_second_turn.clone()),
             timestamp: Utc::now(),
+            lobby: "lobby".to_string(),
         });
 
         // two players play cards, go into post hand state
         game.process_event(GameMessage {
             username: player_two.clone(),
-            message: crate::GameEvent {
-                action: crate::GameAction::PlayCard(
-                    game.players
-                        .get(&player_two)
-                        .expect("Did not find player")
-                        .hand
-                        .first()
-                        .clone()
-                        .expect("Could not get first card")
-                        .clone(),
-                ),
-                // origin: crate::Actioner::Player(has_second_turn.clone()),
-            },
+            lobby: "lobby".to_string(),
+            action: crate::GameAction::PlayCard(
+                game.players
+                    .get(&player_two)
+                    .expect("Did not find player")
+                    .hand
+                    .first()
+                    .clone()
+                    .expect("Could not get first card")
+                    .clone(),
+            ),
+            // origin: crate::Actioner::Player(has_second_turn.clone()),
             timestamp: Utc::now(),
         });
         game.process_event(GameMessage {
             username: player_one.clone(),
-            message: crate::GameEvent {
-                action: crate::GameAction::PlayCard(
-                    game.players
-                        .get(&player_one)
-                        .expect("Did not find player")
-                        .hand
-                        .first()
-                        .clone()
-                        .expect("Could not get first card")
-                        .clone(),
-                ), // origin: crate::Actioner::Player(has_second_turn.clone()),
-            },
+            lobby: "lobby".to_string(),
+            action: crate::GameAction::PlayCard(
+                game.players
+                    .get(&player_one)
+                    .expect("Did not find player")
+                    .hand
+                    .first()
+                    .clone()
+                    .expect("Could not get first card")
+                    .clone(),
+            ), // origin: crate::Actioner::Player(has_second_turn.clone()),
             timestamp: Utc::now(),
         });
 
@@ -1311,9 +1292,8 @@ mod tests {
 
         game.process_event(GameMessage {
             username: player_two.clone(),
-            message: crate::GameEvent {
-                action: crate::GameAction::Ack,
-            },
+            lobby: "lobby".to_string(),
+            action: crate::GameAction::Ack,
             timestamp: Utc::now(),
         });
     }

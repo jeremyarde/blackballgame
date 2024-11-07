@@ -18,20 +18,20 @@ pub enum GameplayState {
     End,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub enum InternalMessage {
-    ToGame {
-        lobby_code: String,
-        from: Destination,
-        msg: GameMessage,
-    },
-    // Server { dest: Destination, msg: Connect },
-    ToClient {
-        to: Destination,
-        msg: GameEventResult,
-    }, // from game server to client
-       // WsAction(WsAction),
-}
+// #[derive(Clone, Debug, Deserialize, Serialize)]
+// pub enum InternalMessage {
+//     ToGame {
+//         lobby_code: String,
+//         from: Destination,
+//         msg: GameMessage,
+//     },
+//     // Server { dest: Destination, msg: Connect },
+//     ToClient {
+//         to: Destination,
+//         msg: GameEventResult,
+//     }, // from game server to client
+//        // WsAction(WsAction),
+// }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Destination {
@@ -264,13 +264,6 @@ pub enum AllPossibleMessages {
     GameState(GameState),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "lowercase")]
-pub struct GameEvent {
-    pub action: GameAction,
-    // pub origin: Actioner,
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum GameAction {
@@ -355,8 +348,9 @@ impl Card {
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct GameMessage {
     pub username: String,
-    pub message: GameEvent,
+    pub action: GameAction,
     pub timestamp: DateTime<Utc>,
+    pub lobby: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

@@ -28,9 +28,9 @@ use axum::Json;
 use axum::Router;
 use common::Connect;
 use common::Destination;
+use common::GameEventResult;
 use common::GameMessage;
 use common::GameState;
-use common::InternalMessage;
 use dioxus::prelude::server_fn::client::browser;
 use futures_util::StreamExt;
 use include_dir::Dir;
@@ -411,23 +411,15 @@ async fn main() {
     let assets_dir =
         PathBuf::from("/Users/jarde/Documents/code/blackballgame/blackballgame-client/dist");
 
-    // let serverstate: Arc<AppState> = Arc::new(allgames);
-    // let serverstate = Arc::new(AppState {
-    //     rooms: Mutex::new(HashMap::new()),
-    //     room_broadcast_channel: Mutex::new(HashMap::new()),
-    //     lobby_to_game_channel_send: Mutex::new(HashMap::new()),
-    //     // game_threads: Mutex::new(HashMap::new()),
-    // });
-
     // get to the game thread
     let (gamechannel_send, mut gamechannel_recv) =
-        tokio::sync::mpsc::unbounded_channel::<InternalMessage>();
+        tokio::sync::mpsc::unbounded_channel::<GameMessage>();
     // let (gamechannel_broadcast_send, mut gamechannel_broadcast_recv) =
     //     tokio::sync::broadcast::channel::<Value>(10);
     let (toclient_send, mut toclient_recv) =
-        tokio::sync::mpsc::unbounded_channel::<InternalMessage>();
+        tokio::sync::mpsc::unbounded_channel::<GameEventResult>();
 
-    let (gamechannel_broadcast_send, _) = tokio::sync::broadcast::channel::<InternalMessage>(10);
+    let (gamechannel_broadcast_send, _) = tokio::sync::broadcast::channel::<GameEventResult>(10);
 
     let serverstate = Arc::new(RwLock::new(AppState {
         // rooms: HashMap::new(),
@@ -461,36 +453,21 @@ async fn main() {
                 // info!("[GAME]: doing some processing....");
                 let mut state_guard = stateclone.write().await;
                 let mut rooms = &mut state_guard.rooms;
-                match msg {
-                    InternalMessage::ToGame {
-                        msg,
-                        lobby_code,
-                        from,
-                    } => {
-                        let mut game = match rooms.get_mut(&lobby_code) {
-                            Some(x) => x,
-                            None => {
-                                info!("[GAME] Creating new game");
-                                let mut newgame = GameState::new(lobby_code.clone());
-                                rooms.insert(lobby_code.clone(), newgame);
-                                rooms
-                                    .get_mut(&lobby_code)
-                                    .expect("[GAME] Failed to get game after creating it")
-                            }
-                        };
-                        info!("[GAME] jere/ game before: {:?}", game);
-                        let eventresult = game.process_event(msg);
-                        info!("[GAME] jere/ game after: {:?}", game);
-
-                        // info!("[GAME]: Finished processing: {:?}", eventresult);
-                        info!("[GAME]: Finished processing");
-                        let _ = toclient_send.send(InternalMessage::ToClient {
-                            to: eventresult.dest.clone(),
-                            msg: eventresult,
-                        });
+                let lobby_code = msg.lobby.clone();
+                let mut game = match rooms.get_mut(&lobby_code) {
+                    Some(x) => x,
+                    None => {
+                        info!("[GAME] Creating new game");
+                        let mut newgame = GameState::new(lobby_code.clone());
+                        rooms.insert(lobby_code.clone(), newgame);
+                        rooms
+                            .get_mut(&lobby_code)
+                            .expect("[GAME] Failed to get game after creating it")
                     }
-                    _ => {}
-                }
+                };
+                info!("[GAME] jere/ game before: {:?}", game);
+                let eventresult = game.process_event(msg);
+                info!("[GAME] jere/ game after: {:?}", game);
             }
             info!("[GAME]: Failed to get message");
             info!("[GAME]: Exited?");

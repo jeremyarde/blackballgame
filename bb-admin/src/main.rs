@@ -233,17 +233,17 @@ fn Home() -> Element {
         );
         gamestate.process_event(GameMessage {
             username: "player1".to_string(),
-            message: GameEvent {
-                action: GameAction::StartGame(SetupGameOptions {
-                    rounds: 4,
-                    deterministic: true,
-                    start_round: Some(3),
-                    max_players: 4,
-                    game_mode: "Standard".to_string(),
-                    visibility: GameVisibility::Public,
-                    password: None,
-                }),
-            },
+            lobby: "lobby".to_string(),
+            action: GameAction::StartGame(SetupGameOptions {
+                rounds: 4,
+                deterministic: true,
+                start_round: Some(3),
+                max_players: 4,
+                game_mode: "Standard".to_string(),
+                visibility: GameVisibility::Public,
+                password: None,
+            }),
+
             timestamp: Utc::now(),
         });
         if let Some(x) = gamestate.players.get_mut(&"player1".to_string()) {
@@ -760,13 +760,10 @@ fn GameRoom(room_code: String) -> Element {
                         .expect("Failed to parse error")
                 }
             },
-            div { "Debug details:",
-                div {
-                    class: " bg-gray-300", "Secret: {app_props.read().client_secret}"
-                }
-                div {
-                    class: " bg-gray-300", "Game: {gamestate():#?}"
-                }
+            div {
+                "Debug details:"
+                div { class: " bg-gray-300", "Secret: {app_props.read().client_secret}" }
+                div { class: " bg-gray-300", "Game: {gamestate():#?}" }
             }
             {
                 if gamestate().gameplay_state == GameplayState::Pregame {
@@ -789,19 +786,16 @@ fn GameRoom(room_code: String) -> Element {
                                             info!("Clicked join game");
                                             listen_for_server_messages.send(("ready".to_string()));
                                             ws_send
-                                                .send(InnerMessage::GameMessage {
-                                                    msg: GameMessage {
+                                                .send(GameMessage {
                                                         username: app_props().username.clone(),
                                                         timestamp: Utc::now(),
-                                                        message: GameEvent {
                                                             action: GameAction::JoinGame(
                                                                 PlayerDetails{
                                                                     username: app_props.read().username.clone(),
                                                                     ip: String::new(),
                                                                     client_secret: app_props.read().client_secret.clone(),
-                                                                })
-                                                        },
-                                                    },
+                                                                }),
+                                                                lobby: room_code_clone.clone(),
                                                 });
                                         }
                                     },
