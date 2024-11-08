@@ -294,7 +294,6 @@ fn Explorer() -> Element {
 
             match resp {
                 Ok(data) => {
-                    // log::info!("Got response: {:?}", resp);
                     lobbies.set(
                         data.json::<GetLobbiesResponse>()
                             .await

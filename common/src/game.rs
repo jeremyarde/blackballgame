@@ -301,7 +301,7 @@ impl GameState {
 
         return GameEventResult {
             dest: Destination::Lobby(players),
-            msg: crate::GameActionResponse::GameState(self.get_state()),
+            msg: crate::GameActionResponse::GameState(self.get_state_for_lobby()),
         };
     }
 
@@ -345,8 +345,11 @@ impl GameState {
         actual_hand
     }
 
-    pub fn get_state(&mut self) -> Self {
-        self.clone()
+    pub fn get_state_for_lobby(&mut self) -> Self {
+        let mut state_copy = self.clone();
+        state_copy.deck = vec![];
+
+        state_copy
     }
 
     pub fn add_player(&mut self, player_id: String, role: PlayerRole, ip: String) -> String {
