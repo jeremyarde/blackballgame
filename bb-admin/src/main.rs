@@ -6,9 +6,8 @@ use std::{collections::HashMap, path::Path};
 use api_types::{GetLobbiesResponse, GetLobbyResponse, Lobby};
 use chrono::Utc;
 use common::{
-    Card, Connect, Destination, GameAction, GameClient, GameEvent, GameEventResult, GameMessage,
-    GameState, GameVisibility, GameplayState, InternalMessage, PlayState, PlayerDetails,
-    PlayerSecret, SetupGameOptions, Suit,
+    Card, Connect, Destination, GameAction, GameEventResult, GameMessage, GameState,
+    GameVisibility, GameplayState, PlayerDetails, SetupGameOptions, Suit,
 };
 use components::lobbylist;
 use dioxus::prelude::*;
@@ -721,18 +720,8 @@ fn GameRoom(room_code: String) -> Element {
                         continue 'pauseloop;
                     }
 
-                    let im: InternalMessage = InternalMessage::ToGame {
-                        msg: msg,
-                        lobby_code: app_props.read().lobby_code.clone(),
-                        from: Destination::User(PlayerDetails {
-                            username: app_props.read().username.clone(),
-                            ip: String::new(),
-                            client_secret: app_props.read().client_secret.clone(),
-                        }),
-                    };
-
                     let _ = ws_server_sender
-                        .send(Message::Text(json!(im).to_string()))
+                        .send(Message::Text(json!(msg).to_string()))
                         .await;
                 }
                 InnerMessage::Connect(con) => {
@@ -780,22 +769,24 @@ fn GameRoom(room_code: String) -> Element {
                                 button {
                                     class: "button",
                                     onclick: move |evt| {
-                                        // let room_code_clone = room_code_clone.clone();
+                                        // let button_room_code_clone = room_code_clone.clone();
 
                                         async move {
                                             info!("Clicked join game");
                                             listen_for_server_messages.send(("ready".to_string()));
                                             ws_send
-                                                .send(GameMessage {
+                                                .send( InnerMessage::GameMessage {
+                                                    msg: GameMessage {
                                                         username: app_props().username.clone(),
                                                         timestamp: Utc::now(),
-                                                            action: GameAction::JoinGame(
-                                                                PlayerDetails{
-                                                                    username: app_props.read().username.clone(),
-                                                                    ip: String::new(),
-                                                                    client_secret: app_props.read().client_secret.clone(),
-                                                                }),
-                                                                lobby: room_code_clone.clone(),
+                                                        action: GameAction::JoinGame(
+                                                            PlayerDetails{
+                                                                username: app_props.read().username.clone(),
+                                                                ip: String::new(),
+                                                                client_secret: app_props.read().client_secret.clone(),
+                                                            }),
+                                                            lobby: app_props.read().lobby_code.clone(),
+                                                        }
                                                 });
                                         }
                                     },
@@ -923,28 +914,25 @@ fn GameRoom(room_code: String) -> Element {
                                     info!("Starting game");
                                     listen_for_server_messages.send(("ready".to_string()));
                                     ws_send
-                                        .send(InnerMessage::GameMessage {
-                                            msg: GameMessage {
+                                        .send(InnerMessage::GameMessage { msg: GameMessage {
                                                 username: app_props().username.clone(),
                                                 timestamp: Utc::now(),
-                                                message: GameEvent {
-                                                    action: GameAction::JoinGame(
-                                                        PlayerDetails{
-                                                            username: app_props.read().username.clone(),
-                                                            ip: String::new(),
-                                                            client_secret: app_props.read().client_secret.clone(),
-                                                        })
-                                                },
-                                            },
+                                                action: GameAction::JoinGame(
+                                                    PlayerDetails{
+                                                        username: app_props.read().username.clone(),
+                                                        ip: String::new(),
+                                                        client_secret: app_props.read().client_secret.clone(),
+                                                    }),
+                                                lobby: app_props.read().lobby_code.clone(),
+                                            }
                                         });
                                     ws_send
                                         .send(
                                             InnerMessage::GameMessage {
                                                 msg: GameMessage {
                                                     username: app_props.read().username.clone(),
-                                                    message: GameEvent {
-                                                        action: GameAction::StartGame(setupgameoptions()),
-                                                    },
+                                                    action: GameAction::StartGame(setupgameoptions()),
+                                                    lobby: app_props.read().lobby_code.clone(),
                                                     timestamp: Utc::now(),
                                             }});
                                 },
@@ -1150,10 +1138,9 @@ fn GameStateComponent(
                                         ws_send().send(InnerMessage::GameMessage {
                                             msg: GameMessage {
                                                 username: app_props.read().username.clone(),
-                                                message: GameEvent {
-                                                    action: GameAction::PlayCard(clicked_card),
-                                                },
+                                                action: GameAction::PlayCard(clicked_card),
                                                 timestamp: Utc::now(),
+                                                lobby: app_props.read().lobby_code.clone(),
                                             },
                                         });
                                     },
@@ -1177,9 +1164,8 @@ fn GameStateComponent(
                                         ws_send().send(InnerMessage::GameMessage {
                                             msg: GameMessage {
                                                 username: app_props.read().username.clone(),
-                                                message: GameEvent {
-                                                    action: GameAction::Bid(i),
-                                                },
+                                                action: GameAction::Bid(i),
+                                                lobby: app_props.read().lobby_code.clone(),
                                                 timestamp: Utc::now(),
                                     }});
                                 },
@@ -1202,9 +1188,8 @@ fn GameStateComponent(
                                     .send(InnerMessage::GameMessage {
                                         msg: GameMessage {
                                             username: app_props.read().username.clone(),
-                                            message: GameEvent {
-                                                action: GameAction::Ack,
-                                            },
+                                            action: GameAction::Ack,
+                                            lobby: app_props.read().lobby_code.clone(),
                                             timestamp: Utc::now(),
                                         },
                                     });
@@ -1227,9 +1212,8 @@ fn GameStateComponent(
                                     .send(InnerMessage::GameMessage {
                                         msg: GameMessage {
                                             username: app_props.read().username.clone(),
-                                            message: GameEvent {
-                                                action: GameAction::Ack,
-                                            },
+                                            action: GameAction::Ack,
+                                            lobby: app_props.read().lobby_code.clone(),
                                             timestamp: Utc::now(),
                                         },
                                     });
@@ -1257,9 +1241,8 @@ fn GameStateComponent(
                                     .send(InnerMessage::GameMessage {
                                         msg: GameMessage {
                                             username: app_props.read().username.clone(),
-                                            message: GameEvent {
-                                                action: GameAction::Ack,
-                                            },
+                                            action: GameAction::Ack,
+                                            lobby: app_props.read().lobby_code.clone(),
                                             timestamp: Utc::now(),
                                         },
                                     });
