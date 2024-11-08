@@ -465,9 +465,10 @@ async fn main() {
                             .expect("[GAME] Failed to get game after creating it")
                     }
                 };
-                info!("[GAME] jere/ game before: {:?}", game);
+                // info!("[GAME] jere/ game before: {:?}", game);
                 let eventresult = game.process_event(msg);
-                info!("[GAME] jere/ game after: {:?}", game);
+                toclient_send.send(eventresult).unwrap();
+                // info!("[GAME] jere/ game after: {:?}", game);
             }
             info!("[GAME]: Failed to get message");
             info!("[GAME]: Exited?");
