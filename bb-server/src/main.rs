@@ -380,7 +380,7 @@ async fn main() {
             EnvFilter::from_default_env()
                 .add_directive("blackballgame=debug".parse().expect("blackballgame debug"))
                 .add_directive(
-                    "blackballgame-server=debug"
+                    "bb-server=debug"
                         .parse()
                         .expect("blackballgame-server debug"),
                 )
@@ -396,7 +396,7 @@ async fn main() {
         )
         .with_span_events(FmtSpan::FULL)
         // .with_thread_names(true) // only says "tokio-runtime-worker"
-        .with_thread_ids(true)
+        .with_thread_ids(false)
         .finish()
         .init();
 

@@ -912,19 +912,22 @@ fn GameRoom(room_code: String) -> Element {
                                 onclick: move |evt| {
                                     info!("Starting game");
                                     listen_for_server_messages.send(("ready".to_string()));
-                                    ws_send
+                                    // only send join game if player hasn't "Joined" the game yet
+                                    if (app_props.read().client_secret.is_empty()) {
+                                        ws_send
                                         .send(InnerMessage::GameMessage { msg: GameMessage {
-                                                username: app_props().username.clone(),
-                                                timestamp: Utc::now(),
-                                                action: GameAction::JoinGame(
-                                                    PlayerDetails{
-                                                        username: app_props.read().username.clone(),
-                                                        ip: String::new(),
-                                                        client_secret: app_props.read().client_secret.clone(),
-                                                    }),
+                                            username: app_props().username.clone(),
+                                            timestamp: Utc::now(),
+                                            action: GameAction::JoinGame(
+                                                PlayerDetails{
+                                                    username: app_props.read().username.clone(),
+                                                    ip: String::new(),
+                                                    client_secret: app_props.read().client_secret.clone(),
+                                                }),
                                                 lobby: app_props.read().lobby_code.clone(),
                                             }
                                         });
+                                    }
                                     ws_send
                                         .send(
                                             InnerMessage::GameMessage {
@@ -1047,12 +1050,16 @@ fn GameStateComponent(
         .curr_player_turn
         .clone()
         .unwrap_or("".to_string());
-    let curr_hand = if gamestate.read().players.contains_key(&curr_player) {
+    let curr_hand = if gamestate
+        .read()
+        .players
+        .contains_key(&app_props.read().username)
+    {
         Some(
             gamestate
                 .read()
                 .players
-                .get(&curr_player)
+                .get(&app_props.read().username)
                 .expect("Failed to get player in gamestate")
                 .encrypted_hand
                 .clone(),

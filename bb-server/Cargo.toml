@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name = "blackballgame-server"
+name = "bb-server"
 version = "0.1.0"
 
 [dependencies]
@@ -20,6 +20,7 @@ chrono = {version = "0.4.38", features = ["serde"]}
 common = {path = "../common"}
 # fastrand = "2.0.2"
 anyhow = "1.0.86"
+console-subscriber = "0.4.0"
 dioxus-fullstack = "0.5.2"
 dioxus-ssr = "0.5.1"
 futures-util = {version = "0.3", default-features = false, features = ["sink", "std"]}
@@ -36,4 +37,3 @@ tower = {version = "0.4", features = ["util"]}
 tower-http = {version = "0.5.0", features = ["full"]}
 tracing = "0.1.40"
 tracing-subscriber = {version = "0.3.18", default-features = false, features = ["fmt", "ansi", "env-filter", "tracing-log"]}
-console-subscriber = "0.4.0"

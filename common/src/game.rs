@@ -802,8 +802,11 @@ mod tests {
         // let hand = "KBBbNhxKVl4GFEcCAAkUAhc0GyZaUk4bW1kcFx5ZT0tRGAw2DEpWSURIBBYJSkFFBQoVKh1KVloDRTg=";
         // let secret = "sky_xhlk78erlhmg";
 
-        let hand = "KBBbNhxQXF5TTxsKCA8fFhc0GyZaSEQeDQUbVkYdExoHSUN9Gx4TD0lPGwwFAhMWUVFIawUv";
-        let secret = "sky_xrfmkc9zdnfs";
+        // let hand = "KBBbNhxQXF5TTxsKCA8fFhc0GyZaSEQeDQUbVkYdExoHSUN9Gx4TD0lPGwwFAhMWUVFIawUv";
+        // let secret = "sky_xrfmkc9zdnfs";
+
+        let hand = "KBBbNh5LU0NBShMZDw1MFxc0GyZYU0sBDgNDS09ORgcaH1tlWAoFBRtEHUsVDVkHFklDbk4UNA==";
+        let secret = "sky_5d7hjenh3c2k";
 
         let decrypted_hand = GameState::decrypt_player_hand(hand.to_string(), &secret.to_string());
         println!("Decrypted: {:?}", decrypted_hand);
@@ -1175,7 +1178,7 @@ mod tests {
     fn test_get_hand_from_encrypted() {
         let mut game = GameState::new("lobby".to_string());
 
-        let res = GameState::get_hand_from_encrypted(
+        let res = GameState::decrypt_player_hand(
             "KBBbNg5WXlVATUQGGgZNVhc0GyZITkYGGUNKVAUSXUdRUVs7AxUJCB4FRFpUEVVfBg5bZVMJOQ=="
                 .to_string(),
             &"sky_jtdgpafvvg43".to_string(),
@@ -1194,7 +1197,7 @@ mod tests {
         );
         println!("Cards: {:?}", res);
 
-        let res = GameState::get_hand_from_encrypted(
+        let res = GameState::decrypt_player_hand(
             "KBBbNg5WXlVATUQGGgZNVhc0GyZITkYGGUNKVAUSXUdRUVs7AxUJCB4FRFpUEVVfBg5bZVMJOQ=="
                 .to_string(),
             &"sky_jtdgpafvvg43".to_string(),
