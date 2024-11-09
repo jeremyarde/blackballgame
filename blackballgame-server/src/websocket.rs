@@ -167,16 +167,39 @@ async fn handle_socket(
             who
         );
 
-        // let user_ip = who.ip().to_string();
+        // let user_ip_addr = user_ip.clone();
 
         while let Ok(game_event_result) = broadcast_channel.recv().await {
             info!(
                 "[CLIENT-SENDER] Got a message from broadcast channel: {:?}",
                 game_event_result
             );
-            let _ = sender
-                .send(Message::Text(json!(game_event_result.clone()).to_string()))
-                .await;
+
+            match game_event_result.dest {
+                Destination::Lobby(players) => {
+                    let _ = sender
+                        .send(Message::Text(
+                            json!(game_event_result.msg.clone()).to_string(),
+                        ))
+                        .await;
+                }
+                Destination::User(player) => {
+                    if player.ip == user_ip {
+                        let _ = sender
+                            .send(Message::Text(
+                                json!(game_event_result.msg.clone()).to_string(),
+                            ))
+                            .await;
+                    }
+                    // let _ = sender
+                    //     .send(Message::Text(json!(game_event_result.clone()).to_string()))
+                    //     .await;
+                }
+            }
+
+            // let _ = sender
+            //     .send(Message::Text(json!(game_event_result.clone()).to_string()))
+            //     .await;
         }
 
         info!("[CLIENT-SENDER] Exiting sender thread for user={}", who);

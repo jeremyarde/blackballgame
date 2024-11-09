@@ -6,8 +6,8 @@ use std::{collections::HashMap, path::Path};
 use api_types::{GetLobbiesResponse, GetLobbyResponse, Lobby};
 use chrono::Utc;
 use common::{
-    Card, Connect, Destination, GameAction, GameEventResult, GameMessage, GameState,
-    GameVisibility, GameplayState, PlayerDetails, SetupGameOptions, Suit,
+    Card, Connect, Destination, GameAction, GameActionResponse, GameEventResult, GameMessage,
+    GameState, GameVisibility, GameplayState, PlayerDetails, SetupGameOptions, Suit,
 };
 use components::lobbylist;
 use dioxus::prelude::*;
@@ -665,10 +665,10 @@ fn GameRoom(room_code: String) -> Element {
                     //     info!("received: {text}");
 
                     //     let mut is_gamestate = false;
-                    match serde_json::from_str::<GameEventResult>(&message) {
-                        Ok(ger) => {
+                    match serde_json::from_str::<GameActionResponse>(&message) {
+                        Ok(gar) => {
                             // is_gamestate = true;
-                            match ger.msg {
+                            match gar {
                                 common::GameActionResponse::Connect(con) => {
                                     info!("Got connect message: {con:?}");
                                     app_props.write().client_secret =
@@ -1129,6 +1129,7 @@ fn GameStateComponent(
                     {if curr_hand.is_none() {
                         rsx!()
                     } else {
+                        info!("[FE] calling to decrypt player hand: ${:?}, secret: ${:?}", curr_hand, app_props.read().client_secret.clone());
                         rsx!({GameState::decrypt_player_hand(curr_hand.unwrap(), &app_props.read().client_secret.clone())
                             .iter()
                             .map(|card| {

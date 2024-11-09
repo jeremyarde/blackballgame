@@ -338,8 +338,6 @@ impl GameState {
             .expect("Could not decode hand");
         let str_hand = String::from_utf8(hand).expect("Could not convert hand to string");
         let secret_data = xor_encrypt_decrypt(&str_hand, player_secret);
-        // let str_hand2 = String::from_utf8(secret_data.clone()).expect();
-        // println!("Decrypting hand: {:?}", str_hand2);
         let actual_hand: Vec<Card> =
             serde_json::from_slice(&secret_data).expect("Could not parse hand");
         actual_hand
@@ -604,16 +602,16 @@ impl GameState {
         return self.bids.keys().len() == self.players.len();
     }
 
-    pub fn get_hand_from_encrypted(encrypted_hand: String, secret_key: &String) -> Vec<Card> {
-        let hand = BASE64
-            .decode(encrypted_hand.as_bytes())
-            .expect("Could not decode hand");
-        let str_hand = String::from_utf8(hand).expect("Could not convert hand to string");
-        let secret_data = xor_encrypt_decrypt(&str_hand, secret_key);
-        let actual_hand: Vec<Card> =
-            serde_json::from_slice(&secret_data).expect("Could not parse hand");
-        actual_hand
-    }
+    // pub fn get_hand_from_encrypted(encrypted_hand: String, secret_key: &String) -> Vec<Card> {
+    //     let hand = BASE64
+    //         .decode(encrypted_hand.as_bytes())
+    //         .expect("Could not decode hand");
+    //     let str_hand = String::from_utf8(hand).expect("Could not convert hand to string");
+    //     let secret_data = xor_encrypt_decrypt(&str_hand, secret_key);
+    //     let actual_hand: Vec<Card> =
+    //         serde_json::from_slice(&secret_data).expect("Could not parse hand");
+    //     actual_hand
+    // }
 
     pub fn new(lobby_code: String) -> GameState {
         // let (tx, rx) = broadcast::channel(10);
@@ -801,9 +799,11 @@ mod tests {
         // SetupGameOptions { rounds: 4, deterministic: true, start_round: None, max_players: 4, game_mode: "Standard", visibility: Public, password: None },
         // secret_key: "mysecretkey", players: {"e": GameClient { id: "e", hand: [], encrypted_hand: "KBBbNhVHXklWRRAWDgVMUxc0GyZTX0YfTEUQFRcNQRRJSRozBAdGVkwfUwoXARcMQl8EAg==", num_cards: 0, role: Player, details: PlayerDetails { username: "e", ip: "127.0.0.1:49678", client_secret: "sky_qedzni2fbd56" } }, "a": GameClient { id: "a", hand: [], encrypted_hand: "KBBbNgxFD0ICFFVBDlYTFxc0GyZKXRcWERRVQhdeHlBJSQovCQNQVR8aAVAOQg9QSVpNIjU=", num_cards: 0, role: Player, details: PlayerDetails { username: "a", ip: "127.0.0.1:49684", client_secret: "sky_hg5w38w1b7jr" } }}, players_secrets: {}, deck: [], curr_round: 1, trump: Heart, player_order: ["a", "e"], curr_played_cards: [], curr_player_turn: Some("e"), curr_player_turn_idx: 0, curr_winning_card: None, curr_dealer: "a", curr_dealer_idx: 0, bids: {}, bid_order: [], wins: {"e": 0, "a": 0}, score: {"a": 0, "e": 0}, gameplay_state: Bid, event_log: [], system_status: [], is_public: true, latest_update: 2024-11-03T23:55:39.023714Z }
 
-        let hand = "KBBbNgxFD0ICFFVBDlYTFxc0GyZKXRcWERRVQhdeHlBJSQovCQNQVR8aAVAOQg9QSVpNIjU=";
-        // let hand = "KBBbNhVHXklWRRAWDgVMUxc0GyZTX0YfTEUQFRcNQRRJSRozBAdGVkwfUwoXARcMQl8EAg==";
-        let secret = "sky_hg5w38w1b7jr";
+        // let hand = "KBBbNhxKVl4GFEcCAAkUAhc0GyZaUk4bW1kcFx5ZT0tRGAw2DEpWSURIBBYJSkFFBQoVKh1KVloDRTg=";
+        // let secret = "sky_xhlk78erlhmg";
+
+        let hand = "KBBbNhxQXF5TTxsKCA8fFhc0GyZaSEQeDQUbVkYdExoHSUN9Gx4TD0lPGwwFAhMWUVFIawUv";
+        let secret = "sky_xrfmkc9zdnfs";
 
         let decrypted_hand = GameState::decrypt_player_hand(hand.to_string(), &secret.to_string());
         println!("Decrypted: {:?}", decrypted_hand);
