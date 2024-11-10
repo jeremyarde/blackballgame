@@ -44,6 +44,8 @@ use tracing::{info, Level};
 //     // Game { room_code: String },
 // }
 
+const TEST: bool = true;
+
 #[derive(Clone, Debug)]
 struct AppProps {
     username: String,
@@ -158,8 +160,6 @@ fn get_title_logo() -> Element {
     )
 }
 
-const TEST: bool = false;
-
 #[component]
 fn Home() -> Element {
     let mut app_props: Signal<AppProps> = use_context::<Signal<AppProps>>();
@@ -223,13 +223,27 @@ fn Home() -> Element {
         gamestate.add_player(
             "player1".to_string(),
             common::PlayerRole::Player,
-            "0.0.0.0".to_string(),
+            "0.0.0.0:1111".to_string(),
         );
         gamestate.add_player(
             "player2".to_string(),
             common::PlayerRole::Player,
-            "0.0.0.0".to_string(),
+            "0.0.0.0:1234".to_string(),
         );
+        let client_secret = gamestate
+            .players
+            .get("player1")
+            .unwrap()
+            .details
+            .client_secret
+            .clone();
+
+        use_effect(move || {
+            app_props.write().username = "player1".to_string();
+            app_props.write().lobby_code = "test".to_string();
+            app_props.write().client_secret = client_secret.clone();
+        });
+
         gamestate.process_event(GameMessage {
             username: "player1".to_string(),
             lobby: "lobby".to_string(),
@@ -260,7 +274,7 @@ fn Home() -> Element {
             Card::new(Suit::Diamond, 1),
             Card::new(Suit::Spade, 10),
         ];
-        let mut gamestate_signal = use_signal(|| GameState::new(String::from("test")));
+        let mut gamestate_signal = use_signal(|| gamestate);
 
         rsx!(GameStateComponent {
             gamestate: gamestate_signal,
@@ -964,7 +978,7 @@ fn GameRoom(room_code: String) -> Element {
     )
 }
 
-pub const CARD_ASSET: manganis::ImageAsset = asset!("./assets/outline.png").image();
+// pub const CARD_ASSET: manganis::ImageAsset = asset!("./assets/outline.png").image();
 // pub const CARD_BG_SVG: manganis::ImageAsset =
 //     manganis::mg!(image("./assets/outline.svg").format(ImageType::Svg));
 pub const SUIT_CLUB: ImageAsset = asset!("./assets/suits/club.png").image();
@@ -995,21 +1009,18 @@ fn CardComponent(card: Card, onclick: EventHandler<Card>) -> Element {
 
     rsx!(
         button {
-            class: "h-[120px] gap-2 grid justify-center text-center",
+            class: "grid text-center justify-center",
             onclick: move |evt| {
                 onclick(card.clone());
             },
             svg {
-                class: "col-start-1 row-start-1 w-full h-full",
+                class: "col-start-1 row-start-1 w-full h-[100px]",
                 "shape-rendering": "crispEdges",
                 "viewBox": "0 -0.5 48 64",
                 "xmlns": "http://www.w3.org/2000/svg",
+                fill: "none",
                 meta { data: "false" }
                 "Made with Pixels to Svg https://codepen.io/shshaw/pen/XbxvNj"
-                path {
-                    "d": "M0 0h48M0 1h48M0 2h48M0 3h4M44 3h4M0 4h3M4 4h39M45 4h3M0 5h3M4 5h39M46 5h2M0 6h3M4 6h39M46 6h2M0 7h3M4 7h39M46 7h2M0 8h3M4 8h39M46 8h2M0 9h3M4 9h39M46 9h2M0 10h3M4 10h39M46 10h2M0 11h3M4 11h39M46 11h2M0 12h3M4 12h39M46 12h2M0 13h3M4 13h39M46 13h2M0 14h3M4 14h39M46 14h2M0 15h3M4 15h39M46 15h2M0 16h3M4 16h39M46 16h2M0 17h3M4 17h39M46 17h2M0 18h3M4 18h39M46 18h2M0 19h3M4 19h39M46 19h2M0 20h3M4 20h39M46 20h2M0 21h3M4 21h39M46 21h2M0 22h3M4 22h39M46 22h2M0 23h3M4 23h39M46 23h2M0 24h3M4 24h39M46 24h2M0 25h3M4 25h39M46 25h2M0 26h3M4 26h39M46 26h2M0 27h3M4 27h39M46 27h2M0 28h3M4 28h39M46 28h2M0 29h3M4 29h39M46 29h2M0 30h3M4 30h39M46 30h2M0 31h3M4 31h39M46 31h2M0 32h3M4 32h39M46 32h2M0 33h3M4 33h39M46 33h2M0 34h3M4 34h39M46 34h2M0 35h3M4 35h39M46 35h2M0 36h3M4 36h39M46 36h2M0 37h3M4 37h39M46 37h2M0 38h3M4 38h39M46 38h2M0 39h3M4 39h39M46 39h2M0 40h3M4 40h39M46 40h2M0 41h3M4 41h39M46 41h2M0 42h3M4 42h39M46 42h2M0 43h3M4 43h39M46 43h2M0 44h3M4 44h39M46 44h2M0 45h3M4 45h39M46 45h2M0 46h3M4 46h39M46 46h2M0 47h3M4 47h39M46 47h2M0 48h3M4 48h39M46 48h2M0 49h3M4 49h39M46 49h2M0 50h3M4 50h39M46 50h2M0 51h3M4 51h39M46 51h2M0 52h3M4 52h39M46 52h2M0 53h3M4 53h39M46 53h2M0 54h3M4 54h39M46 54h2M0 55h3M4 55h39M46 55h2M0 56h3M4 56h39M46 56h2M0 57h3M4 57h39M46 57h2M0 58h3M4 58h39M46 58h2M0 59h3M46 59h2M0 60h4M46 60h2M0 61h5M45 61h3M0 62h48M0 63h48",
-                    "stroke": "#ffffff"
-                }
                 path {
                     "d": "M4 3h1M28 3h7M39 3h3M43 3h1M43 4h1M43 11h1M3 13h1M43 21h1M3 24h1M3 25h1M3 27h1M3 28h1M3 29h1M43 32h1M3 36h1M3 37h1M3 40h1M3 41h1M3 42h1M43 42h1M3 43h1M3 44h1M3 45h1M3 46h1M3 47h1M3 48h1M43 50h1M43 51h1M3 52h1M3 53h1M3 54h1M3 55h1M3 59h1M6 59h2M14 59h2M29 59h4M34 59h9",
                     "stroke": "#000000"
@@ -1044,13 +1055,15 @@ fn GameStateComponent(
 ) -> Element {
     let mut app_props = use_context::<Signal<AppProps>>();
 
+    info!("Rendering gamestate...");
+
     let trump_svg = get_trump_svg(&gamestate.read().trump);
     let curr_player = gamestate
         .read()
         .curr_player_turn
         .clone()
         .unwrap_or("".to_string());
-    let curr_hand = if gamestate
+    let cards_in_hand = if gamestate
         .read()
         .players
         .contains_key(&app_props.read().username)
@@ -1069,198 +1082,232 @@ fn GameStateComponent(
     };
 
     rsx!(
-        div { class: "flex flex-col w-dvw h-dvh bg-[--bg-color] items-center gap-4",
-            div { class: " bg-gray-300",
-                div { class: "flex content-between",
-                    div {
-
-                        h2 { "Phase: {gamestate().gameplay_state:?}" }
-                        div {
-                            "Trump: {gamestate().trump:?}"
-                            {trump_svg}
-                        }
-                        ol {
-                            {gamestate().player_order.iter().map(|player| rsx!(li { class: "player-turn", "{player}" }))}
-                        }
-                        div { "Round: {gamestate().curr_round}/{gamestate().setup_game_options.rounds}" }
-                        div { "Dealer: {gamestate().curr_dealer}" }
-                        if gamestate().curr_player_turn.is_some() {
-                            // div { "{gamestate().curr_player_turn.unwrap()}" }
-                            div { "Player turn: TODO" }
-                        } else {
-                            div { "Player turn: None" }
-                        }
-                    }
-                    div { class: "flex flex-row",
-                        h2 { "Players" }
-                        {gamestate().players.iter().map(|(playername, client)| {
-                            let wins = gamestate().wins.get(playername).unwrap_or(&0).clone();
-                            let bid = gamestate().bids.get(playername).unwrap_or(&0).clone();
-                            rsx!(
-                                div {
-                                    class: "container-row",
-                                    div { "{playername}" }
-                                    div { "{wins}/{bid}" }
-                                    div { "Score: {bid}" }
+        div { class: "flex flex-row w-dvw h-dvh bg-[--bg-color] items-center gap-4",
+            div { class: "bg-gray-100 p-6 rounded-lg shadow-lg max-w-4xl mx-auto",
+                div { class: "flex flex-col md:flex-row justify-between gap-6",
+                    div { class: "bg-white p-4 rounded-md shadow flex-1",
+                        h2 { class: "text-2xl font-bold mb-4 text-gray-800", "Game Status" }
+                        div { class: "space-y-2",
+                            div { class: "flex items-center justify-between",
+                                span { class: "font-semibold", "Phase:" }
+                                span { class: "text-blue-600", "{gamestate().gameplay_state:?}" }
+                            }
+                            div { class: "flex items-center justify-between",
+                                span { class: "font-semibold", "Trump:" }
+                                div { class: "flex items-center",
+                                    span { class: "mr-2", "{gamestate().trump:?}" }
+                                    div { class: "w-6 h-6", {&trump_svg} }
                                 }
-                            )
-                        })}
+                            }
+                            div {
+                                span { class: "font-semibold", "Player Order:" }
+                                ol { class: "list-decimal list-inside mt-1",
+                                    {gamestate().player_order.iter().map(|player| {
+                                        rsx!(
+                                            li { class: "player-turn text-gray-700", "{player}" }
+                                        )}
+                                    )}
+                                }
+                            }
+                            div { class: "flex items-center justify-between",
+                                span { class: "font-semibold", "Round:" }
+                                span { "{gamestate().curr_round}/{gamestate().setup_game_options.rounds}" }
+                            }
+                            div { class: "flex items-center justify-between",
+                                span { class: "font-semibold", "Dealer:" }
+                                span { "{gamestate().curr_dealer}" }
+                            }
+                            div { class: "flex items-center justify-between",
+                                span { class: "font-semibold", "Player Turn:" }
+                                span {
+                                    if gamestate().curr_player_turn.is_some() {
+                                        div { "{gamestate().curr_player_turn.unwrap()}" }
+                                    } else {
+                                        div { "Waiting" }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    div { class: "bg-white p-4 rounded-md shadow flex-1",
+                        h2 { class: "text-2xl font-bold mb-4 text-gray-800", "Players" }
+                        div { class: "space-y-4",
+                            {gamestate().players.iter().map(|(playername, client)| {
+                                let wins = gamestate().wins.get(playername).unwrap_or(&0).clone();
+                                let bid = gamestate().bids.get(playername).unwrap_or(&0).clone();
+                                rsx!(
+                                div { class: "flex flex-row items-center justify-between border-b pb-2 w-full",
+                                    div {
+                                        class: "flex flex-col items-center justify-between",
+                                        span { class: "font-semibold text-lg", "{playername}" }
+                                        span { class: "text-sm font-medium text-green-600", "Score: TODO - total score" }
+                                    }
+                                    div { class: "text-right border border-black rounded-md p-2",
+                                        span { class: "text-sm text-gray-600", "Round" }
+                                        div { class: "text-sm text-gray-600", "Wins: {wins}" }
+                                        div { class: "text-sm text-gray-600", "Bid: {bid}" }
+                                    }
+                                }
+                                )})
+                            }
+                        }
                     }
                 }
             }
-
-            div { class: "relative w-full md:w-1/2 bg-[var(--bg-color)] rounded-lg p-4 shadow-lg text-gray-100 border border-black",
-                div { class: "absolute top-2 left-2 px-3 py-1 text-sm font-bold text-white bg-indigo-600 rounded-md shadow",
-                    "Played cards"
+            div { class: "flex flex-col md:flex-row justify-between gap-6",
+                div { class: "relative w-full md:w-1/2 bg-[var(--bg-color)] rounded-lg p-4 shadow-lg text-gray-100 border border-black",
+                    div { class: "absolute top-2 left-2 px-3 py-1 text-sm font-bold text-white bg-indigo-600 rounded-md shadow",
+                        "Played cards"
+                    }
+                    div { class: "flex flex-row mt-8 justify-center",
+                        {gamestate().curr_played_cards.iter().map(|card| rsx!(
+                            CardComponent {
+                                onclick: move |_| { info!("Clicked a card: {:?}", "fake card") },
+                                card: card.clone()
+                            }
+                        ))}
+                    }
                 }
-                div { class: "grid grid-rows-1 gap-4 mt-8",
-                    {gamestate().curr_played_cards.iter().map(|card| rsx!(
-                        CardComponent {
-                            onclick: move |_| { info!("Clicked a card: {:?}", "fake card") },
-                            card: card.clone()
+                if gamestate().curr_player_turn.unwrap_or("".to_string()) == app_props.read().username {
+                    {rsx!(div {
+                        class: "container-row turn-indicator",
+                        "Your turn"
+                    })}
+                }
+                div { class: "relative w-full md:w-1/2 bg-[var(--bg-color)] rounded-lg p-4 shadow-lg text-gray-100 border border-black",
+                    div { class: "absolute top-2 left-2 px-3 py-1 text-sm font-bold text-white bg-yellow-700 rounded-md shadow",
+                        "Your hand"
+                    }
+                    div { class: "flex flex-row mt-8 justify-center",
+                        {if cards_in_hand.is_none() {
+                            rsx!()
+                        } else {
+                            info!("[FE] calling to decrypt player hand: ${:?}, secret: ${:?}", cards_in_hand, app_props.read().client_secret.clone());
+                            rsx!({GameState::decrypt_player_hand(cards_in_hand.unwrap(), &app_props.read().client_secret.clone())
+                                .iter()
+                                .map(|card| {
+                                    return rsx!(CardComponent {
+                                        onclick: move |clicked_card: Card| {
+                                            ws_send().send(InnerMessage::GameMessage {
+                                                msg: GameMessage {
+                                                    username: app_props.read().username.clone(),
+                                                    action: GameAction::PlayCard(clicked_card),
+                                                    timestamp: Utc::now(),
+                                                    lobby: app_props.read().lobby_code.clone(),
+                                                },
+                                            });
+                                        },
+                                        card: card.clone()
+                                    });
+                                })})
+                            }
                         }
-                    ))}
+                    }
                 }
-            }
-            if gamestate().curr_player_turn.unwrap_or("".to_string()) == app_props.read().username {
-                {rsx!(div {
-                    class: "container-row turn-indicator",
-                    "Your turn"
-                })}
-            }
-            div { class: "relative w-full md:w-1/2 bg-[var(--bg-color)] rounded-lg p-4 shadow-lg text-gray-100 border border-black",
-                div { class: "absolute top-2 left-2 px-3 py-1 text-sm font-bold text-white bg-yellow-700 rounded-md shadow",
-                    "Your hand"
+                if gamestate().gameplay_state == GameplayState::Bid {
+                    div { class: "flex flex-col items-center",
+                        label { class: "text-2xl p-2", "How many hands do you want to win" }
+                        ul { class: "flex flex-row gap-2 items-center p-2",
+                            {(0..=gamestate().curr_round).map(|i| {
+                                rsx!(
+                                    button {
+                                        class: "bg-yellow-300 p-4 rounded-lg",
+                                        onclick: move |_| {
+                                            info!("Clicked on bid {i}");
+                                            ws_send().send(InnerMessage::GameMessage {
+                                                msg: GameMessage {
+                                                    username: app_props.read().username.clone(),
+                                                    action: GameAction::Bid(i),
+                                                    lobby: app_props.read().lobby_code.clone(),
+                                                    timestamp: Utc::now(),
+                                        }});
+                                    },
+                                        "{i}"
+                                    },
+                                )
+                                })
+                            }
+                        }
+                    }
                 }
-                div { class: "grid grid-rows-1 gap-4 mt-8",
-                    {if curr_hand.is_none() {
-                        rsx!()
-                    } else {
-                        info!("[FE] calling to decrypt player hand: ${:?}, secret: ${:?}", curr_hand, app_props.read().client_secret.clone());
-                        rsx!({GameState::decrypt_player_hand(curr_hand.unwrap(), &app_props.read().client_secret.clone())
-                            .iter()
-                            .map(|card| {
-                                return rsx!(CardComponent {
-                                    onclick: move |clicked_card: Card| {
-                                        ws_send().send(InnerMessage::GameMessage {
+                {if let GameplayState::PostHand(ps) = gamestate().gameplay_state {
+                    rsx!(
+                        div {
+                            class: "container",
+                            button {
+                                class: "button",
+                                onclick: move |_| {
+                                    ws_send()
+                                        .send(InnerMessage::GameMessage {
                                             msg: GameMessage {
                                                 username: app_props.read().username.clone(),
-                                                action: GameAction::PlayCard(clicked_card),
-                                                timestamp: Utc::now(),
+                                                action: GameAction::Ack,
                                                 lobby: app_props.read().lobby_code.clone(),
+                                                timestamp: Utc::now(),
                                             },
                                         });
-                                    },
-                                    card: card.clone()
-                                });
-                            })})
+                                },
+                                "Acknowledge"
+                            }
                         }
-                    }
-                }
-            }
-            if gamestate().gameplay_state == GameplayState::Bid {
-                div { class: "flex flex-col items-center",
-                    label { class: "text-2xl p-2", "How many hands do you want to win" }
-                    ul { class: "flex flex-row gap-2 items-center p-2",
-                        {(0..=gamestate().curr_round).map(|i| {
-                            rsx!(
-                                button {
-                                    class: "bg-yellow-300 p-4 rounded-lg",
-                                    onclick: move |_| {
-                                        info!("Clicked on bid {i}");
-                                        ws_send().send(InnerMessage::GameMessage {
+                    )
+                } else {
+                    rsx!()
+                }},
+                {if let GameplayState::PostRound = gamestate().gameplay_state {
+                    rsx!(
+                        div {
+                            class: "container",
+                            button {
+                                class: "button",
+                                onclick: move |_| {
+                                    ws_send()
+                                        .send(InnerMessage::GameMessage {
                                             msg: GameMessage {
                                                 username: app_props.read().username.clone(),
-                                                action: GameAction::Bid(i),
+                                                action: GameAction::Ack,
                                                 lobby: app_props.read().lobby_code.clone(),
                                                 timestamp: Utc::now(),
-                                    }});
+                                            },
+                                        });
                                 },
-                                    "{i}"
-                                },
-                            )
-                            })
+                                "Acknowledge"
+                            }
                         }
-                    }
-                }
+                    )
+                } else {
+                    rsx!()
+                }},
+                {if let GameplayState::End = gamestate().gameplay_state {
+                    rsx!(
+                        div {
+                            class: "container",
+                            div {"GAME OVER"}
+                            {gamestate().score.iter().map(|(player, score)| {rsx!(li { "{player}: {score}" })})}
+                        }
+                        div {
+                            class: "container",
+                            button {
+                                class: "button",
+                                onclick: move |_| {
+                                    ws_send()
+                                        .send(InnerMessage::GameMessage {
+                                            msg: GameMessage {
+                                                username: app_props.read().username.clone(),
+                                                action: GameAction::Ack,
+                                                lobby: app_props.read().lobby_code.clone(),
+                                                timestamp: Utc::now(),
+                                            },
+                                        });
+                                },
+                                "Acknowledge"
+                            }
+                        }
+                    )
+                } else {
+                    rsx!()
+                }}
             }
-            {if let GameplayState::PostHand(ps) = gamestate().gameplay_state {
-                rsx!(
-                    div {
-                        class: "container",
-                        button {
-                            class: "button",
-                            onclick: move |_| {
-                                ws_send()
-                                    .send(InnerMessage::GameMessage {
-                                        msg: GameMessage {
-                                            username: app_props.read().username.clone(),
-                                            action: GameAction::Ack,
-                                            lobby: app_props.read().lobby_code.clone(),
-                                            timestamp: Utc::now(),
-                                        },
-                                    });
-                            },
-                            "Acknowledge"
-                        }
-                    }
-                )
-            } else {
-                rsx!()
-            }},
-            {if let GameplayState::PostRound = gamestate().gameplay_state {
-                rsx!(
-                    div {
-                        class: "container",
-                        button {
-                            class: "button",
-                            onclick: move |_| {
-                                ws_send()
-                                    .send(InnerMessage::GameMessage {
-                                        msg: GameMessage {
-                                            username: app_props.read().username.clone(),
-                                            action: GameAction::Ack,
-                                            lobby: app_props.read().lobby_code.clone(),
-                                            timestamp: Utc::now(),
-                                        },
-                                    });
-                            },
-                            "Acknowledge"
-                        }
-                    }
-                )
-            } else {
-                rsx!()
-            }},
-            {if let GameplayState::End = gamestate().gameplay_state {
-                rsx!(
-                    div {
-                        class: "container",
-                        div {"GAME OVER"}
-                        {gamestate().score.iter().map(|(player, score)| {rsx!(li { "{player}: {score}" })})}
-                    }
-                    div {
-                        class: "container",
-                        button {
-                            class: "button",
-                            onclick: move |_| {
-                                ws_send()
-                                    .send(InnerMessage::GameMessage {
-                                        msg: GameMessage {
-                                            username: app_props.read().username.clone(),
-                                            action: GameAction::Ack,
-                                            lobby: app_props.read().lobby_code.clone(),
-                                            timestamp: Utc::now(),
-                                        },
-                                    });
-                            },
-                            "Acknowledge"
-                        }
-                    }
-                )
-            } else {
-                rsx!()
-            }}
         }
     )
 }
