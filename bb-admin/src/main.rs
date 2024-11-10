@@ -44,7 +44,7 @@ use tracing::{info, Level};
 //     // Game { room_code: String },
 // }
 
-const TEST: bool = true;
+const TEST: bool = false;
 
 #[derive(Clone, Debug)]
 struct AppProps {
@@ -552,7 +552,7 @@ fn GameRoom(room_code: String) -> Element {
     let mut gamestate = use_signal(|| GameState::new(room_code.clone()));
     let mut setupgameoptions = use_signal(|| SetupGameOptions {
         rounds: 4,
-        deterministic: true,
+        deterministic: if TEST { true } else { false },
         start_round: None,
         max_players: 4,
         game_mode: "Standard".to_string(),
