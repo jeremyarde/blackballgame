@@ -45,6 +45,7 @@ use tracing::{info, Level};
 // }
 
 const TEST: bool = false;
+const STANDARD_BUTTON: &str = "px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75";
 
 #[derive(Clone, Debug)]
 struct AppProps {
@@ -757,16 +758,16 @@ fn GameRoom(room_code: String) -> Element {
                 if gamestate().gameplay_state == GameplayState::Pregame {
                     rsx!(
                         div {
-                            class: "flex flex-row",
+                            class: "flex flex-row gap-2",
                             div {
                                 class: "flex flex-col max-w-[600px] border border-black rounded-md p-4",
                                 button {
-                                    class: "button",
+                                    class: "{STANDARD_BUTTON}",
                                     onclick: move |evt| get_game_details(room_code_clone.clone()),
                                     "Refresh player list"
                                 }
                                 button {
-                                    class: "button",
+                                    class: "{STANDARD_BUTTON}",
                                     onclick: move |evt| {
                                         async move {
                                             info!("Clicked join game");
@@ -939,15 +940,17 @@ fn GameRoom(room_code: String) -> Element {
                                 "Start game"
                             }
                             div {
-                                class: "flex flex-col",
+                                class: "flex flex-col w-full h-full",
                                 {if gamestate().system_status.len() > 0 {
                                     rsx!(
                                         ul {
-                                            {gamestate().system_status.iter().map(|issue| rsx!(li { "{issue}" }))}
+                                            class: "max-w-md mx-auto my-4 p-4 border border-blue-400 rounded-lg bg-blue-100 text-blue-800",
+                                            {gamestate().system_status.iter().map(|issue| rsx!(li { class: "text-sm", "{issue}" }))}
                                         }
                                     )
                                     } else {
-                                        rsx!(div { "Please join the game" })
+                                        rsx!(div {class: "max-w-md mx-auto my-4 p-4 border border-blue-400 rounded-lg bg-blue-100 text-blue-800",
+                                            "Please join the game" })
                                     }
                                 }
                             }
@@ -1217,7 +1220,7 @@ fn GameStateComponent(
                 {if let GameplayState::PostHand(ps) = gamestate().gameplay_state {
                     rsx!(
                         div {
-                            class: "container",
+                            class: "px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75",
                             button {
                                 class: "button",
                                 onclick: move |_| {
