@@ -1084,13 +1084,13 @@ fn GameStateComponent(
     rsx!(
         div { class: "flex flex-row w-dvw h-dvh bg-[--bg-color] items-center gap-4",
             div { class: "bg-gray-100 p-6 rounded-lg shadow-lg max-w-4xl mx-auto",
-                div { class: "flex flex-col md:flex-row justify-between gap-6",
+                div { class: "flex flex-col justify-between gap-6",
                     div { class: "bg-white p-4 rounded-md shadow flex-1",
                         h2 { class: "text-2xl font-bold mb-4 text-gray-800", "Game Status" }
                         div { class: "space-y-2",
                             div { class: "flex items-center justify-between",
                                 span { class: "font-semibold", "Phase:" }
-                                span { class: "text-blue-600", "{gamestate().gameplay_state:?}" }
+                                span { class: "", "{gamestate().gameplay_state:?}" }
                             }
                             div { class: "flex items-center justify-between",
                                 span { class: "font-semibold", "Trump:" }
@@ -1154,8 +1154,8 @@ fn GameStateComponent(
                     }
                 }
             }
-            div { class: "flex flex-col md:flex-row justify-between gap-6",
-                div { class: "relative w-full md:w-1/2 bg-[var(--bg-color)] rounded-lg p-4 shadow-lg text-gray-100 border border-black",
+            div { class: "flex flex-col justify-between gap-6 w-full",
+                div { class: "relative w-full bg-[var(--bg-color)] rounded-lg p-4 shadow-lg text-gray-100 border border-black",
                     div { class: "absolute top-2 left-2 px-3 py-1 text-sm font-bold text-white bg-indigo-600 rounded-md shadow",
                         "Played cards"
                     }
@@ -1174,7 +1174,7 @@ fn GameStateComponent(
                         "Your turn"
                     })}
                 }
-                div { class: "relative w-full md:w-1/2 bg-[var(--bg-color)] rounded-lg p-4 shadow-lg text-gray-100 border border-black",
+                div { class: "relative w-full bg-[var(--bg-color)] rounded-lg p-4 shadow-lg text-gray-100 border border-black",
                     div { class: "absolute top-2 left-2 px-3 py-1 text-sm font-bold text-white bg-yellow-700 rounded-md shadow",
                         "Your hand"
                     }
@@ -1206,7 +1206,7 @@ fn GameStateComponent(
                 }
                 if gamestate().gameplay_state == GameplayState::Bid {
                     div { class: "flex flex-col items-center",
-                        label { class: "text-2xl p-2", "How many hands do you want to win" }
+                        label { class: "text-xl p-2", "How many hands do you want to win?" }
                         ul { class: "flex flex-row gap-2 items-center p-2",
                             {(0..=gamestate().curr_round).map(|i| {
                                 rsx!(

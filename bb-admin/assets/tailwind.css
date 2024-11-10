@@ -821,10 +821,6 @@ video {
   align-content: center;
 }
 
-.content-between {
-  align-content: space-between;
-}
-
 .items-center {
   align-items: center;
 }
