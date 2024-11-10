@@ -6,9 +6,9 @@
   --bg-color: #f6eee3;
 }
 
-/* * {
+* {
   border: 1px solid red;
-} */
+}
 
 @keyframes gradient-shine {
   0% {

@@ -114,15 +114,7 @@ fn StateProvider() -> Element {
     rsx!(Home {})
 }
 
-// const _STYLE: &str = manganis::mg!(file("main.css"));
-// const _STYLE: &str = manganis::mg!(file("./assets/tailwind.css"));
-// Urls are relative to your Cargo.toml file
-// const _TAILWIND_URL: &str = manganis::mg!(file("./public/tailwind.css"));
-// const _TAILWIND_URL: &str = manganis::mg!(file("/bb-admin/assets/tailwind.css"));
-// const TAILWIND_URL: &str = asset!("./assets/tailwind.css").bundled;
 const TAILWIND_URL: Asset = asset!("./assets/tailwind.css");
-
-// const __TAILWIND_URL: &str = manganis::mg!(file("./public/tailwind.css"));
 
 fn main() {
     // Init logger
@@ -131,13 +123,6 @@ fn main() {
     launch(|| {
         rsx! {
             link { rel: "stylesheet", href: asset!("./assets/tailwind.css") }
-            // head {
-            //     link { rel: "stylesheet", href: "{TAILWIND_URL.bundled}" }
-            // }
-            // link::Head { rel: "stylesheet", href: asset!("./assets/style.css") }
-            // Router::<AppRoutes> {}
-            // Home {}
-
             StateProvider {}
         }
     });
@@ -386,9 +371,8 @@ fn Explorer() -> Element {
     };
 
     rsx! {
-
-        div { class: "flex flex-row text-center w-dvw h-dvh bg-[--bg-color] items-baseline flex-nowrap justify-center gap-2 p-4",
-            div { class: "flex flex-col justify-center align-top max-w-[600px] border border-black rounded-md p-4",
+        div { class: "flex flex-row text-center bg-[--bg-color] flex-nowrap justify-center gap-2 p-4 items-start",
+            div { class: "flex flex-col justify-center max-w-[600px] border border-black rounded-md p-4",
                 span { class: "text-lg font-bold", "Create a new lobby for others to join" }
                 div { class: "flex flex-row justify-center text-center w-full",
                     label { class: "text-xl", "Lobby name" }
@@ -419,7 +403,7 @@ fn Explorer() -> Element {
                 }
                 {if create_lobby_response_msg() == String::from("") { rsx!() } else { rsx!(div { "{create_lobby_response_msg.read()}" }) }}
             }
-            div { class: "flex flex-col justify-center align-top max-w-[600px] border border-black rounded-md p-4",
+            div { class: "flex flex-col justify-center align-top max-w-[600px] border border-black rounded-md p-4 items-start",
                 div { class: "border border-solid border-black bg-white rounded-md",
                     LobbyList { lobbies: lobbies.read().lobbies.clone(), refresh_lobbies }
                 }
@@ -466,7 +450,7 @@ pub fn LobbyComponent(lobby: Lobby) -> Element {
 pub fn LobbyList(lobbies: Vec<Lobby>, refresh_lobbies: EventHandler) -> Element {
     let lobby = String::from("test");
     rsx!(
-        div { class: "container mx-auto p-4",
+        div { class: "container mx-auto items-start",
             div { class: "flex flex-row justify-center gap-2 space-between",
                 h1 { class: "text-2xl font-bold mb-4", "Game Lobbies" }
                 button {
@@ -750,7 +734,7 @@ fn GameRoom(room_code: String) -> Element {
 
     let ws_send_signal = use_signal(|| ws_send);
     rsx!(
-        div { class: "items-center flex flex-col",
+        div { class: "flex flex-row text-center bg-[--bg-color] h-dvh w-dvw flex-nowrap justify-center gap-2 p-4 items-start",
             {
                 if error().is_null() {
                     rsx!()
@@ -762,11 +746,13 @@ fn GameRoom(room_code: String) -> Element {
                         .expect("Failed to parse error")
                 }
             },
-            div {
-                "Debug details:"
-                div { class: " bg-gray-300", "Secret: {app_props.read().client_secret}" }
-                div { class: " bg-gray-300", "Game: {gamestate():#?}" }
-            }
+            {if TEST {
+                rsx!(div {
+                        "Debug details:"
+                        div { class: " bg-gray-300", "Secret: {app_props.read().client_secret}" }
+                        div { class: " bg-gray-300", "Game: {gamestate():#?}" }
+                    })
+            } else { rsx!()}},
             {
                 if gamestate().gameplay_state == GameplayState::Pregame {
                     rsx!(
@@ -782,8 +768,6 @@ fn GameRoom(room_code: String) -> Element {
                                 button {
                                     class: "button",
                                     onclick: move |evt| {
-                                        // let button_room_code_clone = room_code_clone.clone();
-
                                         async move {
                                             info!("Clicked join game");
                                             listen_for_server_messages.send(("ready".to_string()));
