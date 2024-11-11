@@ -135,8 +135,8 @@ pub struct GameState {
     // #[serde(skip)]
     pub system_status: Vec<String>, // useful to tell players what is going wrong
     is_public: bool,
-    updated_at: DateTime<Utc>,
-    created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

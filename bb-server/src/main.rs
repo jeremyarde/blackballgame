@@ -26,6 +26,8 @@ use axum::routing::get;
 use axum::routing::post;
 use axum::Json;
 use axum::Router;
+use chrono::TimeDelta;
+use chrono::Utc;
 use common::Connect;
 use common::Destination;
 use common::GameEventResult;
@@ -400,6 +402,8 @@ async fn main() {
         .finish()
         .init();
 
+    info!("Starting server");
+
     let cors = CorsLayer::new()
         // allow `GET` and `POST` when accessing the resource
         .allow_methods([Method::GET, Method::POST])
@@ -431,6 +435,7 @@ async fn main() {
     }));
 
     let mut stateclone = Arc::clone(&serverstate);
+    // let mut stateclone_stale = Arc::clone(&serverstate);
 
     let mut game_to_client_loop = {
         tokio::spawn(async move {
@@ -465,15 +470,46 @@ async fn main() {
                             .expect("[GAME] Failed to get game after creating it")
                     }
                 };
-                // info!("[GAME] jere/ game before: {:?}", game);
                 let eventresult = game.process_event(msg);
                 toclient_send.send(eventresult).unwrap();
-                // info!("[GAME] jere/ game after: {:?}", game);
             }
             info!("[GAME]: Failed to get message");
             info!("[GAME]: Exited?");
         })
     };
+
+    // let mut stale_game_killer = {
+    //     tokio::spawn(async move {
+    //         info!("[STALE] - starting thread");
+    //         while true {
+    //             info!("[STALE] - Checking for old and inactive games");
+    //             {
+    //                 let mut state_guard = stateclone_stale.write().await;
+    //                 let mut rooms = &mut state_guard.rooms;
+
+    //                 let mut rooms_to_remove = vec![];
+    //                 for (lobby_code, game) in rooms.iter_mut() {
+    //                     if Utc::now().signed_duration_since(game.updated_at)
+    //                         > TimeDelta::seconds(10)
+    //                     {
+    //                         // if Utc::now().signed_duration_since(game.updated_at) > TimeDelta::hours(1) {
+    //                         info!("[STALE] Stale game found, deleting: {:?}", lobby_code);
+    //                         rooms_to_remove.push(lobby_code.clone());
+    //                     }
+    //                 }
+
+    //                 for lobby_code in rooms_to_remove {
+    //                     info!("[STALE] Deleting game: {:?}", lobby_code);
+    //                     rooms.remove(&lobby_code);
+    //                 }
+    //             }
+
+    //             tokio::time::sleep(Duration::from_secs(60 * 60)).await;
+    //         }
+    //         info!("[GAME]: Failed to get message");
+    //         info!("[GAME]: Exited?");
+    //     })
+    // };
 
     let app = Router::new()
         .route("/ws", get(ws_handler))
