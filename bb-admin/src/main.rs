@@ -378,7 +378,7 @@ fn Explorer() -> Element {
     };
 
     rsx! {
-        div { class: "flex flex-row text-center bg-[--bg-color] flex-nowrap justify-center gap-2 p-4 items-start",
+        div { class: "flex flex-row text-center bg-[--bg-color] w-screen h-screen flex-nowrap justify-center gap-2 p-4 items-start",
             div { class: "flex flex-col justify-center max-w-[600px] border border-black rounded-md p-4",
                 span { class: "text-lg font-bold", "Create a new lobby for others to join" }
                 div { class: "flex flex-row justify-center text-center w-full",
@@ -458,7 +458,7 @@ pub fn LobbyList(lobbies: Vec<Lobby>, refresh_lobbies: EventHandler) -> Element 
     let lobby = String::from("test");
     rsx!(
         div { class: "container mx-auto items-start",
-            div { class: "flex flex-row justify-center gap-2 space-between",
+            div { class: "flex flex-row justify-center gap-2 space-between cursor-pointer",
                 h1 { class: "text-2xl font-bold mb-4", "Game Lobbies" }
                 button {
                     class: "bg-gray-300 flex flex-row text-center border p-1 border-solid border-black rounded-md justify-center items-center cursor-pointer",
@@ -1089,6 +1089,7 @@ fn GameStateComponent(
                                 span { class: "font-semibold", "Phase:" }
                                 match gamestate().gameplay_state {
                                     GameplayState::PostHand(ps) => rsx!(span { class: "", "End of hand {ps.hand_num}" }),
+                                    GameplayState::Play(ps) => rsx!(span { class: "", "Playing hand {ps.hand_num}/{gamestate().curr_round}" }),
                                     _ => rsx!(span { class: "", "{gamestate().gameplay_state:?}" }),
                                 }
                             }
@@ -1292,7 +1293,10 @@ fn GameStateComponent(
                             }
                         }
                     }
-                    if gamestate().gameplay_state == GameplayState::Bid {
+                    if gamestate().gameplay_state == GameplayState::Bid
+                        && gamestate().curr_player_turn.is_some()
+                        && gamestate().curr_player_turn.clone().unwrap() == app_props.read().username
+                    {
                         div { class: "flex flex-col items-center",
                             label { class: "text-xl p-2", "How many hands do you want to win?" }
                             ul { class: "flex flex-row gap-2 items-center p-2",

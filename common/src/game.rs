@@ -202,14 +202,9 @@ impl GameState {
         self.update_to_next_state();
     }
 
-    pub fn process_event(
-        &mut self,
-        event: GameMessage,
-        // sender: &Sender<GameServer>,
-        // player_id: String,
-    ) -> GameEventResult {
-        // info!("[TODO] Processing an event");
-        // self.event_log.extend(events.clone());
+    pub fn process_event(&mut self, event: GameMessage) -> GameEventResult {
+        self.event_log.push(event.clone());
+        self.updated_at = Utc::now();
 
         info!("Processing event: {:?}", event);
         match &event.action {
@@ -618,9 +613,6 @@ impl GameState {
             wins: HashMap::new(),
             score: HashMap::new(),
             gameplay_state: GameplayState::Pregame,
-
-            // send and recieve here
-            // tx: broadcast::channel(10).0,
             event_log: vec![],
             // event_queue: vec![],
             curr_played_cards: vec![],
@@ -634,8 +626,8 @@ impl GameState {
             secret_key: "mysecretkey".to_string(),
             setup_game_options: SetupGameOptions::new(),
             is_public: true,
-            latest_update: Utc::now(), // tx,
-                                       // rx,
+            updated_at: Utc::now(),
+            created_at: Utc::now(),
         }
     }
 }
@@ -753,6 +745,8 @@ pub fn xor_encrypt_decrypt(data: &str, key: &str) -> Vec<u8> {
 }
 
 mod tests {
+    use std::collections::HashMap;
+
     use chrono::Utc;
 
     use crate::{
@@ -788,14 +782,15 @@ mod tests {
         // SetupGameOptions { rounds: 4, deterministic: true, start_round: None, max_players: 4, game_mode: "Standard", visibility: Public, password: None },
         // secret_key: "mysecretkey", players: {"e": GameClient { id: "e", hand: [], encrypted_hand: "KBBbNhVHXklWRRAWDgVMUxc0GyZTX0YfTEUQFRcNQRRJSRozBAdGVkwfUwoXARcMQl8EAg==", num_cards: 0, role: Player, details: PlayerDetails { username: "e", ip: "127.0.0.1:49678", client_secret: "sky_qedzni2fbd56" } }, "a": GameClient { id: "a", hand: [], encrypted_hand: "KBBbNgxFD0ICFFVBDlYTFxc0GyZKXRcWERRVQhdeHlBJSQovCQNQVR8aAVAOQg9QSVpNIjU=", num_cards: 0, role: Player, details: PlayerDetails { username: "a", ip: "127.0.0.1:49684", client_secret: "sky_hg5w38w1b7jr" } }}, players_secrets: {}, deck: [], curr_round: 1, trump: Heart, player_order: ["a", "e"], curr_played_cards: [], curr_player_turn: Some("e"), curr_player_turn_idx: 0, curr_winning_card: None, curr_dealer: "a", curr_dealer_idx: 0, bids: {}, bid_order: [], wins: {"e": 0, "a": 0}, score: {"a": 0, "e": 0}, gameplay_state: Bid, event_log: [], system_status: [], is_public: true, latest_update: 2024-11-03T23:55:39.023714Z }
 
-        // let hand = "KBBbNhxKVl4GFEcCAAkUAhc0GyZaUk4bW1kcFx5ZT0tRGAw2DEpWSURIBBYJSkFFBQoVKh1KVloDRTg=";
-        // let secret = "sky_xhlk78erlhmg";
+        let hand =
+            "KBBbNhxKVl4GFEcCAAkUAhc0GyZaUk4bW1kcFx5ZT0tRGAw2DEpWSURIBBYJSkFFBQoVKh1KVloDRTg=";
+        let secret = "sky_xhlk78erlhmg";
 
         // let hand = "KBBbNhxQXF5TTxsKCA8fFhc0GyZaSEQeDQUbVkYdExoHSUN9Gx4TD0lPGwwFAhMWUVFIawUv";
         // let secret = "sky_xrfmkc9zdnfs";
 
-        let hand = "KBBbNh5LU0NBShMZDw1MFxc0GyZYU0sBDgNDS09ORgcaH1tlWAoFBRtEHUsVDVkHFklDbk4UNA==";
-        let secret = "sky_5d7hjenh3c2k";
+        // let hand = "KBBbNh5LU0NBShMZDw1MFxc0GyZYU0sBDgNDS09ORgcaH1tlWAoFBRtEHUsVDVkHFklDbk4UNA==";
+        // let secret = "sky_5d7hjenh3c2k";
 
         let decrypted_hand = GameState::decrypt_player_hand(hand.to_string(), &secret.to_string());
         println!("Decrypted: {:?}", decrypted_hand);
@@ -898,6 +893,37 @@ mod tests {
 
         assert!(res == "P1".to_string());
         assert!(i == 0);
+    }
+
+    #[test]
+    fn test_validate_bid() {
+        let mut game: GameState = serde_json::from_str(
+            "{\"bid_order\":[[\"123\",0],[\"player2\",1]],\"bids\":{\"123\":0,\"player2\":1},\"created_at\":\"2024-11-11T21:40:29.040459Z\",\"curr_dealer\":\"player2\",\"curr_played_cards\":[],\"curr_player_turn\":\"player2\",\"curr_round\":3,\"curr_winning_card\":null,\"event_log\":[{\"action\":{\"joingame\":{\"client_secret\":\"\",\"ip\":\"127.0.0.1:59028\",\"username\":\"123\"}},\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:40:39.233Z\",\"username\":\"123\"},{\"action\":{\"joingame\":{\"client_secret\":\"\",\"ip\":\"127.0.0.1:59030\",\"username\":\"player2\"}},\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:40:41.063Z\",\"username\":\"player2\"},{\"action\":{\"startgame\":{\"deterministic\":false,\"game_mode\":\"Standard\",\"max_players\":4,\"password\":null,\"rounds\":4,\"start_round\":null,\"visibility\":\"Public\"}},\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:40:44.556Z\",\"username\":\"player2\"},{\"action\":{\"bid\":1},\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:40:49.518Z\",\"username\":\"123\"},{\"action\":{\"bid\":0},\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:40:50.990Z\",\"username\":\"player2\"},{\"action\":{\"bid\":0},\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:40:53.586Z\",\"username\":\"player2\"},{\"action\":{\"bid\":1},\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:40:55.895Z\",\"username\":\"player2\"},{\"action\":{\"playcard\":{\"id\":11,\"played_by\":\"123\",\"suit\":\"heart\",\"value\":13}},\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:40:58.431Z\",\"username\":\"123\"},{\"action\":{\"playcard\":{\"id\":24,\"played_by\":\"player2\",\"suit\":\"diamond\",\"value\":13}},\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:40:59.599Z\",\"username\":\"player2\"},{\"action\":\"ack\",\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:41:08.870Z\",\"username\":\"123\"},{\"action\":\"ack\",\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:41:15.654Z\",\"username\":\"123\"},{\"action\":{\"bid\":1},\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:41:23.794Z\",\"username\":\"player2\"},{\"action\":{\"bid\":1},\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:41:25.478Z\",\"username\":\"123\"},{\"action\":{\"bid\":1},\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:41:25.547Z\",\"username\":\"123\"},{\"action\":{\"bid\":1},\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:41:26.611Z\",\"username\":\"123\"},{\"action\":{\"bid\":0},\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:42:59.448Z\",\"username\":\"123\"},{\"action\":{\"playcard\":{\"id\":38,\"played_by\":\"player2\",\"suit\":\"club\",\"value\":14}},\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:43:00.923Z\",\"username\":\"player2\"},{\"action\":{\"playcard\":{\"id\":6,\"played_by\":\"123\",\"suit\":\"heart\",\"value\":8}},\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:43:02.793Z\",\"username\":\"123\"},{\"action\":{\"playcard\":{\"id\":30,\"played_by\":\"123\",\"suit\":\"club\",\"value\":6}},\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:43:03.577Z\",\"username\":\"123\"},{\"action\":\"ack\",\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:43:05.583Z\",\"username\":\"123\"},{\"action\":{\"playcard\":{\"id\":23,\"played_by\":\"player2\",\"suit\":\"diamond\",\"value\":12}},\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:43:06.828Z\",\"username\":\"player2\"},{\"action\":{\"playcard\":{\"id\":6,\"played_by\":\"123\",\"suit\":\"heart\",\"value\":8}},\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:43:08.183Z\",\"username\":\"123\"},{\"action\":\"ack\",\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:43:10.174Z\",\"username\":\"123\"},{\"action\":\"ack\",\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:43:11.809Z\",\"username\":\"123\"},{\"action\":{\"bid\":0},\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:43:27.467Z\",\"username\":\"123\"},{\"action\":{\"bid\":3},\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:43:30.617Z\",\"username\":\"player2\"},{\"action\":{\"bid\":1},\"lobby\":\"new\",\"timestamp\":\"2024-11-11T21:43:43.398Z\",\"username\":\"player2\"}],\"gameplay_state\":{\"Play\":{\"hand_num\":1}},\"is_public\":true,\"lobby_code\":\"new\",\"player_order\":[\"player2\",\"123\"],\"players\":{\"123\":{\"details\":{\"client_secret\":\"sky_ptpiiwisgvqw\",\"ip\":\"127.0.0.1:59028\",\"username\":\"123\"},\"encrypted_hand\":\"KBBbNhRWSllFVRkfBg8UEywJAH1KVkFbWlVFURQDGANRUVs3FRUCHUtbSwUGGgQSUVFLIlwPUgANVVNCS1QBGxISHDsvFglLU1VYQVRUXVUAHhArUk5SAQwWGwdFWlMBEgcMOlJOQxRFDEsaA1RLRktHWy8cFQkMDSgLCkVMU0ZBWFtzUgcFAB1VU1EDHxAaHAUdfVxWBggFAgxRXUEMKg==\",\"id\":\"123\",\"num_cards\":0,\"role\":\"Player\"},\"player2\":{\"details\":{\"client_secret\":\"sky_fp8wek3m7l7g\",\"ip\":\"127.0.0.1:59030\",\"username\":\"player2\"},\"encrypted_hand\":\"KBBbNgJSAkFJSUMBVhVSAywJAH1cUkgbBBJWHwVOG0UAHhArREoaHwAKQRkVQBUREgcMOkRKAApJEBEEU04NUF9JCTMHCV0TOglKTw1ORwsSEhwtVFIUVRYeWhkVVhUPFgoLK0RcGgEEB0YIFVYOGl8QWzYCUgJEVUcRHVsNTgIXNBsmREoaBwkKSghFXhVLURgMNhJSAlUGB0YPFUAVERIHDDpESg4KOA==\",\"id\":\"player2\",\"num_cards\":0,\"role\":\"Player\"}},\"score\":{\"123\":21,\"player2\":0},\"secret_key\":\"mysecretkey\",\"setup_game_options\":{\"deterministic\":false,\"game_mode\":\"Standard\",\"max_players\":4,\"password\":null,\"rounds\":4,\"start_round\":null,\"visibility\":\"Public\"},\"system_status\":[\"Error with bid: EqualsRound\",\"Error with bid: EqualsRound\",\"Error with bid: EqualsRound\",\"Error with bid: EqualsRound\",\"Error with bid: EqualsRound\",\"Card is not valid: DidNotFollowSuit\",\"Error with bid: EqualsRound\"],\"trump\":\"club\",\"updated_at\":\"2024-11-11T21:43:43.399415Z\",\"wins\":{\"123\":0,\"player2\":0}}").unwrap();
+        game.curr_round = 5;
+        game.curr_dealer = "player2".to_string();
+        game.bids = HashMap::new();
+        game.bids.insert("123".to_string(), 4);
+        game.gameplay_state = GameplayState::Bid;
+
+        let bid_msg = GameMessage {
+            username: "player2".to_string(),
+            action: crate::GameAction::Bid(1),
+            timestamp: Utc::now(),
+            lobby: "new".to_string(),
+        };
+        let res = game.process_event(bid_msg.clone());
+
+        assert_eq!(game.bids.get("player2"), None);
+
+        let bid_msg2 = GameMessage {
+            username: "player2".to_string(),
+            action: crate::GameAction::Bid(5),
+            timestamp: Utc::now(),
+            lobby: "new".to_string(),
+        };
+        game.process_event(bid_msg2.clone());
+
+        assert_eq!(game.bids.get("player2"), Some(&5));
     }
 
     #[test]
@@ -1220,8 +1246,14 @@ mod tests {
         });
 
         insta::assert_yaml_snapshot!(game, {
+            // ".lobby_code" => "lobby",
+            // ".setup_game_options.rounds" => 5,
+            // ".setup_game_options.max_players" => 4,
+            // ".setup_game_options.game_mode" => "Standard",
+            // ".setup_game_options.visibility" => "Public",
             ".timestamp" => "[utc]",
             ".players.*.encrypted_hand" => "[encrypted_hand]",
+            ".players.*.details" => "[details]",
             ".event_log[].timestamp" => "[event_timestamp]",
             ".wins" => insta::sorted_redaction(),
             ".bids" => insta::sorted_redaction(),
