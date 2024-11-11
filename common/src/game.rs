@@ -49,7 +49,7 @@ impl GameState {
                     "jere/ post round, maybe end game?? {} vs {}",
                     self.curr_round, self.setup_game_options.rounds
                 );
-                if self.curr_round >= self.setup_game_options.rounds as i32 {
+                if self.curr_round > self.setup_game_options.rounds as i32 {
                     GameplayState::End
                 } else {
                     self.curr_played_cards = vec![];
@@ -601,17 +601,6 @@ impl GameState {
         // check if everyone has a bid
         return self.bids.keys().len() == self.players.len();
     }
-
-    // pub fn get_hand_from_encrypted(encrypted_hand: String, secret_key: &String) -> Vec<Card> {
-    //     let hand = BASE64
-    //         .decode(encrypted_hand.as_bytes())
-    //         .expect("Could not decode hand");
-    //     let str_hand = String::from_utf8(hand).expect("Could not convert hand to string");
-    //     let secret_data = xor_encrypt_decrypt(&str_hand, secret_key);
-    //     let actual_hand: Vec<Card> =
-    //         serde_json::from_slice(&secret_data).expect("Could not parse hand");
-    //     actual_hand
-    // }
 
     pub fn new(lobby_code: String) -> GameState {
         // let (tx, rx) = broadcast::channel(10);

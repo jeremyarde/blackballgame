@@ -7,7 +7,46 @@
 }
 
 * {
-  border: 1px solid red;
+  /* border: 1px solid red; */
+}
+
+@keyframes subtle-pulse {
+  0%,
+  100% {
+    border-color: rgba(34, 197, 94, 0.7);
+  } /* Tailwind's green-400 */
+  50% {
+    border-color: rgba(34, 197, 94, 0.4);
+  }
+}
+.animate-subtle-pulse {
+  animation: subtle-pulse 2s ease-in-out infinite;
+}
+
+@keyframes gradient-border {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+.animate-gradient-border {
+  background-size: 200% 200%;
+  animation: gradient-border 3s linear infinite;
+}
+
+@keyframes flash {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+.animate-flash {
+  animation: flash 1s ease-in-out infinite;
 }
 
 @keyframes gradient-shine {

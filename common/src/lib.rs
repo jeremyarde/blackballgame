@@ -41,14 +41,14 @@ pub enum Destination {
 
 #[derive(Debug, Clone, Serialize, PartialEq, Deserialize)]
 pub struct PlayState {
-    hand_num: usize,
+    pub hand_num: usize,
 }
 
 impl PlayState {
-    fn new() -> PlayState {
+    pub fn new() -> PlayState {
         PlayState { hand_num: 1 }
     }
-    fn from(new_hand_num: usize) -> PlayState {
+    pub fn from(new_hand_num: usize) -> PlayState {
         PlayState {
             hand_num: new_hand_num
                 .try_into()
