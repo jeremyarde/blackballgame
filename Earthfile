@@ -5,7 +5,7 @@ VERSION --global-cache 0.7
 IMPORT github.com/earthly/lib/rust AS rust
 
 install:
-  FROM rust:1.75.0-bookworm
+  FROM rust:1.82.0-bookworm
   RUN rustup component add clippy rustfmt
 
   # Call +INIT before copying the source file to avoid installing function depencies every time source code changes
