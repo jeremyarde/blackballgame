@@ -1,6 +1,7 @@
 #![allow(warnings)]
 
 use std::collections::HashMap;
+use std::env;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -68,6 +69,8 @@ static FRONTEND_DIR: Dir = include_dir::include_dir!("$CARGO_MANIFEST_DIR/dist")
 const ROOT: &str = "";
 const DEFAULT_FILES: [&str; 1] = ["index.html"];
 const NOT_FOUND: &str = "404.html";
+const STALE_GAME_TIME_DURATION_SECONDS: i64 = 60 * 5;
+const STALE_GAME_THREAD_SLEEP_SECONDS: u64 = 60 * 5;
 
 async fn serve_asset(path: Option<Path<String>>) -> impl IntoResponse {
     info!("Attempting to serve file: {:?}", path);
@@ -375,34 +378,25 @@ pub async fn create_room(
 
 #[tokio::main]
 async fn main() {
-    // console_subscriber::init();
+    println!("Starting server");
+    let rust_log = env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());
+    env::set_var("RUST_LOG", rust_log);
 
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::from_default_env()
-                .add_directive("blackballgame=debug".parse().expect("blackballgame debug"))
-                .add_directive(
-                    "bb-server=debug"
-                        .parse()
-                        .expect("blackballgame-server debug"),
-                )
-                // .add_directive("tokio=debug".parse().expect("tokio debug"))
-                .add_directive(
-                    "axum::rejection=trace"
-                        .parse()
-                        .expect("axum::rejection trace"),
-                )
-                .add_directive("axum=debug".parse().expect("axum debug"))
+                .add_directive("blackballgame=info".parse().unwrap())
+                .add_directive("bb-server=info".parse().unwrap())
+                .add_directive("axum::rejection=trace".parse().unwrap())
+                .add_directive("axum=debug".parse().unwrap())
                 // .add_directive("runtime=trace".parse().expect("runtime trace"))
-                .add_directive("common=debug".parse().expect("common debug")),
+                .add_directive("common=debug".parse().unwrap()),
         )
         .with_span_events(FmtSpan::FULL)
         // .with_thread_names(true) // only says "tokio-runtime-worker"
         .with_thread_ids(false)
         .finish()
         .init();
-
-    info!("Starting server");
 
     let cors = CorsLayer::new()
         // allow `GET` and `POST` when accessing the resource
@@ -415,6 +409,8 @@ async fn main() {
     let assets_dir =
         PathBuf::from("/Users/jarde/Documents/code/blackballgame/blackballgame-client/dist");
 
+    println!("Setting up threads");
+
     // get to the game thread
     let (gamechannel_send, mut gamechannel_recv) =
         tokio::sync::mpsc::unbounded_channel::<GameMessage>();
@@ -424,6 +420,8 @@ async fn main() {
         tokio::sync::mpsc::unbounded_channel::<GameEventResult>();
 
     let (gamechannel_broadcast_send, _) = tokio::sync::broadcast::channel::<GameEventResult>(10);
+
+    println!("Setting up state for the server");
 
     let serverstate = Arc::new(RwLock::new(AppState {
         // rooms: HashMap::new(),
@@ -435,8 +433,9 @@ async fn main() {
     }));
 
     let mut stateclone = Arc::clone(&serverstate);
-    // let mut stateclone_stale = Arc::clone(&serverstate);
+    let mut stateclone_stale = Arc::clone(&serverstate);
 
+    println!("Setting up game -> client loop");
     let mut game_to_client_loop = {
         tokio::spawn(async move {
             info!("[GAME-CLIENT] Waiting for messages");
@@ -450,6 +449,7 @@ async fn main() {
         })
     };
 
+    println!("Setting up game -> server loop");
     let mut game_loop = {
         tokio::spawn(async move {
             info!("[GAME] - starting thread");
@@ -478,39 +478,40 @@ async fn main() {
         })
     };
 
-    // let mut stale_game_killer = {
-    //     tokio::spawn(async move {
-    //         info!("[STALE] - starting thread");
-    //         while true {
-    //             info!("[STALE] - Checking for old and inactive games");
-    //             {
-    //                 let mut state_guard = stateclone_stale.write().await;
-    //                 let mut rooms = &mut state_guard.rooms;
+    let mut stale_game_killer = {
+        tokio::spawn(async move {
+            info!("[STALE] - starting thread");
+            while true {
+                info!("[STALE] - Checking for old and inactive games");
+                {
+                    let mut state_guard = stateclone_stale.write().await;
+                    let mut rooms = &mut state_guard.rooms;
 
-    //                 let mut rooms_to_remove = vec![];
-    //                 for (lobby_code, game) in rooms.iter_mut() {
-    //                     if Utc::now().signed_duration_since(game.updated_at)
-    //                         > TimeDelta::seconds(10)
-    //                     {
-    //                         // if Utc::now().signed_duration_since(game.updated_at) > TimeDelta::hours(1) {
-    //                         info!("[STALE] Stale game found, deleting: {:?}", lobby_code);
-    //                         rooms_to_remove.push(lobby_code.clone());
-    //                     }
-    //                 }
+                    let mut rooms_to_remove = vec![];
+                    for (lobby_code, game) in rooms.iter_mut() {
+                        if Utc::now().signed_duration_since(game.updated_at)
+                            > TimeDelta::seconds(STALE_GAME_TIME_DURATION_SECONDS)
+                        {
+                            // if Utc::now().signed_duration_since(game.updated_at) > TimeDelta::hours(1) {
+                            info!("[STALE] Stale game found, deleting: {:?}", lobby_code);
+                            rooms_to_remove.push(lobby_code.clone());
+                        }
+                    }
 
-    //                 for lobby_code in rooms_to_remove {
-    //                     info!("[STALE] Deleting game: {:?}", lobby_code);
-    //                     rooms.remove(&lobby_code);
-    //                 }
-    //             }
+                    for lobby_code in rooms_to_remove {
+                        info!("[STALE] Deleting game: {:?}", lobby_code);
+                        rooms.remove(&lobby_code);
+                    }
+                }
 
-    //             tokio::time::sleep(Duration::from_secs(60 * 60)).await;
-    //         }
-    //         info!("[GAME]: Failed to get message");
-    //         info!("[GAME]: Exited?");
-    //     })
-    // };
+                info!("[STALE]: Sleeping...");
+                tokio::time::sleep(Duration::from_secs(STALE_GAME_THREAD_SLEEP_SECONDS)).await;
+            }
+            info!("[STALE]: Exited?");
+        })
+    };
 
+    println!("Setting up the app");
     let app = Router::new()
         .route("/ws", get(ws_handler))
         // .route("/games/ws", get(ws_handler))
@@ -538,6 +539,8 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(port)
         .await
         .expect("Failed to bind to port");
+
+    println!("Server is starting...");
     axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),

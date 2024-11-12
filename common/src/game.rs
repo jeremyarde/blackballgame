@@ -4,9 +4,8 @@ use chrono::Utc;
 use data_encoding::BASE64;
 
 use nanoid::nanoid_gen;
-use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 use crate::{
     create_deck, Card, Connect, Destination, GameAction, GameClient, GameError, GameEventResult,
