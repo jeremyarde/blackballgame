@@ -15,7 +15,7 @@ install:
 source:
   FROM +install
   COPY --keep-ts Cargo.toml Cargo.lock ./
-  COPY --keep-ts --dir blackballgame-server ai-client common api_types bb-admin ./
+  COPY --keep-ts --dir bb-server ai-client common api_types bb-admin ./
 
 # lint runs cargo clippy on the source code
 lint:
@@ -29,16 +29,16 @@ build:
   SAVE ARTIFACT ./target/release/ target AS LOCAL artifact/target
 
 docker:
-  ARG docker_tag=jerecan/blackballgame:blackballgame-server
+  ARG docker_tag=jerecan/blackballgame:bb-server
   ARG ENVIRONMENT=production
 
   # FROM DOCKERFILE . # how to fix: https://docs.earthly.dev/docs/earthfile#description-10
   FROM debian:bookworm-slim # does work with libssl-dev
   RUN apt-get update && apt-get install -y libssl-dev
   WORKDIR /myapp
-  COPY +build/target/blackballgame-server /myapp
+  COPY +build/target/bb-server /myapp
   EXPOSE 8080
-  CMD ["./blackballgame-server"]
+  CMD ["./bb-server"]
   SAVE IMAGE --push "$docker_tag"
 
 # test executes all unit and integration tests via Cargo
