@@ -64,7 +64,7 @@ use websocket::AppState;
 mod admin;
 mod websocket;
 
-static FRONTEND_DIR: Dir = include_dir::include_dir!("$CARGO_MANIFEST_DIR/dist");
+// static FRONTEND_DIR: Dir = include_dir::include_dir!("$CARGO_MANIFEST_DIR/dist");
 
 const ROOT: &str = "";
 const DEFAULT_FILES: [&str; 1] = ["index.html"];
@@ -72,79 +72,79 @@ const NOT_FOUND: &str = "404.html";
 const STALE_GAME_TIME_DURATION_SECONDS: i64 = 60 * 5;
 const STALE_GAME_THREAD_SLEEP_SECONDS: u64 = 60 * 5;
 
-async fn serve_asset(path: Option<Path<String>>) -> impl IntoResponse {
-    info!("Attempting to serve file: {:?}", path);
-    let serve_file =
-        |file: &File, mime_type: Option<Mime>, cache: Duration, code: Option<StatusCode>| {
-            Response::builder()
-                .status(code.unwrap_or(StatusCode::OK))
-                .header(
-                    header::CONTENT_TYPE,
-                    mime_type.unwrap_or(mime::TEXT_HTML).to_string(),
-                )
-                .header(
-                    header::CACHE_CONTROL,
-                    format!("max-age={}", cache.as_secs_f32()),
-                )
-                .body(Body::from(file.contents().to_owned()))
-                .expect("Failed to build response for serving assets")
-        };
+// async fn serve_asset(path: Option<Path<String>>) -> impl IntoResponse {
+//     info!("Attempting to serve file: {:?}", path);
+//     let serve_file =
+//         |file: &File, mime_type: Option<Mime>, cache: Duration, code: Option<StatusCode>| {
+//             Response::builder()
+//                 .status(code.unwrap_or(StatusCode::OK))
+//                 .header(
+//                     header::CONTENT_TYPE,
+//                     mime_type.unwrap_or(mime::TEXT_HTML).to_string(),
+//                 )
+//                 .header(
+//                     header::CACHE_CONTROL,
+//                     format!("max-age={}", cache.as_secs_f32()),
+//                 )
+//                 .body(Body::from(file.contents().to_owned()))
+//                 .expect("Failed to build response for serving assets")
+//         };
 
-    let serve_not_found = || match FRONTEND_DIR.get_file(NOT_FOUND) {
-        Some(file) => serve_file(file, None, Duration::ZERO, Some(StatusCode::NOT_FOUND)),
-        None => Response::builder()
-            .status(StatusCode::NOT_FOUND)
-            .body(Body::from("File Not Found"))
-            .expect("Failed to build response for serving not found"),
-    };
+//     let serve_not_found = || match FRONTEND_DIR.get_file(NOT_FOUND) {
+//         Some(file) => serve_file(file, None, Duration::ZERO, Some(StatusCode::NOT_FOUND)),
+//         None => Response::builder()
+//             .status(StatusCode::NOT_FOUND)
+//             .body(Body::from("File Not Found"))
+//             .expect("Failed to build response for serving not found"),
+//     };
 
-    let serve_default = |path: &str| {
-        info!("Serving default: {}", path);
-        for default_file in DEFAULT_FILES.iter() {
-            let default_file_path = PathBuf::from(path).join(default_file);
+//     let serve_default = |path: &str| {
+//         info!("Serving default: {}", path);
+//         for default_file in DEFAULT_FILES.iter() {
+//             let default_file_path = PathBuf::from(path).join(default_file);
 
-            if FRONTEND_DIR.get_file(default_file_path.clone()).is_some() {
-                return serve_file(
-                    FRONTEND_DIR
-                        .get_file(default_file_path)
-                        .expect("Did not find default file"),
-                    None,
-                    Duration::ZERO,
-                    None,
-                );
-            }
-        }
+//             if FRONTEND_DIR.get_file(default_file_path.clone()).is_some() {
+//                 return serve_file(
+//                     FRONTEND_DIR
+//                         .get_file(default_file_path)
+//                         .expect("Did not find default file"),
+//                     None,
+//                     Duration::ZERO,
+//                     None,
+//                 );
+//             }
+//         }
 
-        serve_not_found()
-    };
+//         serve_not_found()
+//     };
 
-    match path {
-        Some(Path(path)) => {
-            if path == ROOT {
-                return serve_default(&path);
-            }
+//     match path {
+//         Some(Path(path)) => {
+//             if path == ROOT {
+//                 return serve_default(&path);
+//             }
 
-            FRONTEND_DIR.get_file(&path).map_or_else(
-                || match FRONTEND_DIR.get_dir(&path) {
-                    Some(_) => serve_default(&path),
-                    None => serve_not_found(),
-                },
-                |file| {
-                    let mime_type =
-                        mime_guess::from_path(PathBuf::from(path.clone())).first_or_octet_stream();
-                    let cache = if mime_type == mime::TEXT_HTML {
-                        Duration::ZERO
-                    } else {
-                        Duration::from_secs(60 * 60 * 24)
-                    };
+//             FRONTEND_DIR.get_file(&path).map_or_else(
+//                 || match FRONTEND_DIR.get_dir(&path) {
+//                     Some(_) => serve_default(&path),
+//                     None => serve_not_found(),
+//                 },
+//                 |file| {
+//                     let mime_type =
+//                         mime_guess::from_path(PathBuf::from(path.clone())).first_or_octet_stream();
+//                     let cache = if mime_type == mime::TEXT_HTML {
+//                         Duration::ZERO
+//                     } else {
+//                         Duration::from_secs(60 * 60 * 24)
+//                     };
 
-                    serve_file(file, Some(mime_type), cache, None)
-                },
-            )
-        }
-        None => serve_not_found(),
-    }
-}
+//                     serve_file(file, Some(mime_type), cache, None)
+//                 },
+//             )
+//         }
+//         None => serve_not_found(),
+//     }
+// }
 
 #[axum::debug_handler]
 pub async fn get_rooms(
