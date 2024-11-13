@@ -115,7 +115,7 @@ fn StateProvider() -> Element {
     rsx!(Home {})
 }
 
-const TAILWIND_URL: Asset = asset!("./assets/tailwind.css");
+// const TAILWIND_URL: Asset = asset!("./public/tailwind.css");
 
 fn main() {
     // Init logger
@@ -123,7 +123,7 @@ fn main() {
     info!("Starting app");
     launch(|| {
         rsx! {
-            link { rel: "stylesheet", href: asset!("./assets/tailwind.css") }
+            link { rel: "stylesheet", href: asset!("./public/tailwind.css") }
             StateProvider {}
         }
     });
@@ -152,7 +152,7 @@ fn Home() -> Element {
     let mut current_route: Signal<String> = use_context::<Signal<String>>();
 
     let mut disabled = use_signal(|| true);
-
+    let mut open_modal = use_signal(|| false);
     let ws_send: Coroutine<InnerMessage> = use_coroutine(|mut rx| async move {});
     let ws_send_signal = use_signal(|| ws_send);
 
@@ -160,7 +160,7 @@ fn Home() -> Element {
         "Home" => rsx!(
             div { class: "flex flex-col items-center justify-center text-center w-dvw h-dvh bg-[--bg-color]",
                 {get_title_logo()},
-                div { class: "flex flex-col",
+                div { class: "flex flex-col gap-2",
                     div { class: "flex flex-row items-center justify-center p-2 gap-2",
                         label { class: "text-2xl", "Username" }
                         input {
@@ -184,12 +184,69 @@ fn Home() -> Element {
                         }
                     }
                     button {
-                        class: "bg-green-400 text-xl rounded-md border border-solid w-full",
+                        class: "{STANDARD_BUTTON}",
                         // to: AppRoutes::Explorer {},
                         onclick: move |_| {
                             current_route.set("Explorer".to_string());
                         },
                         "Play"
+                    }
+                    div { class: "",
+                        button {
+                            onclick: move |evt| {
+                                if open_modal() == true {
+                                    open_modal.set(false);
+                                } else {
+                                    open_modal.set(true);
+                                }
+                            },
+                            class: "bg-yellow-400 text-xl rounded-md border border-solid w-full",
+                            "How to Play"
+                        }
+                        if open_modal() == true {
+                            div { class: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center",
+                                div { class: "bg-white rounded-lg shadow-xl max-w-md w-full",
+                                    div { class: "p-6 m-4",
+                                        h2 { class: "text-2xl font-bold mb-4", "How to Play" }
+                                        div { class: "space-y-4",
+                                            ul { class: "list-disc list-inside space-y-2 text-left ",
+                                                li {
+                                                    "Blackball is played with a standard deck of 52 cards."
+                                                }
+                                                li {
+                                                    "The dealer deals each player the same amount of cards as the round number."
+                                                }
+                                                li {
+                                                    "Starting after the dealer, each player bids on the number of hands they want to win based on the cards they were default."
+                                                }
+                                                li { "The player with the highest bid goes first." }
+                                                li {
+                                                    "Each round has a "trump
+                                                    " suit. Cards with the trump suit are considered higher than any cards when determining the winner. The trump suit rotates every round starting with Hearts, then Diamonds, Clubs, Spades then No Trump (highest card of first played cards suit wins.)"
+                                                }
+                                                li {
+                                                    "Players each play a single card from their hand. The card the player plays must be the same suit as the first card played. If the player does not have a card of that suit, they can play any other card from their hand."
+                                                }
+                                                li {
+                                                    "The player who played the highest card of the first card played each hand's suit, or the highest card of the trump suit wins the hand."
+                                                }
+                                                li {
+                                                    "The winner of the hand plays the first card in the next hand."
+                                                }
+                                                li {
+                                                    "Once all the cards in players hands have been played, players win 10 points plus the number of hands bid if they won the same number of hands, and receive a blackball if they won more or less hands than they bid."
+                                                }
+                                            }
+                                        }
+                                    }
+                                    button {
+                                        onclick: move |evt| open_modal.set(false),
+                                        class: "bg-[--bg-color] border border-black text-black w-full rounded hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50",
+                                        "Close"
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
