@@ -26,35 +26,14 @@ use reqwest_websocket::{Message, RequestBuilderExt};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tracing::{info, Level};
-
-// All of our routes will be a variant of this Route enum
-// #[derive(Routable, PartialEq, Clone)]
-// #[rustfmt::skip]
-// pub enum AppRoutes {
-//     #[layout(StateProvider)]
-//     #[route("/")]
-//     Home {},
-
-//     #[nest("/games")]
-//     #[route("")]
-//     Explorer {},
-//     #[route("/:room_code")]
-//     GameRoom { room_code: String },
-//     // #[route("/game/:room_code")]
-//     // Game { room_code: String },
-// }
+use websocket::websocket_connection::WebsocketConnection;
+mod websocket;
 
 const TEST: bool = false;
-const STANDARD_BUTTON: &str = "px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75";
+const STANDARD_BUTTON: &str = "px-4 py-2 bg-gray-800 text-white font-semibold rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75";
 
 #[derive(Clone, Debug)]
 struct AppProps {
-    username: String,
-    lobby_code: String,
-    client_secret: String,
-    server_url: String,
-    server_base_url: String,
-    server_ws_url: String,
     environment: Env,
     debug_mode: bool,
 }
@@ -74,8 +53,8 @@ enum InnerMessage {
 
 #[component]
 fn StateProvider() -> Element {
+    let is_prod = option_env!("ENVIRONMENT").unwrap_or("default") == "production";
     let mut app_props = use_context_provider(|| {
-        let is_prod = option_env!("ENVIRONMENT").unwrap_or("default") == "production";
         let mut server_url =
             String::from("https://blackballgame-blackballgame-server.onrender.com");
         let mut server_base_url = String::from("blackballgame-blackballgame-server.onrender.com");
@@ -89,18 +68,6 @@ fn StateProvider() -> Element {
         }
 
         Signal::new(AppProps {
-            username: if is_prod {
-                String::new()
-            } else {
-                String::from("player2")
-            },
-            // username: String::new(),
-            lobby_code: String::new(),
-            client_secret: String::new(),
-            // server_url: String::from("http://localhost:8080/"),
-            server_url: server_url,
-            server_base_url: server_base_url,
-            server_ws_url: server_ws_url,
             environment: if is_prod {
                 Env::Production
             } else {
@@ -111,14 +78,26 @@ fn StateProvider() -> Element {
     });
 
     let mut current_route = use_context_provider(|| Signal::new("Home".to_string()));
+    let mut user_config = use_context_provider(|| {
+        Signal::new(UserConfig {
+            username: if is_prod {
+                String::new()
+            } else {
+                String::from("player2")
+            },
+            lobby_code: String::new(),
+            client_secret: String::new(),
+        })
+    });
+
+    let mut server_config = use_context_provider(|| Signal::new(ServerConfig::new(is_prod)));
+
+    // let mut websocket_connection = use_context_provider(|| Signal::new(None));
 
     rsx!(Home {})
 }
 
-// const TAILWIND_URL: Asset = asset!("./public/tailwind.css");
-
 fn main() {
-    // Init logger
     dioxus_logger::init(Level::INFO).expect("failed to init logger");
     info!("Starting app");
     launch(|| {
@@ -133,6 +112,85 @@ fn main() {
 enum WsState {
     Pause,
     Resume,
+}
+// STEP 1: Extract environment configuration
+
+#[derive(Clone)]
+struct ServerConfig {
+    server_url: String,
+    server_base_url: String,
+    server_ws_url: String,
+}
+
+impl ServerConfig {
+    fn new(is_prod: bool) -> Self {
+        if is_prod {
+            Self {
+                server_url: String::from("https://blackballgame-blackballgame-server.onrender.com"),
+                server_base_url: String::from("blackballgame-blackballgame-server.onrender.com"),
+                server_ws_url: String::from(
+                    "wss://blackballgame-blackballgame-server.onrender.com",
+                ),
+            }
+        } else {
+            Self {
+                server_url: String::from("http://localhost:8080"),
+                server_base_url: String::from("localhost:8080"),
+                server_ws_url: String::from("ws://localhost:8080/ws"),
+            }
+        }
+    }
+}
+
+// STEP 4: Split AppProps
+#[derive(Clone)]
+struct UserConfig {
+    username: String,
+    lobby_code: String,
+    client_secret: String,
+}
+
+impl UserConfig {
+    fn update_username(&mut self, new_username: String, disabled: &mut Signal<bool>) -> bool {
+        self.username = new_username;
+        validate_username(&self.username, disabled)
+    }
+}
+
+// STEP 5: Add WebSocket error handling
+#[derive(Debug)]
+enum WsError {
+    ConnectionFailed,
+    MessageSendFailed,
+    InvalidMessage,
+}
+
+// STEP 6: Extract UI strings
+mod constants {
+    pub const TITLE: &str = "Blackball";
+    pub const USERNAME_LABEL: &str = "Username";
+    pub const MIN_USERNAME_LENGTH: usize = 3;
+}
+
+// STEP 7: Extract CSS classes
+mod styles {
+    pub const TITLE_CONTAINER: &str = "grid items-center justify-center";
+    pub const TITLE_TEXT: &str = "col-start-1 row-start-1 text-8xl md:text-6xl font-extrabold \
+        text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 \
+        drop-shadow-lg animate-gradient-shine";
+    pub const INPUT_FIELD: &str = "w-full text-2xl font-semibold text-gray-100 bg-gray-800 \
+        border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 \
+        focus:border-indigo-500 placeholder-gray-400 shadow-md transition duration-200 \
+        transform hover:scale-105";
+}
+
+// STEP 8: Add documentation
+/// Validates the username input and updates the disabled state
+/// Returns true if username is valid
+fn validate_username(username: &str, disabled: &mut Signal<bool>) -> bool {
+    let is_valid = username.len() >= constants::MIN_USERNAME_LENGTH;
+    disabled.set(!is_valid);
+    is_valid
 }
 
 fn get_title_logo() -> Element {
@@ -150,6 +208,8 @@ fn get_title_logo() -> Element {
 fn Home() -> Element {
     let mut app_props: Signal<AppProps> = use_context::<Signal<AppProps>>();
     let mut current_route: Signal<String> = use_context::<Signal<String>>();
+    let mut user_config: Signal<UserConfig> = use_context::<Signal<UserConfig>>();
+    let mut server_config: Signal<ServerConfig> = use_context::<Signal<ServerConfig>>();
 
     let mut disabled = use_signal(|| true);
     let mut open_modal = use_signal(|| false);
@@ -166,7 +226,7 @@ fn Home() -> Element {
                         input {
                             class: "w-full text-2xl font-semibold text-gray-100 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-400 shadow-md transition duration-200 transform hover:scale-105",
                             r#type: "text",
-                            value: "{app_props.read().username}",
+                            value: "{user_config.read().username}",
                             oninput: move |event| {
                                 info!(
                                     "Got username len, val: {}, {} - {}", event.value().len(), event.value(),
@@ -175,21 +235,27 @@ fn Home() -> Element {
                                 if event.value().len() >= 3 {
                                     info!("Username length is good");
                                     disabled.set(false);
-                                    app_props.write().username = event.value();
+                                    user_config.write().username = event.value();
                                 } else {
                                     disabled.set(true);
-                                    app_props.write().username = event.value();
+                                    user_config.write().username = event.value();
                                 }
                             }
                         }
                     }
                     button {
-                        class: "{STANDARD_BUTTON}",
+                        class: "{STANDARD_BUTTON} disabled:bg-gray-400 disabled:text-gray-500",
+                        disabled: if user_config.read().username.is_empty() { true } else { false },
                         // to: AppRoutes::Explorer {},
                         onclick: move |_| {
                             current_route.set("Explorer".to_string());
                         },
                         "Play"
+                    }
+                    if user_config.read().username.is_empty() {
+                        span { class: "text-red-500",
+                            p { "Please enter a username to play" }
+                        }
                     }
                     div { class: "",
                         button {
@@ -253,7 +319,7 @@ fn Home() -> Element {
         ),
         "Explorer" => rsx!(Explorer {}),
         "GameRoom" => rsx!(GameRoom {
-            room_code: app_props.read().lobby_code.clone()
+            room_code: user_config.read().lobby_code.clone()
         }),
         _ => rsx!(Home {}),
     };
@@ -282,9 +348,9 @@ fn Home() -> Element {
             .clone();
 
         use_effect(move || {
-            app_props.write().username = "player1".to_string();
-            app_props.write().lobby_code = "test".to_string();
-            app_props.write().client_secret = client_secret.clone();
+            user_config.write().username = "player1".to_string();
+            user_config.write().lobby_code = "test".to_string();
+            user_config.write().client_secret = client_secret.clone();
         });
 
         gamestate.process_event(GameMessage {
@@ -304,7 +370,6 @@ fn Home() -> Element {
         });
         if let Some(x) = gamestate.players.get_mut(&"player1".to_string()) {
             x.hand = vec![
-                // *x.hand = vec![
                 Card::new(Suit::Club, 5),
                 Card::new(Suit::Club, 14),
                 Card::new(Suit::Club, 1),
@@ -321,7 +386,6 @@ fn Home() -> Element {
         ];
         gamestate.curr_winning_card = Some(Card::new(Suit::Club, 5));
         gamestate.gameplay_state = GameplayState::PostRound;
-        // gamestate.gameplay_state = GameplayState::PostHand(PlayState::new());
 
         let mut gamestate_signal = use_signal(|| gamestate);
 
@@ -338,6 +402,8 @@ fn Explorer() -> Element {
     let mut create_lobby_response_msg = use_signal(|| String::from(""));
 
     let mut app_props: Signal<AppProps> = use_context::<Signal<AppProps>>();
+    let mut user_config: Signal<UserConfig> = use_context::<Signal<UserConfig>>();
+    let mut server_config: Signal<ServerConfig> = use_context::<Signal<ServerConfig>>();
     let mut current_route: Signal<String> = use_context::<Signal<String>>();
 
     let mut lobby_name = use_signal(|| String::new());
@@ -349,7 +415,7 @@ fn Explorer() -> Element {
             let resp = reqwest::Client::new()
                 .get(format!(
                     "{}{}",
-                    app_props.read().server_url.clone(),
+                    server_config.read().server_url.clone(),
                     "/rooms"
                 ))
                 .send()
@@ -376,7 +442,7 @@ fn Explorer() -> Element {
             let resp = reqwest::Client::new()
                 .get(format!(
                     "{}{}",
-                    app_props.read().server_url.clone(),
+                    server_config.read().server_url.clone(),
                     "/rooms"
                 ))
                 .send()
@@ -410,7 +476,7 @@ fn Explorer() -> Element {
             let resp = reqwest::Client::new()
                 .post(format!(
                     "{}{}",
-                    app_props.read().server_url.clone(),
+                    server_config.read().server_url.clone(),
                     "/rooms"
                 ))
                 .json(&CreateGameRequest {
@@ -448,17 +514,7 @@ fn Explorer() -> Element {
                         "lobby"
                     }
                 }
-                // Link {
-                //     to: AppRoutes::GameRoom {
-                //         room_code: lobby_name.read().to_string(),
-                //     },
-                //     class: "bg-yellow-400 border border-solid border-black text-center rounded-md",
-                //     "Create lobby"
-                // }
                 button {
-                    // to: AppRoutes::GameRoom {
-                    //     room_code: lobby_name.read().to_string(),
-                    // },
                     class: "bg-yellow-400 border border-solid border-black text-center rounded-md",
                     onclick: move |_| {
                         create_lobby_function();
@@ -479,6 +535,8 @@ fn Explorer() -> Element {
 #[component]
 pub fn LobbyComponent(lobby: Lobby) -> Element {
     let mut app_props = use_context::<Signal<AppProps>>();
+    let mut user_config: Signal<UserConfig> = use_context::<Signal<UserConfig>>();
+    let mut server_config: Signal<ServerConfig> = use_context::<Signal<ServerConfig>>();
     let mut current_route: Signal<String> = use_context::<Signal<String>>();
 
     rsx!(
@@ -487,19 +545,10 @@ pub fn LobbyComponent(lobby: Lobby) -> Element {
             td { class: "px-6 py-4 whitespace-nowrap", "{lobby.players.len()}/{lobby.max_players}" }
             td { class: "px-6 py-4 whitespace-nowrap", "{lobby.game_mode}" }
             td { class: "px-6 py-4 whitespace-nowrap",
-                // button {
-                //     onclick: move |evt| join_lobby.call(lobby.clone()),
-                //     disabled: true,
-                //     class: "px-4 py-2 rounded-md text-sm font-medium bg-yellow-300",
-                //     "Join lobby"
-                // }
                 button {
-                    // to: GameRoom {
-                    //     room_code: lobby.name.clone(),
-                    // },
 
                     onclick: move |evt| {
-                        app_props.write().lobby_code = lobby.name.clone();
+                        user_config.write().lobby_code = lobby.name.clone();
                         current_route.set("GameRoom".to_string());
                     },
                     class: "px-4 py-2 rounded-md text-sm font-medium bg-yellow-300",
@@ -596,6 +645,8 @@ pub fn LobbyList(lobbies: Vec<Lobby>, refresh_lobbies: EventHandler) -> Element 
 #[component]
 fn GameRoom(room_code: String) -> Element {
     let mut app_props = use_context::<Signal<AppProps>>();
+    let mut user_config: Signal<UserConfig> = use_context::<Signal<UserConfig>>();
+    let mut server_config: Signal<ServerConfig> = use_context::<Signal<ServerConfig>>();
     let mut server_message = use_signal(|| Value::Null);
     let mut gamestate = use_signal(|| GameState::new(room_code.clone()));
     let mut setupgameoptions = use_signal(|| SetupGameOptions {
@@ -611,7 +662,7 @@ fn GameRoom(room_code: String) -> Element {
     let mut ws_url = use_signal(|| {
         String::from(format!(
             "{}/rooms/{}/ws",
-            app_props.read().server_ws_url.clone(),
+            server_config.read().server_ws_url.clone(),
             room_code.clone()
         ))
     });
@@ -627,41 +678,35 @@ fn GameRoom(room_code: String) -> Element {
 
     let mut error = use_signal(|| Value::Null);
     let mut player_secret = use_signal(|| String::new());
+    let mut server_websocket = use_signal(|| None::<WebSocket>);
+    let mut websocket_connected = use_signal(|| false);
+    // let ws_connection = use_signal(|| WebsocketConnection::new(server_config.read().clone()));
 
     let mut server_websocket_listener: Signal<Option<SplitStream<WebSocket>>> = use_signal(|| None);
     let mut server_websocket_sender: Signal<Option<SplitSink<WebSocket, Message>>> =
         use_signal(|| None);
     let mut ws_action = use_signal(|| WsState::Resume);
+    let mut ws_connection = use_signal(|| WebsocketConnection::new(server_config.read().clone()));
 
     let mut create_lobby_response_msg = use_signal(|| String::from(""));
     let room_code_clone = room_code.clone();
 
     use_effect(move || {
         spawn(async move {
-            info!("Attempting to connect to websocket server during startup: {server_websocket_listener:?}");
-            if server_websocket_listener.try_read().is_err() {
-                info!("[SERVER-LISTENER] Server websocket listener already exists");
-                return;
-            }
-
-            let response = Client::default()
-                .get(ws_url())
-                .upgrade() // Prepares the WebSocket upgrade.
-                .send()
-                .await
-                .expect("Failed to connect to websocket");
-
-            // Turns the response into a WebSocket stream.
-            let mut websocket = response
-                .into_websocket()
-                .await
-                .expect("Failed to upgrade to websocket");
-            let (mut ws_tx, mut ws_rx) = websocket.split();
-            server_websocket_listener.set(Some(ws_rx));
-            server_websocket_sender.set(Some(ws_tx));
-
             // listen_for_server_messages.send(("ready".to_string()));
-            info!("Successfully connected to websocket server");
+            info!(
+                "Attempting to connect to websocket server: {}",
+                ws_connection.read().config.server_ws_url
+            );
+
+            info!("jere/ before connection unwrap");
+            let ws = ws_connection.write().connect_websocket().await.unwrap();
+            info!("jere/ after connection unwrap");
+            info!("Connected to websocket server");
+            let (mut ws_tx, mut ws_rx) = ws.split();
+            server_websocket_sender.set(Some(ws_tx));
+            server_websocket_listener.set(Some(ws_rx));
+            info!("Websocket connection task finished");
         });
     });
 
@@ -672,7 +717,7 @@ fn GameRoom(room_code: String) -> Element {
             let resp = reqwest::Client::new()
                 .get(format!(
                     "{}{}",
-                    app_props.read().server_url.clone(),
+                    server_config.read().server_url.clone(),
                     format!("/rooms/{}", get_details_room_code)
                 ))
                 .send()
@@ -715,25 +760,21 @@ fn GameRoom(room_code: String) -> Element {
             if server_websocket_listener.read().is_some() {
                 info!("[SERVER-LISTENER] Server websocket listener already exists");
             }
-            let mut ws_server_listener: Write<SplitStream<WebSocket>> = server_websocket_listener
-                .as_mut()
-                .expect("[SERVER-LISTENER] No websocket listener");
+
+            let mut listen = server_websocket_listener.write();
+            let listener = listen.as_mut().expect("No websocket listener");
             let mut error_count = 0;
             while error_count < 10 {
-                while let Some(Ok(Message::Text(message))) = ws_server_listener.next().await {
+                while let Some(Ok(Message::Text(message))) = listener.next().await {
                     info!("[SERVER-LISTENER] Got messages: {:?}", message);
 
-                    // if let Message::Text(text) = message {
-                    //     info!("received: {text}");
-
-                    //     let mut is_gamestate = false;
                     match serde_json::from_str::<GameActionResponse>(&message) {
                         Ok(gar) => {
                             // is_gamestate = true;
                             match gar {
                                 common::GameActionResponse::Connect(con) => {
                                     info!("Got connect message: {con:?}");
-                                    app_props.write().client_secret =
+                                    user_config.write().client_secret =
                                         con.secret.unwrap_or(String::new());
                                 }
                                 common::GameActionResponse::GameState(gs) => {
@@ -766,13 +807,22 @@ fn GameRoom(room_code: String) -> Element {
         info!("Ready to listen to player actions");
         'pauseloop: while let Some(internal_msg) = rx.next().await {
             info!("Received internal message: {:?}", internal_msg);
+
+            // info!(
+            //     "jere/ ws_connection: {:?}, {:?}",
+            //     ws_connection.read().connected,
+            //     ws_connection.read().sender
+            // );
             if server_websocket_sender.read().is_none() {
                 info!("No websocket sender");
                 return;
             }
-            let mut ws_server_sender = server_websocket_sender
-                .as_mut()
-                .expect("No websocket sender");
+
+            let mut send = server_websocket_sender.write();
+            info!("jere/ before sender unwrap");
+            let sender = send.as_mut().unwrap();
+            info!("jere/ after sender unwrap");
+
             info!("Received internal message: {:?}", internal_msg);
             match internal_msg {
                 InnerMessage::UpdateWsState { new } => ws_action.set(new),
@@ -781,14 +831,10 @@ fn GameRoom(room_code: String) -> Element {
                         continue 'pauseloop;
                     }
 
-                    let _ = ws_server_sender
-                        .send(Message::Text(json!(msg).to_string()))
-                        .await;
+                    let _ = sender.send(Message::Text(json!(msg).to_string())).await;
                 }
                 InnerMessage::Connect(con) => {
-                    let _ = ws_server_sender
-                        .send(Message::Text(json!(con).to_string()))
-                        .await;
+                    let _ = sender.send(Message::Text(json!(con).to_string())).await;
                 }
             }
             info!("Finished processing action, waiting for next...");
@@ -813,7 +859,7 @@ fn GameRoom(room_code: String) -> Element {
             {if TEST {
                 rsx!(div {
                         "Debug details:"
-                        div { class: " bg-gray-300", "Secret: {app_props.read().client_secret}" }
+                        div { class: " bg-gray-300", "Secret: {user_config.read().client_secret}" }
                         div { class: " bg-gray-300", "Game: {gamestate():#?}" }
                     })
             } else { rsx!()}},
@@ -838,15 +884,15 @@ fn GameRoom(room_code: String) -> Element {
                                             ws_send
                                                 .send( InnerMessage::GameMessage {
                                                     msg: GameMessage {
-                                                        username: app_props().username.clone(),
+                                                        username: user_config().username.clone(),
                                                         timestamp: Utc::now(),
                                                         action: GameAction::JoinGame(
                                                             PlayerDetails{
-                                                                username: app_props.read().username.clone(),
+                                                                username: user_config.read().username.clone(),
                                                                 ip: String::new(),
-                                                                client_secret: app_props.read().client_secret.clone(),
+                                                                client_secret: user_config.read().client_secret.clone(),
                                                             }),
-                                                            lobby: app_props.read().lobby_code.clone(),
+                                                            lobby: user_config.read().lobby_code.clone(),
                                                         }
                                                 });
                                         }
@@ -975,18 +1021,18 @@ fn GameRoom(room_code: String) -> Element {
                                     info!("Starting game");
                                     listen_for_server_messages.send(("ready".to_string()));
                                     // only send join game if player hasn't "Joined" the game yet
-                                    if (app_props.read().client_secret.is_empty()) {
+                                    if (user_config.read().client_secret.is_empty()) {
                                         ws_send
                                         .send(InnerMessage::GameMessage { msg: GameMessage {
-                                            username: app_props().username.clone(),
+                                            username: user_config().username.clone(),
                                             timestamp: Utc::now(),
                                             action: GameAction::JoinGame(
                                                 PlayerDetails{
-                                                    username: app_props.read().username.clone(),
+                                                    username: user_config.read().username.clone(),
                                                     ip: String::new(),
-                                                    client_secret: app_props.read().client_secret.clone(),
+                                                    client_secret: user_config.read().client_secret.clone(),
                                                 }),
-                                                lobby: app_props.read().lobby_code.clone(),
+                                                lobby: user_config.read().lobby_code.clone(),
                                             }
                                         });
                                     }
@@ -994,9 +1040,9 @@ fn GameRoom(room_code: String) -> Element {
                                         .send(
                                             InnerMessage::GameMessage {
                                                 msg: GameMessage {
-                                                    username: app_props.read().username.clone(),
+                                                    username: user_config.read().username.clone(),
                                                     action: GameAction::StartGame(setupgameoptions()),
-                                                    lobby: app_props.read().lobby_code.clone(),
+                                                    lobby: user_config.read().lobby_code.clone(),
                                                     timestamp: Utc::now(),
                                             }});
                                 },
@@ -1028,9 +1074,6 @@ fn GameRoom(room_code: String) -> Element {
     )
 }
 
-// pub const CARD_ASSET: manganis::ImageAsset = asset!("./assets/outline.png").image();
-// pub const CARD_BG_SVG: manganis::ImageAsset =
-//     manganis::mg!(image("./assets/outline.svg").format(ImageType::Svg));
 pub const SUIT_CLUB: ImageAsset = asset!("./assets/suits/club.png").image();
 pub const SUIT_HEART: manganis::ImageAsset = asset!("./assets/suits/heart.png").image();
 pub const SUIT_DIAMOND: manganis::ImageAsset = asset!("./assets/suits/diamond.png").image();
@@ -1107,6 +1150,7 @@ fn GameStateComponent(
     ws_send: Signal<Coroutine<InnerMessage>>,
 ) -> Element {
     let mut app_props = use_context::<Signal<AppProps>>();
+    let mut user_config: Signal<UserConfig> = use_context::<Signal<UserConfig>>();
 
     info!("Rendering gamestate...");
 
@@ -1119,13 +1163,13 @@ fn GameStateComponent(
     let cards_in_hand = if gamestate
         .read()
         .players
-        .contains_key(&app_props.read().username)
+        .contains_key(&user_config.read().username)
     {
         Some(
             gamestate
                 .read()
                 .players
-                .get(&app_props.read().username)
+                .get(&user_config.read().username)
                 .expect("Failed to get player in gamestate")
                 .encrypted_hand
                 .clone(),
@@ -1278,11 +1322,19 @@ fn GameStateComponent(
                                     "Round over"
                                 }
                                 ul {
+                                    class: "text-left",
                                     {gamestate().players.iter().map(|(player, client)| {
                                         let wins = gamestate().wins.get(player).unwrap_or(&0).clone();
                                         let bid = gamestate().bids.get(player).unwrap_or(&0).clone();
-                                        let text = format!("{player}: {wins}/{bid}{}", if wins==bid {""} else {" got BLACKBALL"});
-                                        rsx!(li { "{text}" })
+                                        let win_message = format!("{wins}/{bid}{}", if wins==bid {""} else {" got BLACKBALL"});
+                                        rsx!(
+                                            li {
+                                                div { class: "flex flex-row justify-between",
+                                                    span { "{player}" }
+                                                    span { "{win_message}" }
+                                                }
+                                            }
+                                        )
                                     })}
                                 }
                             })
@@ -1314,7 +1366,7 @@ fn GameStateComponent(
                     class: format!(
                         "relative w-full bg-[var(--bg-color)] rounded-lg p-4 shadow-lg border border-black {}",
                         if gamestate().curr_player_turn.clone().unwrap_or("".to_string())
-                            == app_props.read().username
+                            == user_config.read().username
                         {
                             "border-8 border-red-400 rounded-lg p-4 animate-subtle-pulse"
                         } else {
@@ -1328,18 +1380,18 @@ fn GameStateComponent(
                         {if cards_in_hand.is_none() {
                             rsx!()
                         } else {
-                            info!("[FE] calling to decrypt player hand: ${:?}, secret: ${:?}", cards_in_hand, app_props.read().client_secret.clone());
-                            rsx!({GameState::decrypt_player_hand(cards_in_hand.unwrap(), &app_props.read().client_secret.clone())
+                            info!("[FE] calling to decrypt player hand: ${:?}, secret: ${:?}", cards_in_hand, user_config.read().client_secret.clone());
+                            rsx!({GameState::decrypt_player_hand(cards_in_hand.unwrap(), &user_config.read().client_secret.clone())
                                 .iter()
                                 .map(|card| {
                                     return rsx!(CardComponent {
                                         onclick: move |clicked_card: Card| {
                                             ws_send().send(InnerMessage::GameMessage {
                                                 msg: GameMessage {
-                                                    username: app_props.read().username.clone(),
+                                                    username: user_config.read().username.clone(),
                                                     action: GameAction::PlayCard(clicked_card),
                                                     timestamp: Utc::now(),
-                                                    lobby: app_props.read().lobby_code.clone(),
+                                                    lobby: user_config.read().lobby_code.clone(),
                                                 },
                                             });
                                         },
@@ -1352,7 +1404,7 @@ fn GameStateComponent(
                     }
                     if gamestate().gameplay_state == GameplayState::Bid
                         && gamestate().curr_player_turn.is_some()
-                        && gamestate().curr_player_turn.clone().unwrap() == app_props.read().username
+                        && gamestate().curr_player_turn.clone().unwrap() == user_config.read().username
                     {
                         div { class: "flex flex-col items-center",
                             label { class: "text-xl p-2", "How many hands do you want to win?" }
@@ -1365,9 +1417,9 @@ fn GameStateComponent(
                                                 info!("Clicked on bid {i}");
                                                 ws_send().send(InnerMessage::GameMessage {
                                                     msg: GameMessage {
-                                                        username: app_props.read().username.clone(),
+                                                        username: user_config.read().username.clone(),
                                                         action: GameAction::Bid(i),
-                                                        lobby: app_props.read().lobby_code.clone(),
+                                                        lobby: user_config.read().lobby_code.clone(),
                                                         timestamp: Utc::now(),
                                             }});
                                         },
@@ -1387,9 +1439,9 @@ fn GameStateComponent(
                                     ws_send()
                                         .send(InnerMessage::GameMessage {
                                             msg: GameMessage {
-                                                username: app_props.read().username.clone(),
+                                                username: user_config.read().username.clone(),
                                                 action: GameAction::Ack,
-                                                lobby: app_props.read().lobby_code.clone(),
+                                                lobby: user_config.read().lobby_code.clone(),
                                                 timestamp: Utc::now(),
                                             },
                                         });
@@ -1410,9 +1462,9 @@ fn GameStateComponent(
                                         ws_send()
                                             .send(InnerMessage::GameMessage {
                                                 msg: GameMessage {
-                                                    username: app_props.read().username.clone(),
+                                                    username: user_config.read().username.clone(),
                                                     action: GameAction::Ack,
-                                                    lobby: app_props.read().lobby_code.clone(),
+                                                    lobby: user_config.read().lobby_code.clone(),
                                                     timestamp: Utc::now(),
                                                 },
                                             });
@@ -1439,9 +1491,9 @@ fn GameStateComponent(
                                         ws_send()
                                             .send(InnerMessage::GameMessage {
                                                 msg: GameMessage {
-                                                    username: app_props.read().username.clone(),
+                                                    username: user_config.read().username.clone(),
                                                     action: GameAction::Ack,
-                                                    lobby: app_props.read().lobby_code.clone(),
+                                                    lobby: user_config.read().lobby_code.clone(),
                                                     timestamp: Utc::now(),
                                                 },
                                             });
@@ -1643,4 +1695,19 @@ fn get_trump_svg(trump: &Suit) -> Element {
     };
 
     return trump_svg;
+}
+
+// STEP 9: Add unit tests
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_server_config() {
+        let prod_config = ServerConfig::new(true);
+        assert!(prod_config.server_url.contains("fly.dev"));
+
+        let dev_config = ServerConfig::new(false);
+        assert!(dev_config.server_url.contains("localhost"));
+    }
 }
