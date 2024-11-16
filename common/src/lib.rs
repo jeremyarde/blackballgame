@@ -44,6 +44,12 @@ pub struct PlayState {
     pub hand_num: usize,
 }
 
+impl Default for PlayState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PlayState {
     pub fn new() -> PlayState {
         PlayState { hand_num: 1 }
@@ -340,7 +346,7 @@ impl Card {
         Card {
             id: 0,
             suit,
-            value: value,
+            value,
             played_by: None,
         }
     }

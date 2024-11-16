@@ -293,10 +293,10 @@ impl GameState {
             .map(|player| player.details.clone())
             .collect();
 
-        return GameEventResult {
+        GameEventResult {
             dest: Destination::Lobby(players),
             msg: crate::GameActionResponse::GameState(self.get_state_for_lobby()),
-        };
+        }
     }
 
     pub fn encrypt_player_hand(&mut self, player_id: &String) {
@@ -355,7 +355,7 @@ impl GameState {
             player_id.clone(),
             GameClient::new(player_id, role, ip, client_secret.clone()),
         );
-        return client_secret;
+        client_secret
     }
 
     pub fn end_hand(&mut self) {
@@ -600,7 +600,7 @@ impl GameState {
         // let (tx, rx) = broadcast::channel(10);
 
         GameState {
-            lobby_code: lobby_code,
+            lobby_code,
             players: HashMap::new(),
             deck: create_deck(),
             curr_round: 1,
@@ -744,14 +744,11 @@ pub fn xor_encrypt_decrypt(data: &str, key: &str) -> Vec<u8> {
 }
 
 mod tests {
-    use std::collections::HashMap;
+    
 
-    use chrono::Utc;
+    
 
-    use crate::{
-        create_deck, game::find_winning_card, Card, GameAction, GameMessage, GameState,
-        GameVisibility, GameplayState, PlayState, PlayerRole, SetupGameOptions, Suit,
-    };
+    
 
     #[test]
     fn test_finding_winning_card() {
