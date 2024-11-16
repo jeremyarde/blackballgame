@@ -410,48 +410,20 @@ fn Explorer() -> Element {
 
     let mut lobby_name = use_signal(|| String::new());
 
-    let mut lobbies = use_signal(|| GetLobbiesResponse { lobbies: vec![] });
+    // let mut lobbies = use_signal(|| GetLobbiesResponse { lobbies: vec![] });
 
-    use_effect(move || {
-        spawn(async move {
-            let resp = server_client.read().get_rooms().await;
-            lobbies.set(resp.expect("Failed to get rooms"));
-        });
-    });
-
-    // let refresh_lobbies = move |_| {
+    // use_effect(move || {
     //     spawn(async move {
-    //         let resp = reqwest::Client::new()
-    //             .get(format!(
-    //                 "{}{}",
-    //                 server_config.read().server_url.clone(),
-    //                 "/rooms"
-    //             ))
-    //             .send()
-    //             .await;
-
-    //         match resp {
-    //             Ok(data) => {
-    //                 // log::info!("Got response: {:?}", resp);
-    //                 lobbies.set(
-    //                     data.json::<GetLobbiesResponse>()
-    //                         .await
-    //                         .expect("Failed to refresh lobbies"),
-    //                 );
-    //             }
-    //             Err(err) => {
-    //                 // log::info!("Request failed with error: {err:?}")
-    //                 lobbies.set(GetLobbiesResponse { lobbies: vec![] });
-    //             }
-    //         }
+    //         let resp = server_client.read().get_rooms().await;
+    //         lobbies.set(resp.expect("Failed to get rooms"));
     //     });
-    // };
+    // });
 
     rsx! {
-        div { class: "flex flex-row text-center bg-[--bg-color] w-screen h-screen flex-nowrap justify-center gap-2 p-4 items-start",
+        div { class: "flex flex-row text-center bg-[--bg-color] flex-nowrap justify-center gap-2 p-4 items-start",
             div { class: "flex flex-col justify-center align-top max-w-[600px] border border-black rounded-md p-4 items-start",
                 div { class: "border border-solid border-black bg-white rounded-md p-2",
-                    LobbyList { lobbies }
+                    LobbyList {}
                 }
             }
         }
@@ -486,7 +458,7 @@ pub fn LobbyComponent(lobby: Lobby) -> Element {
 }
 
 #[component]
-pub fn LobbyList(lobbies: Signal<GetLobbiesResponse>) -> Element {
+pub fn LobbyList() -> Element {
     let mut server_config: Signal<ServerConfig> = use_context::<Signal<ServerConfig>>();
     let mut server_client: Signal<ServerClient> = use_context::<Signal<ServerClient>>();
 
@@ -497,36 +469,39 @@ pub fn LobbyList(lobbies: Signal<GetLobbiesResponse>) -> Element {
 
     let mut all_lobbies =
         use_resource(move || async move { server_client.read().get_rooms().await });
+    let mut search_lobbies: Signal<Vec<Lobby>> = use_signal(|| vec![]);
 
-    // let matched_lobbies = match &*all_lobbies.read_unchecked() {
-    //     Some(Ok(val)) => {
-    //         info!("Got lobbies: {val:?}");
-    //         GetLobbiesResponse {
-    //             lobbies: val
-    //                 .lobbies
-    //                 .iter()
-    //                 .filter(|lobby| lobby.name.contains(searchterm.read().as_str()))
-    //                 .cloned()
-    //                 .collect::<Vec<Lobby>>(),
-    //         }
-    //     }
-    //     Some(Err(val)) => {
-    //         info!("Error: {val:?}");
-    //         GetLobbiesResponse { lobbies: vec![] }
-    //     }
-    //     None => {
-    //         info!("No lobbies");
-    //         GetLobbiesResponse { lobbies: vec![] }
-    //     }
-    // };
+    use_effect(move || {
+        let searchmatches = match &*all_lobbies.read_unchecked() {
+            Some(Ok(vals)) => {
+                let searchmatches = vals
+                    .lobbies
+                    .iter()
+                    .filter(|lobby| lobby.name.contains(searchterm.read().as_str()))
+                    .cloned()
+                    .collect::<Vec<Lobby>>();
+                searchmatches
+            }
+            Some(Err(err)) => vec![],
+            None => vec![],
+        };
+        // let searchmatches = all_lobbies
+        //     .read()
+        //     .lobbies
+        //     .iter()
+        //     .filter(|lobby| lobby.name.contains(searchterm.read().as_str()))
+        //     .cloned()
+        //     .collect::<Vec<Lobby>>();
+        search_lobbies.set(searchmatches);
+    });
 
-    let create_lobby_function = move || {
+    let create_lobby_function = move |lobby: String| {
         #[derive(Deserialize, Serialize)]
         pub struct CreateGameRequest {
             lobby_code: String,
         }
 
-        let cloned_room_code = lobby_name.clone();
+        // let cloned_room_code = lobby_name.clone();
         spawn(async move {
             let resp = reqwest::Client::new()
                 .post(format!(
@@ -535,7 +510,7 @@ pub fn LobbyList(lobbies: Signal<GetLobbiesResponse>) -> Element {
                     "/rooms"
                 ))
                 .json(&CreateGameRequest {
-                    lobby_code: cloned_room_code.read().clone(),
+                    lobby_code: lobby.clone(),
                 })
                 .send()
                 .await;
@@ -545,6 +520,7 @@ pub fn LobbyList(lobbies: Signal<GetLobbiesResponse>) -> Element {
                     info!("create_lobby success");
                     // log::info!("Got response: {:?}", resp);
                     create_lobby_response_msg.set(format!("response: {:?}", data).into());
+                    all_lobbies.restart();
                 }
                 Err(err) => {
                     info!("create_lobby failed");
@@ -555,65 +531,21 @@ pub fn LobbyList(lobbies: Signal<GetLobbiesResponse>) -> Element {
         });
     };
 
-    // let lobbydetails = match &*all_lobbies.read_unchecked() {
-    //     Some(Ok(val)) => {
-    //         info!("Got lobbies: {val:?}");
-    //         val.lobbies.iter().map(|lobby| {
-    //             rsx!(
-    //                 div {
-    //                     LobbyComponent { lobby: lobby.clone() }
-    //                 }
-    //             )
-    //         })
+    let mut searchlobbies = use_signal(|| GetLobbiesResponse { lobbies: vec![] });
+
+    // let test = match &*all_lobbies.read_unchecked() {
+    //     Some(Ok(vals)) => {
+    //         let searchmatches = vals
+    //             .lobbies
+    //             .iter()
+    //             .filter(|lobby| lobby.name.contains(searchterm.read().as_str()))
+    //             .cloned()
+    //             .collect::<Vec<Lobby>>();
+    //         searchmatches
     //     }
-    //     Some(Err(val)) => {
-    //         info!("Error: {val:?}");
-    //         rsx!(
-    //             div { "No lobbies" }
-    //         )
-    //     }
-    //     None => {
-    //         info!("No lobbies");
-    //         rsx!(
-    //             div { "No lobbies" }
-    //         )
-    //     }
+    //     Some(Err(err)) => vec![],
+    //     None => vec![],
     // };
-
-    // let refresh_lobbies = move || {
-    //     spawn(async move {
-    //         let resp = server_client.read().get_rooms().await;
-    //         lobbies.set(resp.expect("Failed to get rooms"));
-    //         // update_search_results(searchterm.clone());
-    //     });
-    // };
-
-    // let update_search_results = move |searchterm: String| {
-    //     info!("Got search query: {searchterm:?}");
-    //     if searchterm.is_empty() {
-    //         searchlobbies.set(GetLobbiesResponse {
-    //             lobbies: lobbies.read().lobbies.clone(),
-    //         });
-    //         return;
-    //     }
-
-    //     let searchmatches = lobbies
-    //         .read()
-    //         .lobbies
-    //         .iter()
-    //         .filter(|lobby| lobby.name.contains(searchterm.as_str()))
-    //         .cloned()
-    //         .collect::<Vec<Lobby>>();
-    //     searchlobbies.set(GetLobbiesResponse {
-    //         lobbies: searchmatches,
-    //     });
-    // };
-
-    let test = match &*all_lobbies.read_unchecked() {
-        Some(Ok(vals)) => vals.lobbies.clone(),
-        Some(Err(err)) => vec![],
-        None => vec![],
-    };
 
     rsx!(
         div { class: "container mx-auto items-start",
@@ -631,13 +563,16 @@ pub fn LobbyList(lobbies: Signal<GetLobbiesResponse>) -> Element {
                     button {
                         class: "bg-yellow-400 border border-solid border-black text-center rounded-md",
                         onclick: move |_| {
-                            create_lobby_function();
+                            info!("Clicked create lobby");
+                            create_lobby_function(lobby_name.read().clone());
                         },
-                        "Create"
+                        "create"
                     }
                     button {
                         class: "bg-gray-300 flex flex-row text-center border p-2 border-solid border-black rounded-md justify-center items-center cursor-pointer",
-                        onclick: move |evt| {},
+                        onclick: move |evt| {
+                            all_lobbies.restart();
+                        },
                         svg {
                             class: "w-6 h-6",
                             fill: "none",
@@ -679,7 +614,7 @@ pub fn LobbyList(lobbies: Signal<GetLobbiesResponse>) -> Element {
                     // onChange: move || {},
                     oninput: move |evt| {
                         info!("Got search query: {evt:?}");
-                        searchterm.set(evt.value());
+                        searchterm.set(evt.value().clone());
                     },
                     class: "w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 }
@@ -703,7 +638,7 @@ pub fn LobbyList(lobbies: Signal<GetLobbiesResponse>) -> Element {
                         }
                         // tbody { class: "divide-y divide-gray-200", {lobbydetails} }
                         tbody { class: "divide-y divide-gray-200",
-                            {test.iter().map(|lobby| {
+                            {search_lobbies.iter().map(|lobby| {
                                 rsx!(
                                     LobbyComponent {
                                         lobby: lobby.clone(),

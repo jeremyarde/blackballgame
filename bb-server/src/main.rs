@@ -69,7 +69,7 @@ mod websocket;
 const ROOT: &str = "";
 const DEFAULT_FILES: [&str; 1] = ["index.html"];
 const NOT_FOUND: &str = "404.html";
-const STALE_GAME_TIME_DURATION_SECONDS: i64 = 60 * 5;
+const STALE_GAME_TIME_DURATION_SECONDS: i64 = 60 * 10;
 const STALE_GAME_THREAD_SLEEP_SECONDS: u64 = 60 * 5;
 
 // async fn serve_asset(path: Option<Path<String>>) -> impl IntoResponse {
