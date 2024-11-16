@@ -420,7 +420,7 @@ fn Explorer() -> Element {
     // });
 
     rsx! {
-        div { class: "flex flex-row text-center bg-[--bg-color] flex-nowrap justify-center gap-2 p-4 items-start",
+        div { class: "flex flex-row h-screen w-screen text-center bg-[--bg-color] flex-nowrap justify-center gap-2 p-4 items-start",
             div { class: "flex flex-col justify-center align-top max-w-[600px] border border-black rounded-md p-4 items-start",
                 div { class: "border border-solid border-black bg-white rounded-md p-2",
                     LobbyList {}
@@ -1178,7 +1178,7 @@ fn GameStateComponent(
     };
 
     rsx!(
-        div { class: "flex flex-row text-center bg-[--bg-color] flex-nowrap justify-center gap-2 p-4 items-start",
+        div { class: "flex flex-row h-screen w-screen text-center bg-[--bg-color] flex-nowrap justify-center gap-2 p-4 items-start",
             div { class: "bg-[var(--bg-color)] rounded-lg p-4 shadow-lg border border-black mx-auto",
                 // class: "bg-gray-100 p-6 rounded-lg shadow-lg max-w-4xl mx-auto",
                 div { class: "flex flex-col justify-between gap-6",
