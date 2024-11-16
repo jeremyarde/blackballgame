@@ -17,25 +17,40 @@ use dotenvy::dotenv;
 mod components;
 
 use futures_util::stream::{SplitSink, SplitStream};
-use futures_util::TryStreamExt;
 use futures_util::{SinkExt, StreamExt};
+use futures_util::{TryFutureExt, TryStreamExt};
 use manganis::{asset, Asset, ImageAsset, ImageAssetBuilder};
 use reqwest::Client;
-use reqwest_websocket::WebSocket;
 use reqwest_websocket::{Message, RequestBuilderExt};
+use reqwest_websocket::{UpgradeResponse, WebSocket};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use server_client::server_client::ServerClient;
 use tracing::{info, Level};
 use websocket::websocket_connection::WebsocketConnection;
+
+mod server_client;
 mod websocket;
 
 const TEST: bool = false;
 const STANDARD_BUTTON: &str = "px-4 py-2 bg-gray-800 text-white font-semibold rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75";
 
+mod styles {
+    pub const TITLE_CONTAINER: &str = "grid items-center justify-center";
+    pub const TITLE_TEXT: &str = "col-start-1 row-start-1 text-8xl md:text-6xl font-extrabold \
+        text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 \
+        drop-shadow-lg animate-gradient-shine";
+    pub const INPUT_FIELD: &str =
+        "w-full text-2xl font-semibold text-black bg-white border border-gray-700 rounded-md 
+         placeholder-gray-500 shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 
+         focus:border-indigo-500 hover:scale-102 transition-transform duration-200 ease-in-out text-center";
+}
+
 #[derive(Clone, Debug)]
 struct AppProps {
     environment: Env,
     debug_mode: bool,
+    // current_route: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -91,7 +106,9 @@ fn StateProvider() -> Element {
     });
 
     let mut server_config = use_context_provider(|| Signal::new(ServerConfig::new(is_prod)));
-
+    let mut server_client = use_context_provider(|| {
+        Signal::new(ServerClient::new(server_config.read().server_url.clone()))
+    });
     // let mut websocket_connection = use_context_provider(|| Signal::new(None));
 
     rsx!(Home {})
@@ -172,21 +189,8 @@ mod constants {
     pub const MIN_USERNAME_LENGTH: usize = 3;
 }
 
-// STEP 7: Extract CSS classes
-mod styles {
-    pub const TITLE_CONTAINER: &str = "grid items-center justify-center";
-    pub const TITLE_TEXT: &str = "col-start-1 row-start-1 text-8xl md:text-6xl font-extrabold \
-        text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 \
-        drop-shadow-lg animate-gradient-shine";
-    pub const INPUT_FIELD: &str = "w-full text-2xl font-semibold text-gray-100 bg-gray-800 \
-        border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 \
-        focus:border-indigo-500 placeholder-gray-400 shadow-md transition duration-200 \
-        transform hover:scale-105";
-}
+use crate::styles::INPUT_FIELD;
 
-// STEP 8: Add documentation
-/// Validates the username input and updates the disabled state
-/// Returns true if username is valid
 fn validate_username(username: &str, disabled: &mut Signal<bool>) -> bool {
     let is_valid = username.len() >= constants::MIN_USERNAME_LENGTH;
     disabled.set(!is_valid);
@@ -224,7 +228,7 @@ fn Home() -> Element {
                     div { class: "flex flex-row items-center justify-center p-2 gap-2",
                         label { class: "text-2xl", "Username" }
                         input {
-                            class: "w-full text-2xl font-semibold text-gray-100 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-400 shadow-md transition duration-200 transform hover:scale-105",
+                            class: "{styles::INPUT_FIELD}",
                             r#type: "text",
                             value: "{user_config.read().username}",
                             oninput: move |event| {
@@ -271,7 +275,7 @@ fn Home() -> Element {
                         }
                         if open_modal() == true {
                             div { class: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center",
-                                div { class: "bg-white rounded-lg shadow-xl max-w-md w-full",
+                                div { class: "bg-white rounded-lg shadow-xl max-w-xl w-full",
                                     div { class: "p-6 m-4",
                                         h2 { class: "text-2xl font-bold mb-4", "How to Play" }
                                         div { class: "space-y-4",
@@ -398,13 +402,11 @@ fn Home() -> Element {
 
 #[component]
 fn Explorer() -> Element {
-    let mut ws_action = use_signal(|| WsState::Pause);
-    let mut create_lobby_response_msg = use_signal(|| String::from(""));
-
     let mut app_props: Signal<AppProps> = use_context::<Signal<AppProps>>();
     let mut user_config: Signal<UserConfig> = use_context::<Signal<UserConfig>>();
     let mut server_config: Signal<ServerConfig> = use_context::<Signal<ServerConfig>>();
     let mut current_route: Signal<String> = use_context::<Signal<String>>();
+    let mut server_client: Signal<ServerClient> = use_context::<Signal<ServerClient>>();
 
     let mut lobby_name = use_signal(|| String::new());
 
@@ -412,58 +414,111 @@ fn Explorer() -> Element {
 
     use_effect(move || {
         spawn(async move {
-            let resp = reqwest::Client::new()
-                .get(format!(
-                    "{}{}",
-                    server_config.read().server_url.clone(),
-                    "/rooms"
-                ))
-                .send()
-                .await;
-
-            match resp {
-                Ok(data) => {
-                    lobbies.set(
-                        data.json::<GetLobbiesResponse>()
-                            .await
-                            .expect("Failed to parse lobbies"),
-                    );
-                }
-                Err(err) => {
-                    // log::info!("Request failed with error: {err:?}")
-                    lobbies.set(GetLobbiesResponse { lobbies: vec![] });
-                }
-            }
+            let resp = server_client.read().get_rooms().await;
+            lobbies.set(resp.expect("Failed to get rooms"));
         });
     });
 
-    let refresh_lobbies = move |_| {
-        spawn(async move {
-            let resp = reqwest::Client::new()
-                .get(format!(
-                    "{}{}",
-                    server_config.read().server_url.clone(),
-                    "/rooms"
-                ))
-                .send()
-                .await;
+    // let refresh_lobbies = move |_| {
+    //     spawn(async move {
+    //         let resp = reqwest::Client::new()
+    //             .get(format!(
+    //                 "{}{}",
+    //                 server_config.read().server_url.clone(),
+    //                 "/rooms"
+    //             ))
+    //             .send()
+    //             .await;
 
-            match resp {
-                Ok(data) => {
-                    // log::info!("Got response: {:?}", resp);
-                    lobbies.set(
-                        data.json::<GetLobbiesResponse>()
-                            .await
-                            .expect("Failed to refresh lobbies"),
-                    );
-                }
-                Err(err) => {
-                    // log::info!("Request failed with error: {err:?}")
-                    lobbies.set(GetLobbiesResponse { lobbies: vec![] });
+    //         match resp {
+    //             Ok(data) => {
+    //                 // log::info!("Got response: {:?}", resp);
+    //                 lobbies.set(
+    //                     data.json::<GetLobbiesResponse>()
+    //                         .await
+    //                         .expect("Failed to refresh lobbies"),
+    //                 );
+    //             }
+    //             Err(err) => {
+    //                 // log::info!("Request failed with error: {err:?}")
+    //                 lobbies.set(GetLobbiesResponse { lobbies: vec![] });
+    //             }
+    //         }
+    //     });
+    // };
+
+    rsx! {
+        div { class: "flex flex-row text-center bg-[--bg-color] w-screen h-screen flex-nowrap justify-center gap-2 p-4 items-start",
+            div { class: "flex flex-col justify-center align-top max-w-[600px] border border-black rounded-md p-4 items-start",
+                div { class: "border border-solid border-black bg-white rounded-md p-2",
+                    LobbyList { lobbies }
                 }
             }
-        });
-    };
+        }
+    }
+}
+
+#[component]
+pub fn LobbyComponent(lobby: Lobby) -> Element {
+    let mut app_props = use_context::<Signal<AppProps>>();
+    let mut user_config: Signal<UserConfig> = use_context::<Signal<UserConfig>>();
+    let mut server_config: Signal<ServerConfig> = use_context::<Signal<ServerConfig>>();
+    let mut current_route: Signal<String> = use_context::<Signal<String>>();
+
+    rsx!(
+        tr { key: "{lobby.name}",
+            td { class: "px-6 py-4 whitespace-nowrap", "{lobby.name}" }
+            td { class: "px-6 py-4 whitespace-nowrap", "{lobby.players.len()}/{lobby.max_players}" }
+            td { class: "px-6 py-4 whitespace-nowrap", "{lobby.game_mode}" }
+            td { class: "px-6 py-4 whitespace-nowrap",
+                button {
+
+                    onclick: move |evt| {
+                        user_config.write().lobby_code = lobby.name.clone();
+                        current_route.set("GameRoom".to_string());
+                    },
+                    class: "px-4 py-2 rounded-md text-sm font-medium bg-yellow-300",
+                    "Join lobby"
+                }
+            }
+        }
+    )
+}
+
+#[component]
+pub fn LobbyList(lobbies: Signal<GetLobbiesResponse>) -> Element {
+    let mut server_config: Signal<ServerConfig> = use_context::<Signal<ServerConfig>>();
+    let mut server_client: Signal<ServerClient> = use_context::<Signal<ServerClient>>();
+
+    let mut create_lobby_response_msg = use_signal(|| String::from(""));
+    let mut lobby_name = use_signal(|| String::new());
+    let lobby = String::from("test");
+    let mut searchterm = use_signal(|| String::new());
+
+    let mut all_lobbies =
+        use_resource(move || async move { server_client.read().get_rooms().await });
+
+    // let matched_lobbies = match &*all_lobbies.read_unchecked() {
+    //     Some(Ok(val)) => {
+    //         info!("Got lobbies: {val:?}");
+    //         GetLobbiesResponse {
+    //             lobbies: val
+    //                 .lobbies
+    //                 .iter()
+    //                 .filter(|lobby| lobby.name.contains(searchterm.read().as_str()))
+    //                 .cloned()
+    //                 .collect::<Vec<Lobby>>(),
+    //         }
+    //     }
+    //     Some(Err(val)) => {
+    //         info!("Error: {val:?}");
+    //         GetLobbiesResponse { lobbies: vec![] }
+    //     }
+    //     None => {
+    //         info!("No lobbies");
+    //         GetLobbiesResponse { lobbies: vec![] }
+    //     }
+    // };
 
     let create_lobby_function = move || {
         #[derive(Deserialize, Serialize)]
@@ -500,91 +555,107 @@ fn Explorer() -> Element {
         });
     };
 
-    rsx! {
-        div { class: "flex flex-row text-center bg-[--bg-color] w-screen h-screen flex-nowrap justify-center gap-2 p-4 items-start",
-            div { class: "flex flex-col justify-center max-w-[600px] border border-black rounded-md p-4",
-                span { class: "text-lg font-bold", "Create a new lobby for others to join" }
-                div { class: "flex flex-row justify-center text-center w-full",
-                    label { class: "text-xl", "Lobby name" }
+    // let lobbydetails = match &*all_lobbies.read_unchecked() {
+    //     Some(Ok(val)) => {
+    //         info!("Got lobbies: {val:?}");
+    //         val.lobbies.iter().map(|lobby| {
+    //             rsx!(
+    //                 div {
+    //                     LobbyComponent { lobby: lobby.clone() }
+    //                 }
+    //             )
+    //         })
+    //     }
+    //     Some(Err(val)) => {
+    //         info!("Error: {val:?}");
+    //         rsx!(
+    //             div { "No lobbies" }
+    //         )
+    //     }
+    //     None => {
+    //         info!("No lobbies");
+    //         rsx!(
+    //             div { "No lobbies" }
+    //         )
+    //     }
+    // };
+
+    // let refresh_lobbies = move || {
+    //     spawn(async move {
+    //         let resp = server_client.read().get_rooms().await;
+    //         lobbies.set(resp.expect("Failed to get rooms"));
+    //         // update_search_results(searchterm.clone());
+    //     });
+    // };
+
+    // let update_search_results = move |searchterm: String| {
+    //     info!("Got search query: {searchterm:?}");
+    //     if searchterm.is_empty() {
+    //         searchlobbies.set(GetLobbiesResponse {
+    //             lobbies: lobbies.read().lobbies.clone(),
+    //         });
+    //         return;
+    //     }
+
+    //     let searchmatches = lobbies
+    //         .read()
+    //         .lobbies
+    //         .iter()
+    //         .filter(|lobby| lobby.name.contains(searchterm.as_str()))
+    //         .cloned()
+    //         .collect::<Vec<Lobby>>();
+    //     searchlobbies.set(GetLobbiesResponse {
+    //         lobbies: searchmatches,
+    //     });
+    // };
+
+    let test = match &*all_lobbies.read_unchecked() {
+        Some(Ok(vals)) => vals.lobbies.clone(),
+        Some(Err(err)) => vec![],
+        None => vec![],
+    };
+
+    rsx!(
+        div { class: "container mx-auto items-start",
+            div { class: "flex flex-col justify-center space-between cursor-pointer p-2",
+                h1 { class: "text-2xl font-bold", "Game Lobbies" }
+                div { class: "flex flex-row justify-center text-center w-full p-1 gap-1",
+                    label { class: "text-xl text-nowrap self-center", "New lobby" }
                     input {
-                        class: "input",
+                        class: "{styles::INPUT_FIELD}",
                         r#type: "text",
                         value: "{lobby_name.read()}",
                         oninput: move |event| lobby_name.set(event.value()),
                         "lobby"
                     }
-                }
-                button {
-                    class: "bg-yellow-400 border border-solid border-black text-center rounded-md",
-                    onclick: move |_| {
-                        create_lobby_function();
-                    },
-                    "Create lobby"
-                }
-                {if create_lobby_response_msg() == String::from("") { rsx!() } else { rsx!(div { "{create_lobby_response_msg.read()}" }) }}
-            }
-            div { class: "flex flex-col justify-center align-top max-w-[600px] border border-black rounded-md p-4 items-start",
-                div { class: "border border-solid border-black bg-white rounded-md",
-                    LobbyList { lobbies: lobbies.read().lobbies.clone(), refresh_lobbies }
-                }
-            }
-        }
-    }
-}
-
-#[component]
-pub fn LobbyComponent(lobby: Lobby) -> Element {
-    let mut app_props = use_context::<Signal<AppProps>>();
-    let mut user_config: Signal<UserConfig> = use_context::<Signal<UserConfig>>();
-    let mut server_config: Signal<ServerConfig> = use_context::<Signal<ServerConfig>>();
-    let mut current_route: Signal<String> = use_context::<Signal<String>>();
-
-    rsx!(
-        tr { key: "{lobby.name}",
-            td { class: "px-6 py-4 whitespace-nowrap", "{lobby.name}" }
-            td { class: "px-6 py-4 whitespace-nowrap", "{lobby.players.len()}/{lobby.max_players}" }
-            td { class: "px-6 py-4 whitespace-nowrap", "{lobby.game_mode}" }
-            td { class: "px-6 py-4 whitespace-nowrap",
-                button {
-
-                    onclick: move |evt| {
-                        user_config.write().lobby_code = lobby.name.clone();
-                        current_route.set("GameRoom".to_string());
-                    },
-                    class: "px-4 py-2 rounded-md text-sm font-medium bg-yellow-300",
-                    "Join lobby"
-                }
-            }
-        }
-    )
-}
-
-#[component]
-pub fn LobbyList(lobbies: Vec<Lobby>, refresh_lobbies: EventHandler) -> Element {
-    let lobby = String::from("test");
-    rsx!(
-        div { class: "container mx-auto items-start",
-            div { class: "flex flex-row justify-center gap-2 space-between cursor-pointer",
-                h1 { class: "text-2xl font-bold mb-4", "Game Lobbies" }
-                button {
-                    class: "bg-gray-300 flex flex-row text-center border p-1 border-solid border-black rounded-md justify-center items-center cursor-pointer",
-                    onclick: move |evt| refresh_lobbies.call(()),
-                    svg {
-                        class: "w-6 h-6",
-                        fill: "none",
-                        stroke: "currentColor",
-                        "stroke-width": "1",
-                        "view-box": "0 0 24 24",
-                        path {
-                            "stroke-linecap": "round",
-                            "stroke-linejoin": "round",
-                            d: "M4 4v5h.582c.523-1.838 1.856-3.309 3.628-4.062A7.978 7.978 0 0112 4c4.418 0 8 3.582 8 8s-3.582 8-8 8a7.978 7.978 0 01-7.658-5.125c-.149-.348-.54-.497-.878-.365s-.507.537-.355.885A9.956 9.956 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2c-2.045 0-3.94.613-5.514 1.653A6.978 6.978 0 004.582 4H4z"
-                        }
+                    button {
+                        class: "bg-yellow-400 border border-solid border-black text-center rounded-md",
+                        onclick: move |_| {
+                            create_lobby_function();
+                        },
+                        "Create"
                     }
-                    label { class: "text-lg", "Refresh" }
+                    button {
+                        class: "bg-gray-300 flex flex-row text-center border p-2 border-solid border-black rounded-md justify-center items-center cursor-pointer",
+                        onclick: move |evt| {},
+                        svg {
+                            class: "w-6 h-6",
+                            fill: "none",
+                            stroke: "currentColor",
+                            "stroke-width": "1",
+                            "view-box": "0 0 24 24",
+                            path {
+                                "stroke-linecap": "round",
+                                "stroke-linejoin": "round",
+                                d: "M4 4v5h.582c.523-1.838 1.856-3.309 3.628-4.062A7.978 7.978 0 0112 4c4.418 0 8 3.582 8 8s-3.582 8-8 8a7.978 7.978 0 01-7.658-5.125c-.149-.348-.54-.497-.878-.365s-.507.537-.355.885A9.956 9.956 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2c-2.045 0-3.94.613-5.514 1.653A6.978 6.978 0 004.582 4H4z"
+                            }
+                        }
+                        label { class: "text-lg", "Refresh" }
+                    }
                 }
+                {if create_lobby_response_msg() == String::from("") { rsx!(div{}) } else { rsx!(div { "{create_lobby_response_msg.read()}" }) }}
             }
-            div { class: "flex flex-col mb-4",
+            div { class: "flex flex-col p-2 gap-2",
                 svg {
                     class: "absolute translate-x-[10px] translate-y-[10px] text-gray-400 h-5 w-5",
                     "xmlns": "http://www.w3.org/2000/svg",
@@ -601,10 +672,15 @@ pub fn LobbyList(lobbies: Vec<Lobby>, refresh_lobbies: EventHandler) -> Element 
                     path { "d": "m21 21-4.3-4.3" }
                 }
                 input {
+                    class: "{styles::INPUT_FIELD}",
                     r#type: "text",
                     placeholder: "Search lobbies...",
                     value: "",
                     // onChange: move || {},
+                    oninput: move |evt| {
+                        info!("Got search query: {evt:?}");
+                        searchterm.set(evt.value());
+                    },
                     class: "w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 }
                 div { class: "overflow-x-auto",
@@ -625,8 +701,9 @@ pub fn LobbyList(lobbies: Vec<Lobby>, refresh_lobbies: EventHandler) -> Element 
                                 }
                             }
                         }
+                        // tbody { class: "divide-y divide-gray-200", {lobbydetails} }
                         tbody { class: "divide-y divide-gray-200",
-                            {lobbies.iter().map(|lobby| {
+                            {test.iter().map(|lobby| {
                                 rsx!(
                                     LobbyComponent {
                                         lobby: lobby.clone(),
@@ -647,7 +724,6 @@ fn GameRoom(room_code: String) -> Element {
     let mut app_props = use_context::<Signal<AppProps>>();
     let mut user_config: Signal<UserConfig> = use_context::<Signal<UserConfig>>();
     let mut server_config: Signal<ServerConfig> = use_context::<Signal<ServerConfig>>();
-    let mut server_message = use_signal(|| Value::Null);
     let mut gamestate = use_signal(|| GameState::new(room_code.clone()));
     let mut setupgameoptions = use_signal(|| SetupGameOptions {
         rounds: 4,
@@ -677,8 +753,6 @@ fn GameRoom(room_code: String) -> Element {
     });
 
     let mut error = use_signal(|| Value::Null);
-    let mut player_secret = use_signal(|| String::new());
-    let mut server_websocket = use_signal(|| None::<WebSocket>);
     let mut websocket_connected = use_signal(|| false);
     // let ws_connection = use_signal(|| WebsocketConnection::new(server_config.read().clone()));
 
@@ -693,16 +767,11 @@ fn GameRoom(room_code: String) -> Element {
 
     use_effect(move || {
         spawn(async move {
-            // listen_for_server_messages.send(("ready".to_string()));
             info!(
                 "Attempting to connect to websocket server: {}",
                 ws_connection.read().config.server_ws_url
             );
-
-            info!("jere/ before connection unwrap");
             let ws = ws_connection.write().connect_websocket().await.unwrap();
-            info!("jere/ after connection unwrap");
-            info!("Connected to websocket server");
             let (mut ws_tx, mut ws_rx) = ws.split();
             server_websocket_sender.set(Some(ws_tx));
             server_websocket_listener.set(Some(ws_rx));
@@ -808,20 +877,13 @@ fn GameRoom(room_code: String) -> Element {
         'pauseloop: while let Some(internal_msg) = rx.next().await {
             info!("Received internal message: {:?}", internal_msg);
 
-            // info!(
-            //     "jere/ ws_connection: {:?}, {:?}",
-            //     ws_connection.read().connected,
-            //     ws_connection.read().sender
-            // );
             if server_websocket_sender.read().is_none() {
                 info!("No websocket sender");
                 return;
             }
 
             let mut send = server_websocket_sender.write();
-            info!("jere/ before sender unwrap");
             let sender = send.as_mut().unwrap();
-            info!("jere/ after sender unwrap");
 
             info!("Received internal message: {:?}", internal_msg);
             match internal_msg {
@@ -917,6 +979,7 @@ fn GameRoom(room_code: String) -> Element {
                                     div { class: "flex flex-row items-center",
                                         label { "Rounds" }
                                         input {
+                                            class: "{styles::INPUT_FIELD}",
                                             r#type: "text",
                                             "data-input-counter": "false",
                                             placeholder: "9",
@@ -976,7 +1039,7 @@ fn GameRoom(room_code: String) -> Element {
                                                 class: "relative",
                                                 input {
                                                     checked: "{setupgameoptions.read().visibility == GameVisibility::Private}",
-                                                    class: "sr-only",
+                                                    class: "{styles::INPUT_FIELD}",
                                                     r#type: "checkbox",
                                                     onchange: move |evt| {
                                                         setupgameoptions.write().visibility = if setupgameoptions.read().visibility == GameVisibility::Private { GameVisibility::Public } else { GameVisibility::Private };
@@ -998,11 +1061,12 @@ fn GameRoom(room_code: String) -> Element {
                                                 class: "flex flex-row align-middle justify-center text-center",
                                                 "Password"
                                                 input {
+                                                    class: "{styles::INPUT_FIELD}",
                                                     r#type: "text",
                                                     placeholder: "",
                                                     required: "false",
                                                     value: if setupgameoptions.read().password.is_some() {"{setupgameoptions.read().password:?}"} else {""},
-                                                    class: "bg-gray-50 border-x-0 border-gray-300 h-11 text-center text-gray-900 text-sm focus:ring-blue-500 focus:border-blue-500 block w-full py-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500",
+                                                    // class: "bg-gray-50 border-x-0 border-gray-300 h-11 text-center text-gray-900 text-sm focus:ring-blue-500 focus:border-blue-500 block w-full py-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500",
                                                     // id: "quantity-input"
                                                     onchange: move |evt| {
                                                         setupgameoptions.write().password = evt.value().parse::<String>().ok();

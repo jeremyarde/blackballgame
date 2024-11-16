@@ -492,7 +492,6 @@ async fn main() {
                         if Utc::now().signed_duration_since(game.updated_at)
                             > TimeDelta::seconds(STALE_GAME_TIME_DURATION_SECONDS)
                         {
-                            // if Utc::now().signed_duration_since(game.updated_at) > TimeDelta::hours(1) {
                             info!("[STALE] Stale game found, deleting: {:?}", lobby_code);
                             rooms_to_remove.push(lobby_code.clone());
                         }

@@ -9,7 +9,7 @@ pub struct CreateGameResponse {
 pub struct CreateGameRequest {
     pub lobby_code: String,
 }
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct GetLobbiesResponse {
     pub lobbies: Vec<Lobby>,
 }
@@ -18,7 +18,7 @@ pub struct GetLobbyResponse {
     pub lobby: Lobby,
 }
 
-#[derive(Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[derive(Deserialize, Serialize, Clone, PartialEq, Eq, Debug)]
 pub struct Lobby {
     pub name: String,
     pub players: Vec<String>,
