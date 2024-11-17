@@ -29,7 +29,7 @@ build:
   SAVE ARTIFACT ./target/release/ target AS LOCAL artifact/target
 
 docker:
-  ARG docker_tag=jerecan/blackballgame:bb-server
+  ARG docker_tag=jerecan/blackballgame:blackballgame-server
   ARG ENVIRONMENT=production
 
   # FROM DOCKERFILE . # how to fix: https://docs.earthly.dev/docs/earthfile#description-10

@@ -23,4 +23,4 @@ test:
     earthly --no-sat +test
 
 rund: 
-    docker run --env-file ./bb-server/.env -p 8080:8080 -it jerecan/blackballgame:bb-server
+    docker run --env-file ./bb-server/.env -p 8080:8080 -it jerecan/blackballgame:blackballgame-server
