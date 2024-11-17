@@ -8,6 +8,6 @@ RUN apt-get update && apt-get install -y libssl-dev
 # FROM gcr.io/distroless/cc
 # RUN apt-get update && apt-get install -y libssl-dev
 WORKDIR /myapp
-COPY +build/target/blackballgame-server /myapp
+COPY +build/target/bb-server /myapp
 EXPOSE 8080
-CMD ["./blackballgame-server"]
+CMD ["./bb-server"]
