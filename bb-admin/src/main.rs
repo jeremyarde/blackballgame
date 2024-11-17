@@ -222,13 +222,13 @@ fn Home() -> Element {
 
     let current_component = match current_route.read().as_str() {
         "Home" => rsx!(
-            div { class: "flex flex-col items-center justify-center text-center w-dvw h-dvh bg-[--bg-color]",
+            div { class: "flex flex-col items-center justify-center text-center min-h-screen w-full px-4 sm:px-6 lg:px-8 bg-[--bg-color] overflow-hidden",
                 {get_title_logo()},
-                div { class: "flex flex-col gap-2",
-                    div { class: "flex flex-row items-center justify-center p-2 gap-2",
-                        label { class: "text-2xl", "Username" }
+                div { class: "flex flex-col gap-4 w-full max-w-md",
+                    div { class: "flex flex-col sm:flex-row items-center justify-center p-2 gap-3",
+                        label { class: "text-xl sm:text-2xl whitespace-nowrap", "Username" }
                         input {
-                            class: "{styles::INPUT_FIELD}",
+                            class: "{styles::INPUT_FIELD} w-full",
                             r#type: "text",
                             value: "{user_config.read().username}",
                             oninput: move |event| {
@@ -248,20 +248,19 @@ fn Home() -> Element {
                         }
                     }
                     button {
-                        class: "{STANDARD_BUTTON} disabled:bg-gray-400 disabled:text-gray-500",
+                        class: "{STANDARD_BUTTON} w-full sm:w-auto sm:mx-auto px-8 py-2 disabled:bg-gray-400 disabled:text-gray-500",
                         disabled: if user_config.read().username.is_empty() { true } else { false },
-                        // to: AppRoutes::Explorer {},
                         onclick: move |_| {
                             current_route.set("Explorer".to_string());
                         },
                         "Play"
                     }
                     if user_config.read().username.is_empty() {
-                        span { class: "text-red-500",
+                        span { class: "text-red-500 text-sm sm:text-base",
                             p { "Please enter a username to play" }
                         }
                     }
-                    div { class: "",
+                    div { class: "w-full",
                         button {
                             onclick: move |evt| {
                                 if open_modal() == true {
@@ -270,16 +269,18 @@ fn Home() -> Element {
                                     open_modal.set(true);
                                 }
                             },
-                            class: "bg-yellow-400 text-xl rounded-md border border-solid w-full",
+                            class: "bg-yellow-400 text-lg sm:text-xl rounded-md border border-solid w-full py-2 hover:bg-yellow-500 transition-colors",
                             "How to Play"
                         }
                         if open_modal() == true {
-                            div { class: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center",
-                                div { class: "bg-white rounded-lg shadow-xl max-w-xl w-full",
-                                    div { class: "p-6 m-4",
-                                        h2 { class: "text-2xl font-bold mb-4", "How to Play" }
+                            div { class: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50",
+                                div { class: "bg-white rounded-lg shadow-xl max-w-xl w-full max-h-[90vh] overflow-y-auto",
+                                    div { class: "p-4 sm:p-6",
+                                        h2 { class: "text-xl sm:text-2xl font-bold mb-4",
+                                            "How to Play"
+                                        }
                                         div { class: "space-y-4",
-                                            ul { class: "list-disc list-inside space-y-2 text-left ",
+                                            ul { class: "list-disc list-inside space-y-2 text-left text-sm sm:text-base",
                                                 li {
                                                     "Blackball is played with a standard deck of 52 cards."
                                                 }
@@ -311,7 +312,7 @@ fn Home() -> Element {
                                     }
                                     button {
                                         onclick: move |evt| open_modal.set(false),
-                                        class: "bg-[--bg-color] border border-black text-black w-full rounded hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50",
+                                        class: "bg-[--bg-color] border border-black text-black w-full p-3 rounded hover:bg-gray-400 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50",
                                         "Close"
                                     }
                                 }
@@ -420,9 +421,9 @@ fn Explorer() -> Element {
     // });
 
     rsx! {
-        div { class: "flex flex-row h-screen w-screen text-center bg-[--bg-color] flex-nowrap justify-center gap-2 p-4 items-start",
-            div { class: "flex flex-col justify-center align-top max-w-[600px] border border-black rounded-md p-4 items-start",
-                div { class: "border border-solid border-black bg-white rounded-md p-2",
+        div { class: "flex flex-col sm:flex-row min-h-screen w-full text-center bg-[--bg-color] flex-nowrap justify-center gap-2 p-2 sm:p-4 items-start",
+            div { class: "flex flex-col justify-center align-top w-full sm:max-w-[600px] border border-black rounded-md p-2 sm:p-4 items-start",
+                div { class: "w-full border border-solid border-black bg-white rounded-md p-2",
                     LobbyList {}
                 }
             }
@@ -485,13 +486,6 @@ pub fn LobbyList() -> Element {
             Some(Err(err)) => vec![],
             None => vec![],
         };
-        // let searchmatches = all_lobbies
-        //     .read()
-        //     .lobbies
-        //     .iter()
-        //     .filter(|lobby| lobby.name.contains(searchterm.read().as_str()))
-        //     .cloned()
-        //     .collect::<Vec<Lobby>>();
         search_lobbies.set(searchmatches);
     });
 
@@ -501,7 +495,6 @@ pub fn LobbyList() -> Element {
             lobby_code: String,
         }
 
-        // let cloned_room_code = lobby_name.clone();
         spawn(async move {
             let resp = reqwest::Client::new()
                 .post(format!(
@@ -518,12 +511,10 @@ pub fn LobbyList() -> Element {
             match resp {
                 Ok(data) => {
                     info!("create_lobby success");
-                    // log::info!("Got response: {:?}", resp);
                     create_lobby_response_msg.set(format!("response: {:?}", data).into());
                     all_lobbies.restart();
                 }
                 Err(err) => {
-                    info!("create_lobby failed");
                     // log::info!("Request failed with error: {err:?}")
                     create_lobby_response_msg.set(format!("{err}").into());
                 }
@@ -531,37 +522,21 @@ pub fn LobbyList() -> Element {
         });
     };
 
-    let mut searchlobbies = use_signal(|| GetLobbiesResponse { lobbies: vec![] });
-
-    // let test = match &*all_lobbies.read_unchecked() {
-    //     Some(Ok(vals)) => {
-    //         let searchmatches = vals
-    //             .lobbies
-    //             .iter()
-    //             .filter(|lobby| lobby.name.contains(searchterm.read().as_str()))
-    //             .cloned()
-    //             .collect::<Vec<Lobby>>();
-    //         searchmatches
-    //     }
-    //     Some(Err(err)) => vec![],
-    //     None => vec![],
-    // };
-
     rsx!(
-        div { class: "container mx-auto items-start",
+        div { class: "container mx-auto px-4 sm:px-6 lg:px-8",
             div { class: "flex flex-col justify-center space-between cursor-pointer p-2",
-                h1 { class: "text-2xl font-bold", "Game Lobbies" }
-                div { class: "flex flex-row justify-center text-center w-full p-1 gap-1",
-                    label { class: "text-xl text-nowrap self-center", "New lobby" }
+                h1 { class: "text-2xl font-bold text-center sm:text-left", "Game Lobbies" }
+                div { class: "flex flex-col sm:flex-row justify-center items-center w-full p-1 gap-2 sm:gap-1",
+                    label { class: "text-xl whitespace-nowrap", "New lobby" }
                     input {
-                        class: "{styles::INPUT_FIELD}",
+                        class: "{styles::INPUT_FIELD} w-full sm:w-auto",
                         r#type: "text",
                         value: "{lobby_name.read()}",
                         oninput: move |event| lobby_name.set(event.value()),
                         "lobby"
                     }
                     button {
-                        class: "bg-yellow-400 border border-solid border-black text-center rounded-md",
+                        class: "bg-yellow-400 border border-solid border-black text-center rounded-md w-full sm:w-auto px-4 py-2",
                         onclick: move |_| {
                             info!("Clicked create lobby");
                             create_lobby_function(lobby_name.read().clone());
@@ -569,7 +544,7 @@ pub fn LobbyList() -> Element {
                         "create"
                     }
                     button {
-                        class: "bg-gray-300 flex flex-row text-center border p-2 border-solid border-black rounded-md justify-center items-center cursor-pointer",
+                        class: "bg-gray-300 flex flex-row text-center border p-2 border-solid border-black rounded-md justify-center items-center cursor-pointer w-full sm:w-auto",
                         onclick: move |evt| {
                             all_lobbies.restart();
                         },
@@ -585,58 +560,57 @@ pub fn LobbyList() -> Element {
                                 d: "M4 4v5h.582c.523-1.838 1.856-3.309 3.628-4.062A7.978 7.978 0 0112 4c4.418 0 8 3.582 8 8s-3.582 8-8 8a7.978 7.978 0 01-7.658-5.125c-.149-.348-.54-.497-.878-.365s-.507.537-.355.885A9.956 9.956 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2c-2.045 0-3.94.613-5.514 1.653A6.978 6.978 0 004.582 4H4z"
                             }
                         }
-                        label { class: "text-lg", "Refresh" }
+                        label { class: "text-lg ml-2", "Refresh" }
                     }
                 }
-                {if create_lobby_response_msg() == String::from("") { rsx!(div{}) } else { rsx!(div { "{create_lobby_response_msg.read()}" }) }}
+                {if create_lobby_response_msg() == String::from("") { rsx!(div{}) } else { rsx!(div { class: "text-center sm:text-left mt-2", "{create_lobby_response_msg.read()}" }) }}
             }
             div { class: "flex flex-col p-2 gap-2",
-                svg {
-                    class: "absolute translate-x-[10px] translate-y-[10px] text-gray-400 h-5 w-5",
-                    "xmlns": "http://www.w3.org/2000/svg",
-                    height: "24",
-                    "stroke-linejoin": "round",
-                    "viewBox": "0 0 24 24",
-                    "stroke-width": "2",
-                    "fill": "none",
-                    "stroke-linecap": "round",
-                    "stroke": "currentColor",
-                    width: "24",
-                    class: "lucide lucide-search",
-                    circle { "r": "8", "cx": "11", "cy": "11" }
-                    path { "d": "m21 21-4.3-4.3" }
+                div { class: "relative",
+                    svg {
+                        class: "absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5",
+                        "xmlns": "http://www.w3.org/2000/svg",
+                        height: "24",
+                        "stroke-linejoin": "round",
+                        "viewBox": "0 0 24 24",
+                        "stroke-width": "2",
+                        "fill": "none",
+                        "stroke-linecap": "round",
+                        "stroke": "currentColor",
+                        width: "24",
+                        class: "lucide lucide-search",
+                        circle { "r": "8", "cx": "11", "cy": "11" }
+                        path { "d": "m21 21-4.3-4.3" }
+                    }
+                    input {
+                        class: "w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500",
+                        r#type: "text",
+                        placeholder: "Search lobbies...",
+                        value: "",
+                        oninput: move |evt| {
+                            info!("Got search query: {evt:?}");
+                            searchterm.set(evt.value().clone());
+                        }
+                    }
                 }
-                input {
-                    class: "{styles::INPUT_FIELD}",
-                    r#type: "text",
-                    placeholder: "Search lobbies...",
-                    value: "",
-                    // onChange: move || {},
-                    oninput: move |evt| {
-                        info!("Got search query: {evt:?}");
-                        searchterm.set(evt.value().clone());
-                    },
-                    class: "w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                }
-                div { class: "overflow-x-auto",
+                div { class: "overflow-x-auto -mx-4 sm:mx-0",
                     table { class: "min-w-full bg-white border border-gray-300",
                         thead {
                             tr { class: "bg-gray-100",
-                                th { class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
+                                th { class: "px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
                                     "Lobby Name"
                                 }
-                                th { class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
+                                th { class: "px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
                                     "Players"
                                 }
-                                th { class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
+                                th { class: "px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
                                     "Game Mode"
                                 }
-                                th { class: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
+                                th { class: "px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
                                     "Action"
                                 }
                             }
                         }
-                        // tbody { class: "divide-y divide-gray-200", {lobbydetails} }
                         tbody { class: "divide-y divide-gray-200",
                             {search_lobbies.iter().map(|lobby| {
                                 rsx!(
@@ -841,7 +815,7 @@ fn GameRoom(room_code: String) -> Element {
 
     let ws_send_signal = use_signal(|| ws_send);
     rsx!(
-        div { class: "flex flex-row text-center bg-[--bg-color] h-dvh w-dvw flex-nowrap justify-center gap-2 p-4 items-start",
+        div { class: "flex flex-col md:flex-row text-center bg-[--bg-color] min-h-screen w-full flex-wrap md:flex-nowrap justify-center gap-2 p-2 md:p-4 items-start",
             {
                 if error().is_null() {
                     rsx!()
@@ -849,24 +823,25 @@ fn GameRoom(room_code: String) -> Element {
                     error
                         .read()
                         .as_str()
-                        .map(|err| rsx!(div { "{err}" }))
+                        .map(|err| rsx!(div { class: "w-full", "{err}" }))
                         .expect("Failed to parse error")
                 }
             },
             {if TEST {
                 rsx!(div {
+                        class: "w-full md:w-auto",
                         "Debug details:"
-                        div { class: " bg-gray-300", "Secret: {user_config.read().client_secret}" }
-                        div { class: " bg-gray-300", "Game: {gamestate():#?}" }
+                        div { class: "bg-gray-300", "Secret: {user_config.read().client_secret}" }
+                        div { class: "bg-gray-300", "Game: {gamestate():#?}" }
                     })
             } else { rsx!()}},
             {
                 if gamestate().gameplay_state == GameplayState::Pregame {
                     rsx!(
                         div {
-                            class: "flex flex-row gap-2",
+                            class: "flex flex-col md:flex-row gap-2 w-full",
                             div {
-                                class: "flex flex-col max-w-[600px] border border-black rounded-md p-4",
+                                class: "flex flex-col w-full md:max-w-[600px] border border-black rounded-md p-2 md:p-4",
                                 button {
                                     class: "{STANDARD_BUTTON}",
                                     onclick: move |evt| get_game_details(room_code_clone.clone()),
@@ -897,35 +872,34 @@ fn GameRoom(room_code: String) -> Element {
                                     "Join this game"
                                 }
                                 div {
-                                    class: "flex flex-row justify-center align-top text-center items-center max-w-[600px] border border-black rounded-md p-4",
-                                    h1 {class: "lg", "{get_lobby_response.read().lobby.name}" }
+                                    class: "flex flex-col md:flex-row justify-center align-top text-center items-center w-full border border-black rounded-md p-2 md:p-4",
+                                    h1 {class: "text-xl md:text-2xl", "{get_lobby_response.read().lobby.name}" }
                                     div { class: "container", "Players ({get_lobby_response.read().lobby.players.len()})"
                                         {get_lobby_response.read().lobby.players.iter().enumerate().map(|(i, player)| rsx!(div { "{i}: {player}" }))}
                                     }
                                 }
                             }
-                            div { class: "flex flex-col max-w-[600px] border border-black rounded-md p-4",
+                            div { class: "flex flex-col w-full md:max-w-[600px] border border-black rounded-md p-2 md:p-4",
                                 h2 {
-                                    class: "lg",
+                                    class: "text-xl md:text-2xl",
                                     "Game options"
                                 }
                                 // settings
-                                div { class: "flex flex-col align-middle justify-center text-center w-full",
-                                    div { class: "flex flex-row items-center",
-                                        label { "Rounds" }
+                                div { class: "flex flex-col align-middle justify-center text-center w-full space-y-4",
+                                    div { class: "flex flex-row items-center justify-center space-x-2",
+                                        label { class: "text-sm md:text-base", "Rounds" }
                                         input {
-                                            class: "{styles::INPUT_FIELD}",
+                                            class: "{styles::INPUT_FIELD} w-16 md:w-20",
                                             r#type: "text",
                                             "data-input-counter": "false",
                                             placeholder: "9",
                                             required: "false",
                                             value: "{setupgameoptions.read().rounds}",
-                                            class: "",
                                         }
                                         button {
                                             "data-input-counter-decrement": "quantity-input",
                                             r#type: "button",
-                                            class: "bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 dark:border-gray-600 hover:bg-gray-200 border border-gray-300 rounded-s-lg p-3 h-11 focus:ring-gray-100 dark:focus:ring-gray-700 focus:ring-2 focus:outline-none",
+                                            class: "bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 dark:border-gray-600 hover:bg-gray-200 border border-gray-300 rounded-s-lg p-2 md:p-3 h-9 md:h-11 focus:ring-gray-100 dark:focus:ring-gray-700 focus:ring-2 focus:outline-none",
                                             id: "decrement-button",
                                             onclick: move |evt| setupgameoptions.write().rounds -= 1,
                                             svg {
@@ -946,7 +920,7 @@ fn GameRoom(room_code: String) -> Element {
                                         button {
                                             "data-input-counter-increment": "quantity-input",
                                             r#type: "button",
-                                            class: "bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 dark:border-gray-600 hover:bg-gray-200 border border-gray-300 rounded-e-lg p-3 h-11 focus:ring-gray-100 dark:focus:ring-gray-700 focus:ring-2 focus:outline-none",
+                                            class: "bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 dark:border-gray-600 hover:bg-gray-200 border border-gray-300 rounded-e-lg p-2 md:p-3 h-9 md:h-11 focus:ring-gray-100 dark:focus:ring-gray-700 focus:ring-2 focus:outline-none",
                                             id: "increment-button",
                                             onclick: move |_| setupgameoptions.write().rounds += 1,
                                             svg {
@@ -966,8 +940,8 @@ fn GameRoom(room_code: String) -> Element {
                                         }
                                     }
                                     div {
-                                        class: "flex flex-row align-middle justify-center text-center",
-                                        span { "Public" }
+                                        class: "flex flex-row items-center justify-center space-x-4",
+                                        span { class: "text-sm md:text-base", "Public" }
                                         label {
                                             class: "relative items-center cursor-pointer",
                                             div {
@@ -981,28 +955,26 @@ fn GameRoom(room_code: String) -> Element {
                                                     },
                                                 }
                                                 div {
-                                                    class: format!("block w-14 h-8 rounded-full {}", if setupgameoptions.read().visibility == GameVisibility::Private { "bg-red-300" } else { "bg-green-200" }) }
+                                                    class: format!("block w-12 md:w-14 h-6 md:h-8 rounded-full {}", if setupgameoptions.read().visibility == GameVisibility::Private { "bg-red-300" } else { "bg-green-200" }) }
                                                 div {
-                                                    class: format!("absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform duration-300 ease-in-out {}", if setupgameoptions.read().visibility == GameVisibility::Private { "transform translate-x-full" } else { "" })
+                                                    class: format!("absolute left-1 top-1 bg-white w-4 md:w-6 h-4 md:h-6 rounded-full transition-transform duration-300 ease-in-out {}", if setupgameoptions.read().visibility == GameVisibility::Private { "transform translate-x-full" } else { "" })
                                                 }
                                             }
                                         }
-                                        span { "Private" }
+                                        span { class: "text-sm md:text-base", "Private" }
 
                                     }
                                     {if setupgameoptions.read().visibility == GameVisibility::Private {
                                         rsx!(
                                             div {
-                                                class: "flex flex-row align-middle justify-center text-center",
-                                                "Password"
+                                                class: "flex flex-row items-center justify-center space-x-2",
+                                                span { class: "text-sm md:text-base", "Password" }
                                                 input {
-                                                    class: "{styles::INPUT_FIELD}",
+                                                    class: "{styles::INPUT_FIELD} w-32 md:w-40",
                                                     r#type: "text",
                                                     placeholder: "",
                                                     required: "false",
                                                     value: if setupgameoptions.read().password.is_some() {"{setupgameoptions.read().password:?}"} else {""},
-                                                    // class: "bg-gray-50 border-x-0 border-gray-300 h-11 text-center text-gray-900 text-sm focus:ring-blue-500 focus:border-blue-500 block w-full py-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500",
-                                                    // id: "quantity-input"
                                                     onchange: move |evt| {
                                                         setupgameoptions.write().password = evt.value().parse::<String>().ok();
                                                     }
@@ -1015,7 +987,7 @@ fn GameRoom(room_code: String) -> Element {
                                 }
 
                             button {
-                                class: "bg-yellow-300 border border-solid border-black text-center rounded-md",
+                                class: "bg-yellow-300 border border-solid border-black text-center rounded-md p-2 mt-4 hover:bg-yellow-400 transition-colors",
                                 onclick: move |evt| {
                                     info!("Starting game");
                                     listen_for_server_messages.send(("ready".to_string()));
@@ -1048,16 +1020,16 @@ fn GameRoom(room_code: String) -> Element {
                                 "Start game"
                             }
                             div {
-                                class: "flex flex-col w-full h-full",
+                                class: "flex flex-col w-full",
                                 {if gamestate().system_status.len() > 0 {
                                     rsx!(
                                         ul {
-                                            class: "max-w-md mx-auto my-4 p-4 border border-blue-400 rounded-lg bg-yellow-100 text-blue-800",
-                                            {gamestate().system_status.iter().map(|issue| rsx!(li { class: "text-sm", "{issue}" }))}
+                                            class: "w-full mx-auto my-4 p-4 border border-blue-400 rounded-lg bg-yellow-100 text-blue-800",
+                                            {gamestate().system_status.iter().map(|issue| rsx!(li { class: "text-xs md:text-sm", "{issue}" }))}
                                         }
                                     )
                                     } else {
-                                        rsx!(div {class: "max-w-md mx-auto my-4 p-4 border border-blue-400 rounded-lg bg-yellow-100 text-blue-800",
+                                        rsx!(div {class: "w-full mx-auto my-4 p-4 border border-blue-400 rounded-lg bg-yellow-100 text-blue-800 text-xs md:text-sm",
                                             "Please join the game" })
                                     }
                                 }
@@ -1178,31 +1150,32 @@ fn GameStateComponent(
     };
 
     rsx!(
-        div { class: "flex flex-row h-screen w-screen text-center bg-[--bg-color] flex-nowrap justify-center gap-2 p-4 items-start",
-            div { class: "bg-[var(--bg-color)] rounded-lg p-4 shadow-lg border border-black mx-auto",
-                // class: "bg-gray-100 p-6 rounded-lg shadow-lg max-w-4xl mx-auto",
-                div { class: "flex flex-col justify-between gap-6",
-                    div { class: "bg-[var(--bg-color)] rounded-lg p-4 shadow-lg border border-black mx-auto w-full",
-                        h2 { class: "text-2xl font-bold mb-4 text-gray-800", "Game Status" }
+        div { class: "flex flex-col lg:flex-row h-screen w-screen text-center bg-[--bg-color] flex-nowrap justify-center gap-2 p-2 sm:p-4 items-start overflow-auto",
+            div { class: "bg-[var(--bg-color)] rounded-lg p-2 sm:p-4 shadow-lg border border-black w-full lg:w-auto",
+                div { class: "flex flex-col justify-between gap-4 sm:gap-6",
+                    div { class: "bg-[var(--bg-color)] rounded-lg p-2 sm:p-4 shadow-lg border border-black w-full",
+                        h2 { class: "text-xl sm:text-2xl font-bold mb-2 sm:mb-4 text-gray-800",
+                            "Game Status"
+                        }
                         div { class: "space-y-2",
                             div { class: "flex items-center justify-between",
-                                span { class: "font-semibold", "Phase:" }
+                                span { class: "font-semibold text-sm sm:text-base", "Phase:" }
                                 match gamestate().gameplay_state {
-                                    GameplayState::PostHand(ps) => rsx!(span { class: "", "End of hand {ps.hand_num}" }),
-                                    GameplayState::Play(ps) => rsx!(span { class: "", "Playing hand {ps.hand_num}/{gamestate().curr_round}" }),
-                                    _ => rsx!(span { class: "", "{gamestate().gameplay_state:?}" }),
+                                    GameplayState::PostHand(ps) => rsx!(span { class: "text-sm sm:text-base", "End of hand {ps.hand_num}" }),
+                                    GameplayState::Play(ps) => rsx!(span { class: "text-sm sm:text-base", "Playing hand {ps.hand_num}/{gamestate().curr_round}" }),
+                                    _ => rsx!(span { class: "text-sm sm:text-base", "{gamestate().gameplay_state:?}" }),
                                 }
                             }
                             div { class: "flex items-center justify-between",
-                                span { class: "font-semibold", "Trump:" }
+                                span { class: "font-semibold text-sm sm:text-base", "Trump:" }
                                 div { class: "flex items-center",
-                                    span { class: "mr-2", "{gamestate().trump:?}" }
-                                    div { class: "w-6 h-6", {&trump_svg} }
+                                    span { class: "mr-2 text-sm sm:text-base", "{gamestate().trump:?}" }
+                                    div { class: "w-4 h-4 sm:w-6 sm:h-6", {&trump_svg} }
                                 }
                             }
                             div { class: "text-left",
-                                span { class: "font-semibold", "Player Order:" }
-                                ol { class: "list-decimal list-inside mt-1",
+                                span { class: "font-semibold text-sm sm:text-base", "Player Order:" }
+                                ol { class: "list-decimal list-inside mt-1 text-sm sm:text-base",
                                     {gamestate().player_order.iter().map(|player| {
                                         rsx!(
                                             li { class: "player-turn text-gray-700", "{player}" }
@@ -1211,30 +1184,34 @@ fn GameStateComponent(
                                 }
                             }
                             div { class: "flex items-center justify-between",
-                                span { class: "font-semibold", "Round:" }
-                                span { "{gamestate().curr_round}/{gamestate().setup_game_options.rounds}" }
+                                span { class: "font-semibold text-sm sm:text-base", "Round:" }
+                                span { class: "text-sm sm:text-base",
+                                    "{gamestate().curr_round}/{gamestate().setup_game_options.rounds}"
+                                }
                             }
                             div { class: "flex items-center justify-between",
-                                span { class: "font-semibold", "Dealer:" }
-                                span { "{gamestate().curr_dealer}" }
+                                span { class: "font-semibold text-sm sm:text-base", "Dealer:" }
+                                span { class: "text-sm sm:text-base", "{gamestate().curr_dealer}" }
                             }
                             div { class: "flex items-center justify-between text-left",
-                                span { class: "font-semibold ", "Player Turn:" }
+                                span { class: "font-semibold text-sm sm:text-base", "Player Turn:" }
                                 span {
                                     if gamestate().curr_player_turn.is_some() {
-                                        div { "{gamestate().curr_player_turn.clone().unwrap()}" }
+                                        div { class: "text-sm sm:text-base",
+                                            "{gamestate().curr_player_turn.clone().unwrap()}"
+                                        }
                                     } else {
-                                        div { "Waiting" }
+                                        div { class: "text-sm sm:text-base", "Waiting" }
                                     }
                                 }
                             }
                         }
                     }
-                    div {
-                        // class: "bg-white p-4 rounded-md shadow flex-1",
-                        class: "bg-[var(--bg-color)] rounded-lg p-4 shadow-lg border border-black mx-auto w-full",
-                        h2 { class: "text-xl font-bold mb-4 text-gray-800", "Players" }
-                        div { class: "space-y-4",
+                    div { class: "bg-[var(--bg-color)] rounded-lg p-2 sm:p-4 shadow-lg border border-black w-full",
+                        h2 { class: "text-xl font-bold mb-2 sm:mb-4 text-gray-800",
+                            "Players"
+                        }
+                        div { class: "space-y-2 sm:space-y-4",
                             {gamestate().players.iter().map(|(playername, client)| {
                                 let wins = gamestate().wins.get(playername).unwrap_or(&0).clone();
                                 let bid = gamestate().bids.get(playername).unwrap_or(&0).clone();
@@ -1242,12 +1219,12 @@ fn GameStateComponent(
                                     div { class: "flex flex-col items-center justify-between border-b pb-2 w-full border border-black rounded-md p-2 text-left",
                                         div {
                                             class: "flex flex-col items-center justify-between",
-                                            span { class: "font-semibold text-lg", "{playername}" }
-                                            span { class: "text-sm font-medium text-green-600", "Score: {gamestate().score.get(playername).unwrap_or(&0)}" }
+                                            span { class: "font-semibold text-base sm:text-lg", "{playername}" }
+                                            span { class: "text-xs sm:text-sm font-medium text-green-600", "Score: {gamestate().score.get(playername).unwrap_or(&0)}" }
                                         }
                                         div { class: "text-right",
-                                            span { class: "text-sm text-gray-600", "Round: {gamestate().curr_round}" }
-                                            div { class: "text-sm text-gray-600 flex justify-between",
+                                            span { class: "text-xs sm:text-sm text-gray-600", "Round: {gamestate().curr_round}" }
+                                            div { class: "text-xs sm:text-sm text-gray-600 flex justify-between",
                                                 span {
                                                     "Wins:"
                                                 }
@@ -1255,7 +1232,7 @@ fn GameStateComponent(
                                                     "{wins}"
                                                 }
                                             }
-                                            div { class: "text-sm text-gray-600 flex justify-between",
+                                            div { class: "text-xs sm:text-sm text-gray-600 flex justify-between",
                                                 span{"Bid:"}
                                                 span { "{bid}"}
                                             }
@@ -1267,12 +1244,12 @@ fn GameStateComponent(
                     }
                 }
             }
-            div { class: "flex flex-col justify-between gap-6 w-full",
-                div { class: "relative w-full bg-[var(--bg-color)] rounded-lg p-4 shadow-lg text-gray-100 border border-black",
-                    div { class: "absolute top-2 left-2 px-3 py-1 text-sm font-bold text-white bg-indigo-600 rounded-md shadow",
+            div { class: "flex flex-col justify-between gap-4 sm:gap-6 w-full",
+                div { class: "relative w-full bg-[var(--bg-color)] rounded-lg p-2 sm:p-4 shadow-lg text-gray-100 border border-black",
+                    div { class: "absolute top-2 left-2 px-2 sm:px-3 py-1 text-xs sm:text-sm font-bold text-white bg-indigo-600 rounded-md shadow",
                         "Played cards"
                     }
-                    div { class: "flex flex-row mt-8 justify-center",
+                    div { class: "flex flex-row mt-6 sm:mt-8 justify-center flex-wrap gap-1 sm:gap-2",
                         {gamestate().curr_played_cards.iter().map(|card| rsx!(
                             CardComponent {
                                 onclick: move |_| { info!("Clicked a card: {:?}", "fake card") },
@@ -1285,8 +1262,8 @@ fn GameStateComponent(
                         GameplayState::PostHand(ps) => {
                             let round_winner = gamestate.read().curr_winning_card.clone().unwrap().played_by.unwrap_or("Nobody".to_string());
                             rsx!(
-                                div { class: "max-w-md mx-auto mt-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-6 text-center",
-                                    p { class: "text-lg font-semibold",
+                                div { class: "max-w-md mx-auto mt-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-3 sm:p-6 text-center",
+                                    p { class: "text-base sm:text-lg font-semibold",
                                         "Round over, winner is "
                                         span { class: "text-yellow-300", "{round_winner}" }
                                         "!"
@@ -1295,33 +1272,33 @@ fn GameStateComponent(
                             )
                         },
                         GameplayState::Bid => {
-                            rsx!(div { class: "max-w-md mx-auto mt-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-6 text-center",
-                                p { class: "text-lg font-semibold",
+                            rsx!(div { class: "max-w-md mx-auto mt-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-3 sm:p-6 text-center",
+                                p { class: "text-base sm:text-lg font-semibold",
                                     "{gamestate().curr_player_turn.clone().unwrap()}'s turn to bid"
                                 }
                             })
                         },
                         GameplayState::Play(ps) => {
-                            rsx!(div { class: "max-w-md mx-auto mt-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-6 text-center",
-                                p { class: "text-lg font-semibold",
+                            rsx!(div { class: "max-w-md mx-auto mt-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-3 sm:p-6 text-center",
+                                p { class: "text-base sm:text-lg font-semibold",
                                     "{gamestate().curr_player_turn.clone().unwrap()}'s turn to play a card"
                                 }
                             })
                         },
                         GameplayState::Pregame => {
-                            rsx!(div { class: "max-w-md mx-auto mt-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-6 text-center",
-                                p { class: "text-lg font-semibold",
+                            rsx!(div { class: "max-w-md mx-auto mt-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-3 sm:p-6 text-center",
+                                p { class: "text-base sm:text-lg font-semibold",
                                     "Waiting to start the game"
                                 }
                             })
                         },
                         GameplayState::PostRound => {
-                            rsx!(div { class: "max-w-md mx-auto mt-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-6 text-center",
-                                p { class: "text-lg font-semibold",
+                            rsx!(div { class: "max-w-md mx-auto mt-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-3 sm:p-6 text-center",
+                                p { class: "text-base sm:text-lg font-semibold",
                                     "Round over"
                                 }
                                 ul {
-                                    class: "text-left",
+                                    class: "text-left text-sm sm:text-base",
                                     {gamestate().players.iter().map(|(player, client)| {
                                         let wins = gamestate().wins.get(player).unwrap_or(&0).clone();
                                         let bid = gamestate().bids.get(player).unwrap_or(&0).clone();
@@ -1340,18 +1317,16 @@ fn GameStateComponent(
                         },
                         GameplayState::End => {
                             let gamewinner = gamestate().score.iter().max_by_key(|(_, v)| *v).unwrap().0.clone();
-                            rsx!(div { class: "max-w-md mx-auto mt-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-6 text-center",
-                                p { class: "text-lg font-semibold",
+                            rsx!(div { class: "max-w-md mx-auto mt-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-3 sm:p-6 text-center",
+                                p { class: "text-base sm:text-lg font-semibold",
                                     "Game over!"
                                     span { class: "text-yellow-300", "{gamewinner}" }
                                     " won the game!"
                                 }
                                 ul {
+                                    class: "text-sm sm:text-base",
                                     {gamestate().players.iter().map(|(player, client)| {
-                                        // let wins = gamestate().wins.get(player).unwrap_or(&0).clone();
-                                        // let bid = gamestate().bids.get(player).unwrap_or(&0).clone();
                                         let score = gamestate().score.get(player).unwrap_or(&0).clone();
-                                        // let text = format!("{player}: {wins}/{bid}{}", if wins==bid {""} else {" got BLACKBALL"});
                                         let text = format!("{player}: {score}");
                                         rsx!(li { "{text}" })
                                     })}
@@ -1363,7 +1338,7 @@ fn GameStateComponent(
                 }
                 div {
                     class: format!(
-                        "relative w-full bg-[var(--bg-color)] rounded-lg p-4 shadow-lg border border-black {}",
+                        "relative w-full bg-[var(--bg-color)] rounded-lg p-2 sm:p-4 shadow-lg border border-black {}",
                         if gamestate().curr_player_turn.clone().unwrap_or("".to_string())
                             == user_config.read().username
                         {
@@ -1372,10 +1347,10 @@ fn GameStateComponent(
                             ""
                         },
                     ),
-                    div { class: "absolute top-2 left-2 px-3 py-1 text-sm font-bold text-white bg-yellow-700 rounded-md shadow",
+                    div { class: "absolute top-2 left-2 px-2 sm:px-3 py-1 text-xs sm:text-sm font-bold text-white bg-yellow-700 rounded-md shadow",
                         "Your hand"
                     }
-                    div { class: "flex flex-row mt-8 justify-center",
+                    div { class: "flex flex-row mt-6 sm:mt-8 justify-center flex-wrap gap-1 sm:gap-2",
                         {if cards_in_hand.is_none() {
                             rsx!()
                         } else {
@@ -1406,12 +1381,14 @@ fn GameStateComponent(
                         && gamestate().curr_player_turn.clone().unwrap() == user_config.read().username
                     {
                         div { class: "flex flex-col items-center",
-                            label { class: "text-xl p-2", "How many hands do you want to win?" }
-                            ul { class: "flex flex-row gap-2 items-center p-2",
+                            label { class: "text-base sm:text-xl p-2",
+                                "How many hands do you want to win?"
+                            }
+                            ul { class: "flex flex-row gap-2 items-center p-2 flex-wrap justify-center",
                                 {(0..=gamestate().curr_round).map(|i| {
                                     rsx!(
                                         button {
-                                            class: "bg-yellow-300 p-4 rounded-lg",
+                                            class: "bg-yellow-300 p-2 sm:p-4 rounded-lg text-sm sm:text-base",
                                             onclick: move |_| {
                                                 info!("Clicked on bid {i}");
                                                 ws_send().send(InnerMessage::GameMessage {
@@ -1433,7 +1410,7 @@ fn GameStateComponent(
                     {if let GameplayState::PostHand(ps) = gamestate().gameplay_state {
                         rsx!(
                             button {
-                                class: "{STANDARD_BUTTON}",
+                                class: "{STANDARD_BUTTON} text-sm sm:text-base",
                                 onclick: move |_| {
                                     ws_send()
                                         .send(InnerMessage::GameMessage {
@@ -1456,7 +1433,7 @@ fn GameStateComponent(
                             div {
                                 class: "container",
                                 button {
-                                    class: "{STANDARD_BUTTON}",
+                                    class: "{STANDARD_BUTTON} text-sm sm:text-base",
                                     onclick: move |_| {
                                         ws_send()
                                             .send(InnerMessage::GameMessage {
@@ -1478,14 +1455,14 @@ fn GameStateComponent(
                     {if let GameplayState::End = gamestate().gameplay_state {
                         rsx!(
                             div {
-                                class: "container",
+                                class: "container text-sm sm:text-base",
                                 div {"GAME OVER"}
                                 {gamestate().score.iter().map(|(player, score)| {rsx!(li { "{player}: {score}" })})}
                             }
                             div {
                                 class: "container",
                                 button {
-                                    class: "button",
+                                    class: "button text-sm sm:text-base",
                                     onclick: move |_| {
                                         ws_send()
                                             .send(InnerMessage::GameMessage {
