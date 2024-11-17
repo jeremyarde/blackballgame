@@ -2,5 +2,7 @@ target/*
 artifact/*
 */flamegraph.svg
 blackballgame-server/.env
+bb-server/.env
 artifact/target/ai-client
 artifact/target/blackballgame-server
+artifact/target/bb-server

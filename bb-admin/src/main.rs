@@ -70,18 +70,6 @@ enum InnerMessage {
 fn StateProvider() -> Element {
     let is_prod = option_env!("ENVIRONMENT").unwrap_or("default") == "production";
     let mut app_props = use_context_provider(|| {
-        // let mut server_url =
-        //     String::from("https://blackballgame-blackballgame-server.onrender.com");
-        // let mut server_base_url = String::from("blackballgame-blackballgame-server.onrender.com");
-        // let mut server_ws_url =
-        //     String::from("wss://blackballgame-blackballgame-server.onrender.com");
-
-        // if !is_prod {
-        //     server_url = String::from("http://localhost:8080");
-        //     server_base_url = String::from("localhost:8080");
-        //     server_ws_url = String::from("ws://localhost:8080");
-        // }
-
         Signal::new(AppProps {
             environment: if is_prod {
                 Env::Production

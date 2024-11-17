@@ -7,15 +7,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'blackballgame-server'",
+            "name": "Debug executable 'bb-server'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=blackballgame-server",
-                    "--package=blackballgame-server"
+                    "--bin=bb-server",
+                    "--package=bb-server"
                 ],
                 "filter": {
-                    "name": "blackballgame-server",
+                    "name": "bb-server",
                     "kind": "bin"
                 }
             },
@@ -25,16 +25,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'blackballgame-server'",
+            "name": "Debug unit tests in executable 'bb-server'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=blackballgame-server",
-                    "--package=blackballgame-server"
+                    "--bin=bb-server",
+                    "--package=bb-server"
                 ],
                 "filter": {
-                    "name": "blackballgame-server",
+                    "name": "bb-server",
                     "kind": "bin"
                 }
             },
