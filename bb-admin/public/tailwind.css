@@ -656,6 +656,10 @@ video {
   margin: 1rem;
 }
 
+.m-2 {
+  margin: 0.5rem;
+}
+
 .mx-auto {
   margin-left: auto;
   margin-right: auto;
@@ -833,6 +837,10 @@ video {
 
 .w-4 {
   width: 1rem;
+}
+
+.w-auto {
+  width: auto;
 }
 
 .min-w-full {
@@ -1066,6 +1074,10 @@ video {
 
 .rounded-md {
   border-radius: 0.375rem;
+}
+
+.rounded-sm {
+  border-radius: 0.125rem;
 }
 
 .rounded-e-lg {
@@ -1771,6 +1783,10 @@ video {
     flex-direction: row;
   }
 
+  .sm\:flex-col {
+    flex-direction: column;
+  }
+
   .sm\:gap-1 {
     gap: 0.25rem;
   }
@@ -1876,6 +1892,10 @@ video {
 
   .md\:flex-row {
     flex-direction: row;
+  }
+
+  .md\:flex-col {
+    flex-direction: column;
   }
 
   .md\:flex-nowrap {

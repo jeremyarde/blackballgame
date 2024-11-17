@@ -332,6 +332,16 @@ fn Home() -> Element {
             common::PlayerRole::Player,
             "0.0.0.0:1234".to_string(),
         );
+        gamestate.add_player(
+            "player3".to_string(),
+            common::PlayerRole::Player,
+            "0.0.0.0:1234".to_string(),
+        );
+        gamestate.add_player(
+            "player4".to_string(),
+            common::PlayerRole::Player,
+            "0.0.0.0:1234".to_string(),
+        );
         let client_secret = gamestate
             .players
             .get("player1")
@@ -379,6 +389,7 @@ fn Home() -> Element {
         ];
         gamestate.curr_winning_card = Some(Card::new(Suit::Club, 5));
         gamestate.gameplay_state = GameplayState::PostRound;
+        gamestate.player_bids = vec![("player1".to_string(), 0), ("player2".to_string(), 0)];
 
         let mut gamestate_signal = use_signal(|| gamestate);
 
@@ -1138,28 +1149,24 @@ fn GameStateComponent(
     };
 
     rsx!(
-        div { class: "flex flex-col sm:flex-row h-screen w-screen text-center bg-[--bg-color] flex-nowrap justify-center gap-2 p-2  items-start overflow-auto",
-            div { class: "bg-[var(--bg-color)] rounded-lg p-2 shadow-lg border border-black w-full lg:w-auto",
-                div { class: "flex flex-row justify-between gap-2",
-                    div { class: "bg-[var(--bg-color)] rounded-lg p-2  shadow-lg border border-black",
-                        h2 { class: "text-lg sm:text-2xl font-bold text-gray-800",
-                            "Game Status"
-                        }
+        div { class: "flex flex-col sm:flex-row h-screen w-screen text-center bg-[--bg-color] flex-nowrap justify-center p-2 items-start overflow-auto gap-2",
+            div { class: "flex flex-col bg-[var(--bg-color)] rounded-lg p-2 shadow-lg border border-black gap-2 w-full",
+                h2 { class: "text-lg sm:text-2xl font-bold rounded-md bg-black text-white",
+                    "BLACKBALL"
+                }
+                div { class: "flex flex-col justify-between",
+                    div { class: "bg-[var(--bg-color)] rounded-lg p-2 shadow-lg border border-black",
                         div { class: "space-y-1 flex flex-col",
                             div { class: "flex items-center justify-between",
-                                span { class: "font-semibold text-sm sm:text-base", "Phase:" }
                                 match gamestate().gameplay_state {
-                                    GameplayState::PostHand(ps) => rsx!(span { class: "text-sm sm:text-base", "End of hand {ps.hand_num}" }),
-                                    GameplayState::Play(ps) => rsx!(span { class: "text-sm sm:text-base", "Playing hand {ps.hand_num}/{gamestate().curr_round}" }),
-                                    _ => rsx!(span { class: "text-sm sm:text-base", "{gamestate().gameplay_state:?}" }),
+                                    GameplayState::PostHand(ps) => rsx!(span { class: "text-sm sm:text-base font-bold", "End of hand {ps.hand_num}" }),
+                                    GameplayState::Play(ps) => rsx!(span { class: "text-sm sm:text-base font-bold", "Playing hand {ps.hand_num}/{gamestate().curr_round}" }),
+                                    _ => rsx!(span { class: "text-sm sm:text-base font-bold", "{gamestate().gameplay_state:?}" }),
                                 }
                             }
-                            div { class: "flex items-center justify-between",
+                            div { class: "flex flex-col items-center md:flex-row justify-between",
                                 span { class: "font-semibold text-sm sm:text-base", "Trump:" }
-                                div { class: "flex items-center",
-                                    span { class: "mr-2 text-sm", "{gamestate().trump:?}" }
-                                    {trump_svg}
-                                }
+                                div { class: "flex items-center", {trump_svg} }
                             }
                             div { class: "flex items-center justify-between",
                                 span { class: "font-semibold text-sm sm:text-base", "Round:" }
@@ -1169,9 +1176,8 @@ fn GameStateComponent(
                             }
                         }
                     }
-                    div { class: "bg-[var(--bg-color)] rounded-lg p-2  shadow-lg border border-black w-full overflow-auto",
-                        h2 { class: "text-lg font-bold text-gray-800", "Players" }
-                        div { class: "gap-2 flex sm:flex-row overflow-auto",
+                    div { class: "bg-[var(--bg-color)] rounded-lg p-2  shadow-lg border border-black overflow-auto w-full",
+                        div { class: "gap-2 flex sm:flex-col overflow-auto",
                             {gamestate().player_order.iter().enumerate().map(|(i, playername)| {
                                 let wins = gamestate().wins.get(playername).unwrap_or(&0).clone();
                                 let bid = gamestate().bids.get(playername).unwrap_or(&0).clone();
@@ -1183,10 +1189,11 @@ fn GameStateComponent(
                                         div {
                                             class: "flex flex-row justify-between gap-2 items-baseline",
                                             span { class: "font-semibold text-base sm:text-lg", "{playername}" }
-                                            span { class: "text-xs sm:text-sm font-medium text-green-600", "Score: {gamestate().score.get(playername).unwrap_or(&0)}" }
                                         }
                                         div { class: "text-right",
-                                            div { class: "text-xs sm:text-sm text-gray-600 flex justify-between",
+                                            span { class: "text-xs sm:text-sm font-medium text-green-600", "Score: {gamestate().score.get(playername).unwrap_or(&0)}" }
+                                            div {
+                                                class: "text-xs sm:text-sm text-gray-600 flex justify-between",
                                                 span {
                                                     "Wins:"
                                                 }

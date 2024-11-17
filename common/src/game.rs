@@ -113,8 +113,8 @@ impl GameState {
             }
 
             if self.is_bidding_over() {
-                let mut curr_highest_bid = self.bid_order[0].clone();
-                for (player, bid) in self.bid_order.iter() {
+                let mut curr_highest_bid = self.player_bids[0].clone();
+                for (player, bid) in self.player_bids.iter() {
                     if bid > &curr_highest_bid.1 {
                         curr_highest_bid = (player.to_string(), *bid);
                     }
@@ -429,7 +429,7 @@ impl GameState {
 
         self.curr_played_cards = vec![];
         self.curr_winning_card = None;
-        self.bid_order = vec![];
+        self.player_bids = vec![];
         self.deal();
         self.update_to_next_state();
 
@@ -546,7 +546,7 @@ impl GameState {
             Ok(x) => {
                 tracing::info!("bid was: {}", x);
                 self.bids.insert(client.id.clone(), x);
-                self.bid_order.push((client.id.clone(), x));
+                self.player_bids.push((client.id.clone(), x));
                 Ok(x)
             }
             Err(e) => {
@@ -608,7 +608,7 @@ impl GameState {
             player_order: vec![],
             // play_order: vec![],
             bids: HashMap::new(),
-            bid_order: Vec::new(),
+            player_bids: Vec::new(),
             wins: HashMap::new(),
             score: HashMap::new(),
             gameplay_state: GameplayState::Pregame,
