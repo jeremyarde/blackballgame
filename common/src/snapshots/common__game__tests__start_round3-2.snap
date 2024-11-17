@@ -2,22 +2,47 @@
 source: common/src/game.rs
 expression: game
 ---
+lobby_code: lobby
 setup_game_options:
-  rounds: 5
-  deterministic: true
-  start_round: 3
+  rounds: "[sgo]"
+  deterministic: "[sgo]"
+  start_round: "[sgo]"
+  max_players: "[sgo]"
+  game_mode: "[sgo]"
+  visibility: "[sgo]"
+  password: "[sgo]"
 secret_key: mysecretkey
 players:
   p1:
     id: p1
+    hand:
+      - id: 25
+        suit: diamond
+        value: 14
+        played_by: p1
+      - id: 50
+        suit: spade
+        value: 13
+        played_by: p1
     encrypted_hand: "[encrypted_hand]"
     num_cards: 0
     role: Leader
+    details: "[details]"
   p2:
     id: p2
+    hand:
+      - id: 12
+        suit: heart
+        value: 14
+        played_by: p2
+      - id: 37
+        suit: club
+        value: 13
+        played_by: p2
     encrypted_hand: "[encrypted_hand]"
     num_cards: 0
     role: Player
+    details: "[details]"
 curr_round: 3
 trump: heart
 player_order:
@@ -42,10 +67,10 @@ curr_dealer: p1
 bids:
   p1: 0
   p2: 0
-bid_order:
-  - - p2
-    - 0
+player_bids:
   - - p1
+    - 0
+  - - p2
     - 0
 wins:
   p1: 0
@@ -57,40 +82,12 @@ gameplay_state:
   PostHand:
     hand_num: 1
 event_log:
-  - username: p1
-    message:
-      action:
-        startgame:
-          rounds: 5
-          deterministic: true
-          start_round: 3
-    timestamp: "[event_timestamp]"
-  - username: p2
-    message:
-      action:
-        bid: 0
-    timestamp: "[event_timestamp]"
-  - username: p1
-    message:
-      action:
-        bid: 0
-    timestamp: "[event_timestamp]"
-  - username: p2
-    message:
-      action:
-        playcard:
-          id: 38
-          suit: club
-          value: 14
-          played_by: p2
-    timestamp: "[event_timestamp]"
-  - username: p1
-    message:
-      action:
-        playcard:
-          id: 51
-          suit: spade
-          value: 14
-          played_by: p1
-    timestamp: "[event_timestamp]"
+  - "[events]"
+  - "[events]"
+  - "[events]"
+  - "[events]"
+  - "[events]"
 system_status: []
+is_public: true
+updated_at: "[utc]"
+created_at: "[utc]"

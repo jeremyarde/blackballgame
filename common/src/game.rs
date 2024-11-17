@@ -746,12 +746,11 @@ pub fn xor_encrypt_decrypt(data: &str, key: &str) -> Vec<u8> {
 mod tests {
     use std::collections::HashMap;
 
-    use chrono::Utc;
-
     use crate::{
         create_deck, game::find_winning_card, Card, GameAction, GameMessage, GameState,
         GameVisibility, GameplayState, PlayState, PlayerRole, SetupGameOptions, Suit,
     };
+    use chrono::Utc;
 
     #[test]
     fn test_finding_winning_card() {
@@ -1052,16 +1051,6 @@ mod tests {
         });
         assert_eq!(game.bids[&has_second_turn], 0);
 
-        // insta::assert_yaml_snapshot!(game, {
-        //     ".timestamp" => "[utc]",
-        //     ".players.*.encrypted_hand" => "[encrypted_hand]",
-        //     ".event_log[].timestamp" => "[event_timestamp]",
-        //     ".wins" => insta::sorted_redaction(),
-        //     ".bids" => insta::sorted_redaction(),
-        //     ".score" => insta::sorted_redaction(),
-        //     ".players" => insta::sorted_redaction(),
-        // });
-
         // first player that bid 0 goes first because both bid 0
         assert_eq!(
             game.curr_player_turn.clone().expect("No player turn"),
@@ -1151,10 +1140,15 @@ mod tests {
         });
 
         // insta::assert_yaml_snapshot!(game, {
+        //     ".setup_game_options.*" => "[sgo]",
         //     ".timestamp" => "[utc]",
+        //     ".updated_at" => "[utc]",
+        //     ".created_at" => "[utc]",
         //     ".players.*.encrypted_hand" => "[encrypted_hand]",
-        //     ".event_log[].timestamp" => "[event_timestamp]",
+        //     ".players.*.details" => "[details]",
+        //     ".event_log.*" => "[events]",
         //     ".wins" => insta::sorted_redaction(),
+        //     ".player_bids" => insta::sorted_redaction(),
         //     ".bids" => insta::sorted_redaction(),
         //     ".score" => insta::sorted_redaction(),
         //     ".players" => insta::sorted_redaction(),
@@ -1173,10 +1167,15 @@ mod tests {
         ); // round 1 dealer goes first in round 2
 
         // insta::assert_yaml_snapshot!(game, {
+        //     ".setup_game_options.*" => "[sgo]",
         //     ".timestamp" => "[utc]",
+        //     ".updated_at" => "[utc]",
+        //     ".created_at" => "[utc]",
         //     ".players.*.encrypted_hand" => "[encrypted_hand]",
-        //     ".event_log[].timestamp" => "[event_timestamp]",
+        //     ".players.*.details" => "[details]",
+        //     ".event_log.*" => "[events]",
         //     ".wins" => insta::sorted_redaction(),
+        //     ".player_bids" => insta::sorted_redaction(),
         //     ".bids" => insta::sorted_redaction(),
         //     ".score" => insta::sorted_redaction(),
         //     ".players" => insta::sorted_redaction(),
@@ -1245,16 +1244,15 @@ mod tests {
         });
 
         insta::assert_yaml_snapshot!(game, {
-            // ".lobby_code" => "lobby",
-            // ".setup_game_options.rounds" => 5,
-            // ".setup_game_options.max_players" => 4,
-            // ".setup_game_options.game_mode" => "Standard",
-            // ".setup_game_options.visibility" => "Public",
+            ".setup_game_options.*" => "[sgo]",
             ".timestamp" => "[utc]",
+            ".updated_at" => "[utc]",
+            ".created_at" => "[utc]",
             ".players.*.encrypted_hand" => "[encrypted_hand]",
             ".players.*.details" => "[details]",
-            ".event_log[].timestamp" => "[event_timestamp]",
+            ".event_log" => "[events]",
             ".wins" => insta::sorted_redaction(),
+            ".player_bids" => insta::sorted_redaction(),
             ".bids" => insta::sorted_redaction(),
             ".score" => insta::sorted_redaction(),
             ".players" => insta::sorted_redaction(),
@@ -1287,7 +1285,6 @@ mod tests {
                     .expect("Could not get first card")
                     .clone(),
             ),
-            // origin: crate::Actioner::Player(has_second_turn.clone()),
             timestamp: Utc::now(),
         });
         game.process_event(GameMessage {
@@ -1305,12 +1302,16 @@ mod tests {
             ), // origin: crate::Actioner::Player(has_second_turn.clone()),
             timestamp: Utc::now(),
         });
-
         insta::assert_yaml_snapshot!(game, {
+            ".setup_game_options.*" => "[sgo]",
             ".timestamp" => "[utc]",
+            ".updated_at" => "[utc]",
+            ".created_at" => "[utc]",
             ".players.*.encrypted_hand" => "[encrypted_hand]",
-            ".event_log[].timestamp" => "[event_timestamp]",
+            ".players.*.details" => "[details]",
+            ".event_log.*" => "[events]",
             ".wins" => insta::sorted_redaction(),
+            ".player_bids" => insta::sorted_redaction(),
             ".bids" => insta::sorted_redaction(),
             ".score" => insta::sorted_redaction(),
             ".players" => insta::sorted_redaction(),
@@ -1321,6 +1322,28 @@ mod tests {
             lobby: "lobby".to_string(),
             action: crate::GameAction::Ack,
             timestamp: Utc::now(),
+        });
+
+        // assert_eq!(game.player_bids.len(), 2);
+        // assert_eq!(game.player_bids[0].0, player_one);
+        // assert_eq!(game.player_bids[1].0, player_two);
+        // assert_eq!(game.player_bids[0].1, 0);
+        // assert_eq!(game.player_bids[1].1, 0);
+
+        // should be start of the next round (round 3, hand 2)
+        insta::assert_yaml_snapshot!(game, {
+            ".setup_game_options.*" => "[sgo]",
+            ".timestamp" => "[utc]",
+            ".updated_at" => "[utc]",
+            ".created_at" => "[utc]",
+            ".players.*.encrypted_hand" => "[encrypted_hand]",
+            ".players.*.details" => "[details]",
+            ".event_log[].timestamp" => "[event_timestamp]",
+            ".wins" => insta::sorted_redaction(),
+            ".player_bids" => insta::sorted_redaction(),
+            ".bids" => insta::sorted_redaction(),
+            ".score" => insta::sorted_redaction(),
+            ".players" => insta::sorted_redaction(),
         });
     }
 }

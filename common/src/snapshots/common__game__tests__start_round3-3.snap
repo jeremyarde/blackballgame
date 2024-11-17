@@ -16,10 +16,6 @@ players:
   p1:
     id: p1
     hand:
-      - id: 51
-        suit: spade
-        value: 14
-        played_by: p1
       - id: 25
         suit: diamond
         value: 14
@@ -35,10 +31,6 @@ players:
   p2:
     id: p2
     hand:
-      - id: 38
-        suit: club
-        value: 14
-        played_by: p2
       - id: 12
         suit: heart
         value: 14
@@ -60,16 +52,68 @@ curr_played_cards: []
 curr_player_turn: p2
 curr_winning_card: ~
 curr_dealer: p1
-bids: {}
-player_bids: []
-wins:
+bids:
   p1: 0
   p2: 0
+player_bids:
+  - - p1
+    - 0
+  - - p2
+    - 0
+wins:
+  p1: 0
+  p2: 1
 score:
   p1: 0
   p2: 0
-gameplay_state: Bid
-event_log: "[events]"
+gameplay_state:
+  Play:
+    hand_num: 2
+event_log:
+  - username: p1
+    action:
+      startgame:
+        rounds: 5
+        deterministic: true
+        start_round: 3
+        max_players: 4
+        game_mode: Standard
+        visibility: Public
+        password: ~
+    timestamp: "[event_timestamp]"
+    lobby: lobby
+  - username: p2
+    action:
+      bid: 0
+    timestamp: "[event_timestamp]"
+    lobby: lobby
+  - username: p1
+    action:
+      bid: 0
+    timestamp: "[event_timestamp]"
+    lobby: lobby
+  - username: p2
+    action:
+      playcard:
+        id: 38
+        suit: club
+        value: 14
+        played_by: p2
+    timestamp: "[event_timestamp]"
+    lobby: lobby
+  - username: p1
+    action:
+      playcard:
+        id: 51
+        suit: spade
+        value: 14
+        played_by: p1
+    timestamp: "[event_timestamp]"
+    lobby: lobby
+  - username: p2
+    action: ack
+    timestamp: "[event_timestamp]"
+    lobby: lobby
 system_status: []
 is_public: true
 updated_at: "[utc]"

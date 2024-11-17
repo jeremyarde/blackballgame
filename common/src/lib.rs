@@ -63,7 +63,7 @@ pub enum GameError {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GameClient {
     pub id: String,
-    #[serde(skip)]
+    // #[serde(skip)]
     pub hand: Vec<Card>, // we don't want everyone getting this information
     // #[serde(skip)]
     // pub secret: String,

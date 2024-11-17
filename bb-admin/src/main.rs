@@ -1150,29 +1150,27 @@ fn GameStateComponent(
 
     rsx!(
         div { class: "flex flex-col sm:flex-row h-screen w-screen text-center bg-[--bg-color] flex-nowrap justify-center p-2 items-start overflow-auto gap-2",
-            div { class: "flex flex-col bg-[var(--bg-color)] rounded-lg p-2 shadow-lg border border-black gap-2 w-full",
+            div { class: "flex flex-col bg-[var(--bg-color)] rounded-lg p-2 shadow-lg border border-black gap-2",
                 h2 { class: "text-lg sm:text-2xl font-bold rounded-md bg-black text-white",
                     "BLACKBALL"
                 }
                 div { class: "flex flex-col justify-between",
-                    div { class: "bg-[var(--bg-color)] rounded-lg p-2 shadow-lg border border-black",
-                        div { class: "space-y-1 flex flex-col",
-                            div { class: "flex items-center justify-between",
-                                match gamestate().gameplay_state {
-                                    GameplayState::PostHand(ps) => rsx!(span { class: "text-sm sm:text-base font-bold", "End of hand {ps.hand_num}" }),
-                                    GameplayState::Play(ps) => rsx!(span { class: "text-sm sm:text-base font-bold", "Playing hand {ps.hand_num}/{gamestate().curr_round}" }),
-                                    _ => rsx!(span { class: "text-sm sm:text-base font-bold", "{gamestate().gameplay_state:?}" }),
-                                }
+                    div { class: "bg-[var(--bg-color)] rounded-lg p-2 shadow-lg border border-black flex flex-row w-full items-center justify-between",
+                        div { class: "flex items-center justify-between",
+                            match gamestate().gameplay_state {
+                                GameplayState::PostHand(ps) => rsx!(span { class: "text-sm sm:text-base font-bold", "End of hand {ps.hand_num}" }),
+                                GameplayState::Play(ps) => rsx!(span { class: "text-sm sm:text-base font-bold", "Playing hand {ps.hand_num}/{gamestate().curr_round}" }),
+                                _ => rsx!(span { class: "text-sm sm:text-base font-bold", "{gamestate().gameplay_state:?}" }),
                             }
-                            div { class: "flex flex-col items-center md:flex-row justify-between",
-                                span { class: "font-semibold text-sm sm:text-base", "Trump:" }
-                                div { class: "flex items-center", {trump_svg} }
-                            }
-                            div { class: "flex items-center justify-between",
-                                span { class: "font-semibold text-sm sm:text-base", "Round:" }
-                                span { class: "text-sm sm:text-base",
-                                    "{gamestate().curr_round}/{gamestate().setup_game_options.rounds}"
-                                }
+                        }
+                        div { class: "flex flex-col items-center md:flex-row justify-between",
+                            // span { class: "font-semibold text-sm sm:text-base", "Trump:" }
+                            div { class: "flex items-center", {trump_svg} }
+                        }
+                        div { class: "flex flex-col items-center justify-between",
+                            span { class: "font-semibold text-sm sm:text-base", "Round" }
+                            span { class: "text-sm sm:text-base",
+                                "{gamestate().curr_round}/{gamestate().setup_game_options.rounds}"
                             }
                         }
                     }
@@ -1287,19 +1285,20 @@ fn GameStateComponent(
                             })
                         },
                         GameplayState::PostRound => {
-                            rsx!(div { class: "max-w-md mx-auto  bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-3 sm:p-6 text-center",
+                            rsx!(div { class: "flex flex-col max-w-md mx-auto  bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-3 sm:p-6 text-center ",
                                 p { class: "text-base sm:text-lg font-semibold",
                                     "Round over"
                                 }
                                 ul {
-                                    class: "text-left text-sm sm:text-base",
+                                    class: "text-left text-sm w-full justify-center",
                                     {gamestate().players.iter().map(|(player, client)| {
                                         let wins = gamestate().wins.get(player).unwrap_or(&0).clone();
                                         let bid = gamestate().bids.get(player).unwrap_or(&0).clone();
-                                        let win_message = format!("{wins}/{bid}{}", if wins==bid {""} else {" got BLACKBALL"});
+                                        let win_message = format!("got {wins}/{bid}{}", if wins==bid {""} else {" got BLACKBALL"});
                                         rsx!(
                                             li {
-                                                div { class: "flex flex-row justify-between",
+                                                class: "flex flex-col items-center justify-center",
+                                                div { class: "flex justify-between gap-2",
                                                     span { "{player}" }
                                                     span { "{win_message}" }
                                                 }

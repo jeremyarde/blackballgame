@@ -1,17 +1,16 @@
 ---
 source: common/src/game.rs
-assertion_line: 1247
 expression: game
 ---
 lobby_code: lobby
 setup_game_options:
-  rounds: 5
-  deterministic: true
-  start_round: 3
-  max_players: 4
-  game_mode: Standard
-  visibility: Public
-  password: ~
+  rounds: "[sgo]"
+  deterministic: "[sgo]"
+  start_round: "[sgo]"
+  max_players: "[sgo]"
+  game_mode: "[sgo]"
+  visibility: "[sgo]"
+  password: "[sgo]"
 secret_key: mysecretkey
 players:
   p1:
@@ -36,7 +35,7 @@ curr_player_turn: p2
 curr_winning_card: ~
 curr_dealer: p1
 bids: {}
-bid_order: []
+player_bids: []
 wins:
   p1: 0
   p2: 0
@@ -45,19 +44,8 @@ score:
   p2: 0
 gameplay_state: Bid
 event_log:
-  - username: p1
-    action:
-      startgame:
-        rounds: 5
-        deterministic: true
-        start_round: 3
-        max_players: 4
-        game_mode: Standard
-        visibility: Public
-        password: ~
-    timestamp: "[event_timestamp]"
-    lobby: lobby
+  - "[events]"
 system_status: []
 is_public: true
-updated_at: "2024-11-11T23:49:01.890400Z"
-created_at: "2024-11-11T23:49:01.890385Z"
+updated_at: "[utc]"
+created_at: "[utc]"
