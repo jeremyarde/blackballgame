@@ -70,17 +70,17 @@ enum InnerMessage {
 fn StateProvider() -> Element {
     let is_prod = option_env!("ENVIRONMENT").unwrap_or("default") == "production";
     let mut app_props = use_context_provider(|| {
-        let mut server_url =
-            String::from("https://blackballgame-blackballgame-server.onrender.com");
-        let mut server_base_url = String::from("blackballgame-blackballgame-server.onrender.com");
-        let mut server_ws_url =
-            String::from("wss://blackballgame-blackballgame-server.onrender.com");
+        // let mut server_url =
+        //     String::from("https://blackballgame-blackballgame-server.onrender.com");
+        // let mut server_base_url = String::from("blackballgame-blackballgame-server.onrender.com");
+        // let mut server_ws_url =
+        //     String::from("wss://blackballgame-blackballgame-server.onrender.com");
 
-        if !is_prod {
-            server_url = String::from("http://localhost:8080");
-            server_base_url = String::from("localhost:8080");
-            server_ws_url = String::from("ws://localhost:8080");
-        }
+        // if !is_prod {
+        //     server_url = String::from("http://localhost:8080");
+        //     server_base_url = String::from("localhost:8080");
+        //     server_ws_url = String::from("ws://localhost:8080");
+        // }
 
         Signal::new(AppProps {
             environment: if is_prod {
@@ -146,7 +146,7 @@ impl ServerConfig {
                 server_url: String::from("https://blackballgame-blackballgame-server.onrender.com"),
                 server_base_url: String::from("blackballgame-blackballgame-server.onrender.com"),
                 server_ws_url: String::from(
-                    "wss://blackballgame-blackballgame-server.onrender.com",
+                    "wss://blackballgame-blackballgame-server.onrender.com/ws",
                 ),
             }
         } else {
@@ -841,7 +841,7 @@ fn GameRoom(room_code: String) -> Element {
                         div {
                             class: "flex flex-col md:flex-row gap-2 w-full",
                             div {
-                                class: "flex flex-col w-full md:max-w-[600px] border border-black rounded-md p-2 md:p-4",
+                                class: "flex flex-row w-full md:max-w-[600px] border border-black rounded-md p-2 md:p-4",
                                 button {
                                     class: "{STANDARD_BUTTON}",
                                     onclick: move |evt| get_game_details(room_code_clone.clone()),
