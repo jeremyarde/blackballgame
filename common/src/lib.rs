@@ -18,21 +18,6 @@ pub enum GameplayState {
     End,
 }
 
-// #[derive(Clone, Debug, Deserialize, Serialize)]
-// pub enum InternalMessage {
-//     ToGame {
-//         lobby_code: String,
-//         from: Destination,
-//         msg: GameMessage,
-//     },
-//     // Server { dest: Destination, msg: Connect },
-//     ToClient {
-//         to: Destination,
-//         msg: GameEventResult,
-//     }, // from game server to client
-//        // WsAction(WsAction),
-// }
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Destination {
     Lobby(Vec<PlayerDetails>),
