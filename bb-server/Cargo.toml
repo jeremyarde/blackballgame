@@ -5,24 +5,14 @@ version = "0.1.0"
 
 [dependencies]
 # aes-gcm = "0.10.3"
-axum = {version = "0.7.5", features = ["ws"]}
-dioxus = {version = "0.5.1", features = ["axum", "fullstack"]}
-# dioxus = {features = ["fullstack"], workspace = true}
-# dioxus-fullstack = {version="0."}
-# dioxus-cli = "0.5.4"
-# dioxus-fullstack = {version = "0.5.0-alpha.0"}
-# dioxus-ssr = "0.5.1"
-axum-extra = {version = "0.9.3", features = ["typed-header"]}
-# base64 = "0.22.1"
-# bevy = "0.13.2"
 api_types = {path = "../api_types"}
+axum = {version = "0.7.5", features = ["ws"]}
+axum-extra = {version = "0.9.3", features = ["typed-header"]}
 chrono = {version = "0.4.38", features = ["serde"]}
 common = {path = "../common"}
 # fastrand = "2.0.2"
 anyhow = "1.0.86"
 console-subscriber = "0.4.0"
-dioxus-fullstack = "0.5.2"
-dioxus-ssr = "0.5.1"
 futures-util = {version = "0.3", default-features = false, features = ["sink", "std"]}
 include_dir = "0.7.4"
 insta = "1.39.0"

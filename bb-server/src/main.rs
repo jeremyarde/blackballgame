@@ -34,7 +34,6 @@ use common::Destination;
 use common::GameEventResult;
 use common::GameMessage;
 use common::GameState;
-use dioxus::prelude::server_fn::client::browser;
 use futures_util::StreamExt;
 use include_dir::Dir;
 use include_dir::File;
