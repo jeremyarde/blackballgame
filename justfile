@@ -6,14 +6,12 @@ build:
     # earthly +build
     
 buildfe:
-    # cd blackballgame-client && npm run build
     cd bb-admin && dx build --release
 
 lint:
     earthly --no-sat +lint
 
 docker:
-    just buildfe
     earthly --no-sat +docker
 
 push:
@@ -25,4 +23,4 @@ test:
     earthly --no-sat +test
 
 rund: 
-    docker run --env-file ./blackballgame-server/.env -p 8080:8080 -it jerecan/blackballgame:blackballgame-server
+    docker run --env-file ./bb-server/.env -p 8080:8080 -it jerecan/blackballgame:bb-server
