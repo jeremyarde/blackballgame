@@ -1160,7 +1160,7 @@ fn GameStateComponent(
 
     rsx!(
         div { class: "flex flex-col sm:flex-row h-screen w-screen text-center bg-[--bg-color] flex-nowrap justify-center p-2 items-start overflow-auto gap-2",
-            div { class: "flex flex-col bg-[var(--bg-color)] rounded-lg p-2 shadow-lg border border-black gap-2",
+            div { class: "flex flex-col bg-[var(--bg-color)] rounded-lg p-2 shadow-lg border border-black gap-2 w-full md:w-auto",
                 h2 { class: "text-lg sm:text-2xl font-bold rounded-md bg-black text-white",
                     "BLACKBALL"
                 }
