@@ -1251,7 +1251,7 @@ fn GameStateComponent(
                     div { class: "absolute top-2 left-2 px-2 sm:px-3 py-1 text-xs sm:text-sm font-bold text-white bg-indigo-600 rounded-md shadow",
                         "Played cards"
                     }
-                    div { class: "flex flex-row mt-6 sm:mt-8 justify-center flex-wrap gap-1 sm:gap-2",
+                    div { class: "flex flex-row mt-6 sm:mt-8 justify-center gap-1 sm:gap-2",
                         {gamestate().curr_played_cards.iter().map(|card| rsx!(
                             CardComponent {
                                 onclick: move |_| { info!("Clicked a card: {:?}", "fake card") },
