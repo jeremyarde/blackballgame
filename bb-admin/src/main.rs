@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 #![allow(warnings)]
 
+use std::env;
 use std::{collections::HashMap, path::Path};
 
 use api_types::{GetLobbiesResponse, GetLobbyResponse, Lobby};
@@ -32,7 +33,6 @@ use websocket::websocket_connection::WebsocketConnection;
 mod server_client;
 mod websocket;
 
-const TEST: bool = false;
 const STANDARD_BUTTON: &str = "px-4 py-2 bg-gray-800 text-white font-semibold rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75";
 
 mod styles {
@@ -51,6 +51,12 @@ struct AppProps {
     environment: Env,
     debug_mode: bool,
     // current_route: String,
+}
+
+impl AppProps {
+    fn is_prod(&self) -> bool {
+        self.environment == Env::Production
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -317,7 +323,7 @@ fn Home() -> Element {
         _ => rsx!(Home {}),
     };
 
-    if !TEST {
+    if !app_props.read().is_prod() {
         rsx!({ current_component })
     } else {
         let mut gamestate = GameState::new(String::from("test"));
@@ -635,7 +641,11 @@ fn GameRoom(room_code: String) -> Element {
     let mut gamestate = use_signal(|| GameState::new(room_code.clone()));
     let mut setupgameoptions = use_signal(|| SetupGameOptions {
         rounds: 4,
-        deterministic: if TEST { true } else { false },
+        deterministic: if app_props.read().is_prod() {
+            true
+        } else {
+            false
+        },
         start_round: None,
         max_players: 4,
         game_mode: "Standard".to_string(),
