@@ -1266,7 +1266,7 @@ fn GameStateComponent(
                             rsx!(
                                 div { class: "max-w-md mx-auto bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-2 text-center",
                                     p { class: "text-base sm:text-lg font-semibold",
-                                        "Round over, winner is "
+                                        "Hand over, winner is "
                                         span { class: "text-yellow-300", "{round_winner}" }
                                         "!"
                                     }
