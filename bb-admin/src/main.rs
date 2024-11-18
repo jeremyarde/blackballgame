@@ -1389,7 +1389,7 @@ fn GameStateComponent(
                             }
                             ul { class: "flex flex-row gap-2 items-center p-2 justify-center",
                                 {(0..=gamestate().curr_round).map(|i| {
-                                    if user_config.read().username == gamestate().curr_dealer && i == gamestate().bids.values().sum::<i32>() {
+                                    if user_config.read().username == gamestate().curr_dealer && (i + gamestate().bids.values().sum::<i32>()) == gamestate().curr_round {
                                         rsx!(
                                             button {
                                                 class: "bg-gray-300 p-2 rounded-lg text-lg",
