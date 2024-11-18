@@ -74,7 +74,7 @@ enum InnerMessage {
 
 #[component]
 fn StateProvider() -> Element {
-    let is_prod = option_env!("STAGE").unwrap_or("production") == "production";
+    let is_prod = env::var("STAGE").unwrap_or("production".to_string()) == "production";
     let mut app_props = use_context_provider(|| {
         Signal::new(AppProps {
             environment: if is_prod {
