@@ -128,6 +128,7 @@ pub struct GameState {
     is_public: bool,
     pub updated_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
+    pub trump_played_in_round: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

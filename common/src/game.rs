@@ -145,22 +145,29 @@ impl GameState {
         let player_id = event.username.clone();
 
         if let GameAction::PlayCard(card) = &event.action {
-            let player = self
-                .players
-                .get_mut(&player_id)
-                .expect("Did not find player");
+            // let player = self
+            //     .players
+            //     .get_mut(&player_id)
+            //     .expect("Did not find player");
 
-            match is_played_card_valid(
-                &self.curr_played_cards.clone(),
-                &mut player.hand,
-                &card.clone(),
-                &self.trump,
+            match &self.is_played_card_valid(
+                // &self.curr_played_cards.clone(),
+                // player.hand.clone(),
+                player_id.clone(),
+                card.clone(),
+                // &self.trump,
             ) {
                 Ok(x) => {
                     tracing::info!("card is valid");
-
+                    if x.suit == self.trump {
+                        self.trump_played_in_round = true;
+                    }
                     // remove the card from the players hand
                     let mut cardloc: Option<usize> = None;
+                    let player = self
+                        .players
+                        .get_mut(&player_id)
+                        .expect("Did not find player");
                     player.hand.iter().enumerate().for_each(|(i, c)| {
                         if c.id == card.id {
                             cardloc = Some(i)
@@ -183,6 +190,7 @@ impl GameState {
 
                     let (next_turn_idx, next_turn) =
                         self.advance_turn(self.curr_player_turn_idx, &self.player_order);
+
                     self.curr_player_turn_idx = next_turn_idx;
                     self.curr_player_turn = Some(next_turn);
                 }
@@ -627,7 +635,55 @@ impl GameState {
             is_public: true,
             updated_at: Utc::now(),
             created_at: Utc::now(),
+            trump_played_in_round: false,
         }
+    }
+
+    fn is_played_card_valid(
+        &self,
+        // played_cards: &Vec<Card>,
+        // hand: Vec<Card>,
+        player_id: String,
+        played_card: Card,
+    ) -> Result<Card, PlayedCardError> {
+        // rules for figuring out if you can play a card:
+        // 1. must follow suit if available
+        // 2. can't play trump to start a round unless that is all the player has
+        let playerhand = &self
+            .players
+            .get(&player_id)
+            .expect("Did not find player")
+            .hand;
+
+        if self.curr_played_cards.is_empty() {
+            if played_card.suit == self.trump && self.trump_played_in_round == false {
+                // all cards in hand must be trump
+                for c in playerhand {
+                    if c.suit != self.trump {
+                        return Err(PlayedCardError::CantUseTrump);
+                    }
+                }
+                return Ok(played_card.clone());
+            } else {
+                return Ok(played_card.clone());
+            }
+        }
+
+        let led_suit = self
+            .curr_played_cards
+            .first()
+            .expect("Could not get led suit")
+            .suit
+            .clone();
+        if led_suit != played_card.suit {
+            // make sure player does not have that suit
+            for c in playerhand {
+                if c.suit == led_suit {
+                    return Err(PlayedCardError::DidNotFollowSuit);
+                }
+            }
+        }
+        Ok(played_card.clone())
     }
 }
 
@@ -693,46 +749,6 @@ pub enum BidError {
 pub enum PlayedCardError {
     DidNotFollowSuit,
     CantUseTrump,
-}
-
-fn is_played_card_valid(
-    played_cards: &Vec<Card>,
-    hand: &Vec<Card>,
-    played_card: &Card,
-    trump: &Suit,
-) -> Result<Card, PlayedCardError> {
-    // rules for figuring out if you can play a card:
-    // 1. must follow suit if available
-    // 2. can't play trump to start a round unless that is all the player has
-
-    if played_cards.is_empty() {
-        if played_card.suit == *trump {
-            // all cards in hand must be trump
-            for c in hand {
-                if c.suit != *trump {
-                    return Err(PlayedCardError::CantUseTrump);
-                }
-            }
-            return Ok(played_card.clone());
-        } else {
-            return Ok(played_card.clone());
-        }
-    }
-
-    let led_suit = played_cards
-        .first()
-        .expect("Could not get led suit")
-        .suit
-        .clone();
-    if led_suit != played_card.suit {
-        // make sure player does not have that suit
-        for c in hand {
-            if c.suit == led_suit {
-                return Err(PlayedCardError::DidNotFollowSuit);
-            }
-        }
-    }
-    Ok(played_card.clone())
 }
 
 pub fn xor_encrypt_decrypt(data: &str, key: &str) -> Vec<u8> {
