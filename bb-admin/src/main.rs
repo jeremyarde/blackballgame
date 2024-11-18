@@ -74,7 +74,7 @@ enum InnerMessage {
 
 #[component]
 fn StateProvider() -> Element {
-    let is_prod = option_env!("ENVIRONMENT").unwrap_or("default") == "production";
+    let is_prod = option_env!("STAGE").unwrap_or("production") == "production";
     let mut app_props = use_context_provider(|| {
         Signal::new(AppProps {
             environment: if is_prod {
@@ -836,7 +836,7 @@ fn GameRoom(room_code: String) -> Element {
                         .expect("Failed to parse error")
                 }
             },
-            {if TEST {
+            {if app_props.read().is_prod() {
                 rsx!(div {
                         class: "w-full md:w-auto",
                         "Debug details:"
