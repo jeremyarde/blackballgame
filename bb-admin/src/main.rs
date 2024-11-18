@@ -32,7 +32,7 @@ use websocket::websocket_connection::WebsocketConnection;
 mod server_client;
 mod websocket;
 
-const TEST: bool = true;
+const TEST: bool = false;
 const STANDARD_BUTTON: &str = "px-4 py-2 bg-gray-800 text-white font-semibold rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75";
 
 mod styles {
