@@ -1264,7 +1264,7 @@ fn GameStateComponent(
                         GameplayState::PostHand(ps) => {
                             let round_winner = gamestate.read().curr_winning_card.clone().unwrap().played_by.unwrap_or("Nobody".to_string());
                             rsx!(
-                                div { class: "max-w-md mx-auto  bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-3 sm:p-6 text-center",
+                                div { class: "max-w-md mx-auto bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-2 text-center",
                                     p { class: "text-base sm:text-lg font-semibold",
                                         "Round over, winner is "
                                         span { class: "text-yellow-300", "{round_winner}" }
@@ -1274,7 +1274,7 @@ fn GameStateComponent(
                             )
                         },
                         GameplayState::Bid => {
-                            rsx!(div { class: "max-w-md mx-auto  bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-3 sm:p-6 text-center",
+                            rsx!(div { class: "max-w-md mx-auto bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-2 text-center",
                                 p { class: "text-base sm:text-lg font-semibold",
                                     "{gamestate().curr_player_turn.clone().unwrap()}'s turn to bid"
                                 }
@@ -1295,7 +1295,7 @@ fn GameStateComponent(
                             })
                         },
                         GameplayState::PostRound => {
-                            rsx!(div { class: "flex flex-col max-w-md mx-auto  bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-3 sm:p-6 text-center ",
+                            rsx!(div { class: "flex flex-col max-w-md mx-auto bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-2 text-center",
                                 p { class: "text-base sm:text-lg font-semibold",
                                     "Round over"
                                 }
@@ -1353,7 +1353,7 @@ fn GameStateComponent(
                     div { class: "absolute top-2 left-2 px-2 sm:px-3 py-1 text-xs sm:text-sm font-bold text-white bg-yellow-700 rounded-md shadow",
                         "Your hand"
                     }
-                    div { class: "flex flex-row mt-6 sm:mt-8 justify-center flex-wrap gap-1 sm:gap-2",
+                    div { class: "flex flex-row mt-6 sm:mt-8 justify-center gap-1 sm:gap-2",
                         {if cards_in_hand.is_none() {
                             rsx!()
                         } else {
@@ -1387,26 +1387,34 @@ fn GameStateComponent(
                             label { class: "text-base sm:text-xl p-2",
                                 "How many hands do you want to win?"
                             }
-                            ul { class: "flex flex-row gap-2 items-center p-2 flex-wrap justify-center",
+                            ul { class: "flex flex-row gap-2 items-center p-2 justify-center",
                                 {(0..=gamestate().curr_round).map(|i| {
-                                    rsx!(
-                                        button {
-                                            class: "bg-yellow-300 p-2  rounded-lg text-sm sm:text-base",
-                                            onclick: move |_| {
-                                                info!("Clicked on bid {i}");
-                                                ws_send().send(InnerMessage::GameMessage {
-                                                    msg: GameMessage {
-                                                        username: user_config.read().username.clone(),
-                                                        action: GameAction::Bid(i),
-                                                        lobby: user_config.read().lobby_code.clone(),
-                                                        timestamp: Utc::now(),
-                                            }});
-                                        },
-                                            "{i}"
-                                        },
-                                    )
-                                    })
-                                }
+                                    if user_config.read().username == gamestate().curr_dealer && i == gamestate().bids.values().sum::<i32>() {
+                                        rsx!(
+                                            button {
+                                                class: "bg-gray-300 p-2 rounded-lg text-lg",
+                                                disabled: true,
+                                            }
+                                        )
+                                    } else {
+                                        rsx!(
+                                            button {
+                                                class: "bg-yellow-300 p-2 rounded-lg text-lg",
+                                                onclick: move |_| {
+                                                    info!("Clicked on bid {i}");
+                                                    ws_send().send(InnerMessage::GameMessage {
+                                                        msg: GameMessage {
+                                                            username: user_config.read().username.clone(),
+                                                            action: GameAction::Bid(i),
+                                                            lobby: user_config.read().lobby_code.clone(),
+                                                            timestamp: Utc::now(),
+                                                }});
+                                            },
+                                                "{i}"
+                                            },
+                                        )
+                                    }
+                                })}
                             }
                         }
                     }
