@@ -323,7 +323,7 @@ fn Home() -> Element {
         _ => rsx!(Home {}),
     };
 
-    if !app_props.read().is_prod() {
+    if app_props.read().is_prod() {
         rsx!({ current_component })
     } else {
         let mut gamestate = GameState::new(String::from("test"));
@@ -642,7 +642,7 @@ fn GameRoom(room_code: String) -> Element {
     let mut setupgameoptions = use_signal(|| SetupGameOptions {
         rounds: 4,
         deterministic: if app_props.read().is_prod() {
-            true
+            false
         } else {
             false
         },
@@ -836,7 +836,7 @@ fn GameRoom(room_code: String) -> Element {
                         .expect("Failed to parse error")
                 }
             },
-            {if app_props.read().is_prod() {
+            {if !app_props.read().is_prod() {
                 rsx!(div {
                         class: "w-full md:w-auto",
                         "Debug details:"
