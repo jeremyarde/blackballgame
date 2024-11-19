@@ -1274,15 +1274,16 @@ mod tests {
             ".players" => insta::sorted_redaction(),
         });
 
+        // player one deals, player two bids first
         game.process_event(GameMessage {
             username: player_two.clone(),
-            action: crate::GameAction::Bid(0),
+            action: crate::GameAction::Bid(3),
             timestamp: Utc::now(),
             lobby: "lobby".to_string(),
         });
         game.process_event(GameMessage {
             username: player_one.clone(),
-            action: crate::GameAction::Bid(0), // origin: crate::Actioner::Player(has_second_turn.clone()),
+            action: crate::GameAction::Bid(1), // origin: crate::Actioner::Player(has_second_turn.clone()),
             timestamp: Utc::now(),
             lobby: "lobby".to_string(),
         });
@@ -1291,31 +1292,23 @@ mod tests {
         game.process_event(GameMessage {
             username: player_two.clone(),
             lobby: "lobby".to_string(),
-            action: crate::GameAction::PlayCard(
-                game.players
-                    .get(&player_two)
-                    .expect("Did not find player")
-                    .hand
-                    .first()
-                    .clone()
-                    .expect("Could not get first card")
-                    .clone(),
-            ),
+            action: crate::GameAction::PlayCard(Card {
+                id: 38,
+                suit: Suit::Club,
+                value: 14,
+                played_by: Some(player_two.clone()),
+            }),
             timestamp: Utc::now(),
         });
         game.process_event(GameMessage {
             username: player_one.clone(),
             lobby: "lobby".to_string(),
-            action: crate::GameAction::PlayCard(
-                game.players
-                    .get(&player_one)
-                    .expect("Did not find player")
-                    .hand
-                    .first()
-                    .clone()
-                    .expect("Could not get first card")
-                    .clone(),
-            ), // origin: crate::Actioner::Player(has_second_turn.clone()),
+            action: crate::GameAction::PlayCard(Card {
+                id: 51,
+                suit: Suit::Spade,
+                value: 14,
+                played_by: Some(player_one.clone()),
+            }),
             timestamp: Utc::now(),
         });
         insta::assert_yaml_snapshot!(game, {
@@ -1333,6 +1326,7 @@ mod tests {
             ".players" => insta::sorted_redaction(),
         });
 
+        // move to next round
         game.process_event(GameMessage {
             username: player_two.clone(),
             lobby: "lobby".to_string(),
@@ -1340,13 +1334,94 @@ mod tests {
             timestamp: Utc::now(),
         });
 
-        // assert_eq!(game.player_bids.len(), 2);
-        // assert_eq!(game.player_bids[0].0, player_one);
-        // assert_eq!(game.player_bids[1].0, player_two);
-        // assert_eq!(game.player_bids[0].1, 0);
-        // assert_eq!(game.player_bids[1].1, 0);
-
         // should be start of the next round (round 3, hand 2)
+        insta::assert_yaml_snapshot!(game, {
+            ".setup_game_options.*" => "[sgo]",
+            ".timestamp" => "[utc]",
+            ".updated_at" => "[utc]",
+            ".created_at" => "[utc]",
+            ".players.*.encrypted_hand" => "[encrypted_hand]",
+            ".players.*.details" => "[details]",
+            ".event_log[].timestamp" => "[event_timestamp]",
+            ".wins" => insta::sorted_redaction(),
+            ".player_bids" => insta::sorted_redaction(),
+            ".bids" => insta::sorted_redaction(),
+            ".score" => insta::sorted_redaction(),
+            ".players" => insta::sorted_redaction(),
+        });
+
+        // player2 starts again
+        game.process_event(GameMessage {
+            username: player_two.clone(),
+            lobby: "lobby".to_string(),
+            action: crate::GameAction::PlayCard(Card {
+                id: 37,
+                suit: Suit::Club,
+                value: 13,
+                played_by: Some(player_two.clone()),
+            }),
+            timestamp: Utc::now(),
+        });
+
+        game.process_event(GameMessage {
+            username: player_one.clone(),
+            lobby: "lobby".to_string(),
+            action: crate::GameAction::PlayCard(Card {
+                id: 25,
+                suit: Suit::Diamond,
+                value: 14,
+                played_by: Some(player_one.clone()),
+            }),
+            timestamp: Utc::now(),
+        });
+
+        game.process_event(GameMessage {
+            username: player_two.clone(),
+            lobby: "lobby".to_string(),
+            action: crate::GameAction::Ack,
+            timestamp: Utc::now(),
+        });
+
+        // hand 3/3, player2 starts again
+        game.process_event(GameMessage {
+            username: player_two.clone(),
+            lobby: "lobby".to_string(),
+            action: crate::GameAction::PlayCard(Card {
+                id: 12,
+                suit: Suit::Heart,
+                value: 14,
+                played_by: Some(player_two.clone()),
+            }),
+            timestamp: Utc::now(),
+        });
+
+        game.process_event(GameMessage {
+            username: player_one.clone(),
+            lobby: "lobby".to_string(),
+            action: crate::GameAction::PlayCard(Card {
+                id: 50,
+                suit: Suit::Spade,
+                value: 13,
+                played_by: Some(player_one.clone()),
+            }),
+            timestamp: Utc::now(),
+        });
+
+        game.process_event(GameMessage {
+            username: player_two.clone(),
+            lobby: "lobby".to_string(),
+            action: crate::GameAction::Ack,
+            timestamp: Utc::now(),
+        });
+
+        game.process_event(GameMessage {
+            username: player_two.clone(),
+            lobby: "lobby".to_string(),
+            action: crate::GameAction::Ack,
+            timestamp: Utc::now(),
+        });
+
+        // End of round 3
         insta::assert_yaml_snapshot!(game, {
             ".setup_game_options.*" => "[sgo]",
             ".timestamp" => "[utc]",

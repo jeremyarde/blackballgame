@@ -65,13 +65,13 @@ curr_winning_card:
   played_by: p2
 curr_dealer: p1
 bids:
-  p1: 0
-  p2: 0
+  p1: 1
+  p2: 3
 player_bids:
   - - p1
-    - 0
+    - 1
   - - p2
-    - 0
+    - 3
 wins:
   p1: 0
   p2: 1
@@ -91,3 +91,4 @@ system_status: []
 is_public: true
 updated_at: "[utc]"
 created_at: "[utc]"
+trump_played_in_round: false

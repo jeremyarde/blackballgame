@@ -27,6 +27,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "ai-client"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "common",
+ "futures-util",
+ "serde",
+ "serde_json",
+ "tokio-tungstenite 0.23.1",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "alloc-no-stdlib"
 version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3047,6 +3061,18 @@ dependencies = [
  "log",
  "tokio",
  "tungstenite 0.21.0",
+]
+
+[[package]]
+name = "tokio-tungstenite"
+version = "0.23.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6989540ced10490aaf14e6bad2e3d33728a2813310a0c71d1574304c49631cd"
+dependencies = [
+ "futures-util",
+ "log",
+ "tokio",
+ "tungstenite 0.23.0",
 ]
 
 [[package]]

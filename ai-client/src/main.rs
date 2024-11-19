@@ -68,7 +68,7 @@ impl AI {
             }
             'p' => {
                 info!("Requesting to play a card");
-                let cards = GameState::get_hand_from_encrypted(
+                let cards = GameState::decrypt_player_hand(
                     gamestate
                         .players
                         .get(&self.username)

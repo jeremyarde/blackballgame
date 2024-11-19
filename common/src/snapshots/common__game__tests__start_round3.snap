@@ -74,3 +74,4 @@ system_status: []
 is_public: true
 updated_at: "[utc]"
 created_at: "[utc]"
+trump_played_in_round: false
