@@ -6,3 +6,4 @@ bb-server/.env
 artifact/target/ai-client
 artifact/target/blackballgame-server
 artifact/target/bb-server
+bb-admin/src/environment.rs

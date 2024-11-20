@@ -57,6 +57,10 @@ impl AppProps {
     fn is_prod(&self) -> bool {
         self.environment == Env::Production
     }
+
+    fn is_debug_mode(&self) -> bool {
+        self.debug_mode
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -332,7 +336,7 @@ fn Home() -> Element {
         _ => rsx!(Home {}),
     };
 
-    if app_props.read().is_prod() {
+    if !app_props.read().is_debug_mode() {
         rsx!({ current_component })
     } else {
         let mut gamestate = GameState::new(String::from("test"));
