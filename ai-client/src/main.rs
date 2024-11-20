@@ -10,7 +10,8 @@ use std::{
 
 use chrono::Utc;
 use common::{
-    Actioner, Connect, GameAction, GameMessage, GameState, GameplayState, SetupGameOptions,
+    Actioner, Connect, GameAction, GameActionResponse, GameMessage, GameState, GameplayState,
+    SetupGameOptions,
 };
 
 use serde::{Deserialize, Serialize};
@@ -261,68 +262,66 @@ fn main() {
                 }
             };
 
-            #[derive(Deserialize)]
-            struct ClientSecret {
-                client_secret: String,
+            match serde_json::from_str::<GameActionResponse>(&text).unwrap() {
+                common::GameActionResponse::Connect(con) => {
+                    info!("Got connect message: {con:?}");
+                    ai.secret_key = con.secret.unwrap_or(String::new());
+                }
+                common::GameActionResponse::GameState(gs) => {
+                    info!("Got game state: {gs:?}");
+                    gamestate = Some(gs);
+                }
+                common::GameActionResponse::Message(text) => {
+                    info!("Got message, not sure what to do with it: {text}");
+                }
             }
-            match serde_json::from_str::<ClientSecret>(&text) {
-                Ok(x) => ai.secret_key = x.client_secret,
-                Err(_) => {}
-            }
 
-            match serde_json::from_str::<GameState>(&text) {
-                Ok(val) => {
-                    info!("Setting gamestate");
-                    let currplayer = val.curr_player_turn.clone().unwrap_or("".to_string());
-                    if currplayer.ne(&connect_action.username) {
-                        // update gamestate with new values
-                        info!("Not our turn, updated state and waiting.");
-                        gamestate = Some(val);
-                    } else {
-                        info!("Its our turn now, deciding on an action");
-                        let mut action = ai.decide_action(&val);
+            let gs = gamestate.clone().unwrap();
+            let currplayer = gs.curr_player_turn.clone().unwrap_or("".to_string());
+            if currplayer.ne(&connect_action.username) {
+                // update gamestate with new values
+                info!("Not our turn, updated state and waiting.");
+                gamestate = Some(gs);
+            } else {
+                info!("Its our turn now, deciding on an action");
+                let mut action = ai.decide_action(&gs);
 
-                        // our turn + errors increased = we caused an issue
-                        if val.system_status.len() > num_error_status_messages {
-                            info!("Error messages increased, setting debug mode ON.");
-                            *debug_mode.lock().unwrap() = true;
-                        }
+                // our turn + errors increased = we caused an issue
+                if gs.system_status.len() > num_error_status_messages {
+                    info!("Error messages increased, setting debug mode ON.");
+                    *debug_mode.lock().unwrap() = true;
+                }
 
-                        num_error_status_messages = val.system_status.len();
+                num_error_status_messages = gs.system_status.len();
 
-                        if *debug_mode.lock().unwrap() == true {
-                            info!("AI chose an action, send it? (y, n) {:?}", action);
-                            let mut user_input = String::new();
-                            std::io::stdin().read_line(&mut user_input).unwrap();
-                            let inputaction = user_input.trim();
+                if *debug_mode.lock().unwrap() == true {
+                    info!("AI chose an action, send it? (y, n) {:?}", action);
+                    let mut user_input = String::new();
+                    std::io::stdin().read_line(&mut user_input).unwrap();
+                    let inputaction = user_input.trim();
 
-                            if inputaction.eq("n") {
-                                action = Some(ai.create_action_from_user_input(&val));
-                                // continue;
-                            }
-
-                            info!("debug is currently on");
-                        } else {
-                            info!("debug is currently off");
-                        }
-
-                        if let Some(todo) = action {
-                            _ = socket.send(Message::Text(
-                                json!(GameMessage {
-                                    username: username.clone(),
-                                    action: todo,
-                                    timestamp: Utc::now(),
-                                    lobby: val.lobby_code.clone(),
-                                })
-                                .to_string(),
-                            ));
-                        }
+                    if inputaction.eq("n") {
+                        action = Some(ai.create_action_from_user_input(&gs));
+                        // continue;
                     }
+
+                    info!("debug is currently on");
+                } else {
+                    info!("debug is currently off");
                 }
-                Err(err) => {
-                    info!("Message was not game state: {}", err);
+
+                if let Some(todo) = action {
+                    _ = socket.send(Message::Text(
+                        json!(GameMessage {
+                            username: username.clone(),
+                            action: todo,
+                            timestamp: Utc::now(),
+                            lobby: gs.lobby_code.clone(),
+                        })
+                        .to_string(),
+                    ));
                 }
-            };
+            }
         }
 
         info!("Message had an error");

@@ -263,7 +263,7 @@ fn Home() -> Element {
                         "Play"
                     }
                     if user_config.read().username.is_empty() {
-                        span { class: "text-red-500 text-sm sm:text-base",
+                        span { class: "text-red-500 text-sm sm:text-base",read()
                             p { "Please enter a username to play" }
                         }
                     }
@@ -849,13 +849,14 @@ fn GameRoom(room_code: String) -> Element {
                         .expect("Failed to parse error")
                 }
             },
-            {if !app_props.read().is_prod() {
-                rsx!(div {
-                        class: "w-full md:w-auto",
-                        "Debug details:"
-                        div { class: "bg-gray-300", "Secret: {user_config.read().client_secret}" }
-                        div { class: "bg-gray-300", "Game: {gamestate():#?}" }
-                    })
+            {if !app_props.read().is_debug_mode() {
+                // rsx!(div {
+                //         class: "w-full md:w-auto",
+                //         "Debug details:"
+                //         div { class: "bg-gray-300", "Secret: {user_config.read().client_secret}" }
+                //         div { class: "bg-gray-300", "Game: {gamestate():#?}" }
+                //     })
+                rsx!()
             } else { rsx!()}},
             {
                 if gamestate().gameplay_state == GameplayState::Pregame {
