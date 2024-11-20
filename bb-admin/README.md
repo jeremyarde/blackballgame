@@ -13,7 +13,10 @@ Run the following command in the root of the project to start the Dioxus dev ser
 
 ```bash
 dx serve --hot-reload
+
+export STAGE="test"
 dx serve --port 5173 --hot-reload true
+
 cargo install dioxus-cli
 ```
 

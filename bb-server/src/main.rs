@@ -441,8 +441,11 @@ async fn main() {
             while let Some((msg)) = toclient_recv.recv().await {
                 info!("[GAME-CLIENT] Got message: {:?}", msg);
 
-                let lobbycode = gamechannel_broadcast_send.send(msg);
-                info!("[GAME-CLIENT] Sent message to client");
+                let broadcast_result = gamechannel_broadcast_send.send(msg);
+                info!(
+                    "[GAME-CLIENT] Sent message to client: {:?}",
+                    broadcast_result
+                );
             }
             info!("[GAME-CLIENT] done recieving messages from game");
         })

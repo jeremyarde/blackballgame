@@ -72,9 +72,18 @@ enum InnerMessage {
     Connect(Connect),
 }
 
+mod environment;
+
 #[component]
 fn StateProvider() -> Element {
-    let is_prod = env::var("STAGE").unwrap_or("production".to_string()) == "production";
+    let environment = environment::get_env_variable();
+    info!("Environment: {:?}", environment);
+    let is_prod = if environment.is_some() {
+        environment.unwrap() == "production"
+    } else {
+        true // default to production
+    };
+
     let mut app_props = use_context_provider(|| {
         Signal::new(AppProps {
             environment: if is_prod {

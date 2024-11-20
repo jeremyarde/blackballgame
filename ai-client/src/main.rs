@@ -10,12 +10,11 @@ use std::{
 
 use chrono::Utc;
 use common::{
-    Actioner, Connect, GameAction, GameEvent, GameMessage, GameState, GameplayState,
-    SetupGameOptions,
+    Actioner, Connect, GameAction, GameMessage, GameState, GameplayState, SetupGameOptions,
 };
 
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{error, json};
 use tokio_tungstenite::tungstenite::{connect, Message};
 use tracing::info;
 use tracing_subscriber::{fmt::format::FmtSpan, util::SubscriberInitExt};
@@ -30,7 +29,7 @@ fn get_bid(gamestate: &GameState) -> GameAction {
     let round_num = gamestate.curr_round;
     let bid_total: i32 = gamestate.bids.values().sum();
     let total_players = gamestate.players.len();
-    let bid_order = gamestate.bid_order.clone();
+    // let bid_order = gamestate.bid_order.clone();
 
     let mut my_bid = 0;
 
@@ -108,11 +107,9 @@ impl AI {
         if let Some(chosen) = action {
             return Some(GameMessage {
                 username: username,
-                message: GameEvent {
-                    action: chosen,
-                    // origin: Actioner::Player(self.username.clone()),
-                },
                 timestamp: Utc::now(),
+                action: chosen,
+                lobby: gamestate.lobby_code.clone(),
             });
         }
         return None;
@@ -124,8 +121,8 @@ impl AI {
             common::GameplayState::Pregame => return None,
             common::GameplayState::PostHand(ps) => return None,
             common::GameplayState::Play(ps) => {
-                let player = gamestate.players.get(&self.username).unwrap();
-                let cards = GameState::get_hand_from_encrypted(
+                // let player = gamestate.players.get(&self.username).unwrap();
+                let cards = GameState::decrypt_player_hand(
                     gamestate
                         .players
                         .get(&self.username)
@@ -138,6 +135,7 @@ impl AI {
                 GameAction::PlayCard(cards.get(0).unwrap().clone())
             }
             GameplayState::PostRound => GameAction::Deal,
+            GameplayState::End => GameAction::Ack,
         };
         Some(action)
     }
@@ -199,49 +197,80 @@ fn main() {
     };
 
     let (mut socket, response) = connect("ws://0.0.0.0:8080/ws").expect("Can't connect");
+
+    let message = socket.read().unwrap(); // read the ping message
+    info!("Server ping: {:?}, responding with pong", message);
     let _ = socket.send(Message::Pong(vec![1, 2, 3]));
     sleep(Duration::from_secs(2));
 
     // let connect_secret =  if secret.is_some() {Some()} else{None};
 
     let connect_action = if secret.is_some() {
-        Connect {
+        GameMessage {
             username: username.clone(),
-            channel: channel,
-            // secret: Some("sky_ai".to_string()),
-            secret: Some(secret.unwrap().clone()),
+            action: GameAction::Connect {
+                username: username.clone(),
+                channel: channel.clone(),
+                secret: Some(secret.unwrap().clone()),
+            },
+            timestamp: Utc::now(),
+            lobby: channel.clone(),
         }
     } else {
-        Connect {
+        GameMessage {
             username: username.clone(),
-            channel: channel,
-            secret: None,
+            action: GameAction::Connect {
+                username: username.clone(),
+                channel: channel.clone(),
+                secret: None,
+            },
+            timestamp: Utc::now(),
+            lobby: channel.clone(),
         }
     };
 
     let res = socket.send(Message::Text(json!(connect_action).to_string()));
 
+    // info!("Connection results: {:?}", res);
     let mut gamestate: Option<GameState> = None;
     let mut num_error_status_messages = 0;
 
     loop {
-        info!("Sleeping while waiting for messages");
-        sleep(Duration::from_secs(1));
+        // sleep(Duration::from_secs(1));
 
+        info!("Sleeping while waiting for messages");
         // Read until we exhaust all messages, then try to
-        while let Ok(Message::Text(message)) = socket.read() {
-            println!("Message recieved: {}", message);
+        while let Ok(msg) = socket.read() {
+            // let msg = match message {
+            //     Ok(x) => x,
+            //     Err(err) => {
+            //         tracing::error!("Error reading message: {:?}", err);
+            //         break;
+            //     }
+            // };
+
+            let text = match msg {
+                Message::Text(text) => {
+                    tracing::info!("Message recieved: {}", text);
+                    // serde_json::from_str::<GameMessage>(&text).unwrap()
+                    text
+                }
+                _ => {
+                    tracing::error!("Unknown message type: {:?}", msg);
+                    break;
+                }
+            };
 
             #[derive(Deserialize)]
             struct ClientSecret {
                 client_secret: String,
             }
-            match serde_json::from_str::<ClientSecret>(&message) {
+            match serde_json::from_str::<ClientSecret>(&text) {
                 Ok(x) => ai.secret_key = x.client_secret,
                 Err(_) => {}
             }
 
-            match serde_json::from_str::<GameState>(&message) {
+            match serde_json::from_str::<GameState>(&text) {
                 Ok(val) => {
                     info!("Setting gamestate");
                     let currplayer = val.curr_player_turn.clone().unwrap_or("".to_string());
@@ -281,8 +310,9 @@ fn main() {
                             _ = socket.send(Message::Text(
                                 json!(GameMessage {
                                     username: username.clone(),
-                                    message: GameEvent { action: todo },
-                                    timestamp: Utc::now()
+                                    action: todo,
+                                    timestamp: Utc::now(),
+                                    lobby: val.lobby_code.clone(),
                                 })
                                 .to_string(),
                             ));
@@ -294,5 +324,10 @@ fn main() {
                 }
             };
         }
+
+        info!("Message had an error");
+        break;
     }
+
+    info!("Exiting");
 }
