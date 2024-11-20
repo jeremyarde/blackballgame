@@ -238,22 +238,6 @@ fn main() {
     let mut gamestate: Option<GameState> = None;
     let mut num_error_status_messages = 0;
 
-    let connection_success = socket.read().unwrap();
-    match connection_success {
-        Message::Text(x) => {
-            match serde_json::from_str::<Connect>(&x) {
-                Ok(connectmessage) => {}
-                Err(err) => todo!(),
-            };
-        }
-        // Message::Binary(vec) => todo!(),
-        // Message::Ping(vec) => todo!(),
-        // Message::Pong(vec) => todo!(),
-        // Message::Close(close_frame) => todo!(),
-        // Message::Frame(frame) => todo!(),
-        _ => {}
-    }
-
     loop {
         // sleep(Duration::from_secs(1));
 
@@ -294,6 +278,11 @@ fn main() {
                 common::GameActionResponse::Message(text) => {
                     info!("Got message, not sure what to do with it: {text}");
                 }
+            }
+
+            if gamestate.is_none() {
+                info!("No game state, waiting for game state");
+                continue;
             }
 
             let gs = gamestate.clone().unwrap();

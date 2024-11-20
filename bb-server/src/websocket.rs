@@ -200,7 +200,7 @@ async fn handle_socket(
                         .await;
                 }
                 Destination::User(player) => {
-                    todo!("User IP is not set for the ai client...");
+                    // todo!("User IP is not set for the ai client...");
                     if player.ip.is_some() && player.ip.clone().unwrap() == user_ip {
                         let _ = sender
                             .send(Message::Text(
