@@ -11,7 +11,7 @@ use std::{
 use chrono::Utc;
 use common::{
     Actioner, Connect, GameAction, GameActionResponse, GameMessage, GameState, GameplayState,
-    SetupGameOptions,
+    PlayerDetails, SetupGameOptions,
 };
 
 use serde::{Deserialize, Serialize};
@@ -209,22 +209,24 @@ fn main() {
     let connect_action = if secret.is_some() {
         GameMessage {
             username: username.clone(),
-            action: GameAction::Connect {
+            action: GameAction::Connect(PlayerDetails {
                 username: username.clone(),
-                channel: channel.clone(),
-                secret: Some(secret.unwrap().clone()),
-            },
+                client_secret: Some(secret.unwrap().clone()),
+                ip: None,
+                lobby: channel.clone(),
+            }),
             timestamp: Utc::now(),
             lobby: channel.clone(),
         }
     } else {
         GameMessage {
             username: username.clone(),
-            action: GameAction::Connect {
+            action: GameAction::Connect(PlayerDetails {
                 username: username.clone(),
-                channel: channel.clone(),
-                secret: None,
-            },
+                lobby: channel.clone(),
+                ip: None,
+                client_secret: None,
+            }),
             timestamp: Utc::now(),
             lobby: channel.clone(),
         }

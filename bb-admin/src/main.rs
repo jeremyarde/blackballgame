@@ -263,7 +263,7 @@ fn Home() -> Element {
                         "Play"
                     }
                     if user_config.read().username.is_empty() {
-                        span { class: "text-red-500 text-sm sm:text-base",read()
+                        span { class: "text-red-500 text-sm sm:text-base",
                             p { "Please enter a username to play" }
                         }
                     }
@@ -372,7 +372,7 @@ fn Home() -> Element {
         use_effect(move || {
             user_config.write().username = "player1".to_string();
             user_config.write().lobby_code = "test".to_string();
-            user_config.write().client_secret = client_secret.clone();
+            user_config.write().client_secret = client_secret.clone().unwrap();
         });
 
         gamestate.process_event(GameMessage {
@@ -883,9 +883,10 @@ fn GameRoom(room_code: String) -> Element {
                                                         timestamp: Utc::now(),
                                                         action: GameAction::JoinGame(
                                                             PlayerDetails{
+                                                                lobby: user_config.read().lobby_code.clone(),
                                                                 username: user_config.read().username.clone(),
-                                                                ip: String::new(),
-                                                                client_secret: user_config.read().client_secret.clone(),
+                                                                ip: None,
+                                                                client_secret: Some(user_config.read().client_secret.clone()),
                                                             }),
                                                             lobby: user_config.read().lobby_code.clone(),
                                                         }
@@ -1022,9 +1023,10 @@ fn GameRoom(room_code: String) -> Element {
                                             timestamp: Utc::now(),
                                             action: GameAction::JoinGame(
                                                 PlayerDetails{
+                                                    lobby: user_config.read().lobby_code.clone(),
                                                     username: user_config.read().username.clone(),
-                                                    ip: String::new(),
-                                                    client_secret: user_config.read().client_secret.clone(),
+                                                    ip: None,
+                                                    client_secret: Some(user_config.read().client_secret.clone()),
                                                 }),
                                                 lobby: user_config.read().lobby_code.clone(),
                                             }

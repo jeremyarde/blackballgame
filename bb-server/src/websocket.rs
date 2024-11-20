@@ -114,6 +114,7 @@ async fn handle_socket(
     }
     // let user_ip = format("{}{}"who.ip().to_string();
     let user_ip = who.to_string();
+    info!("User ip: {user_ip}");
 
     let (mut sender, mut receiver) = socket.split();
 
@@ -134,9 +135,24 @@ async fn handle_socket(
                 info!("[CLIENT-RECEIVER] reciever got message");
                 let internalmsg = match serde_json::from_str::<GameMessage>(&msg) {
                     Ok(mut gm) => {
-                        if let GameAction::JoinGame(ref mut playerdetails) = &mut gm.action {
-                            playerdetails.ip = recv_user_ip.clone();
+                        match &mut gm.action {
+                            // GameAction::PlayCard(card) => todo!(),
+                            // GameAction::Bid(_) => todo!(),
+                            // GameAction::Ack => todo!(),
+                            // GameAction::StartGame(setup_game_options) => todo!(),
+                            // GameAction::Deal => todo!(),
+                            // GameAction::CurrentState => todo!(),
+                            GameAction::Connect(player_details) => {
+                                player_details.ip = Some(recv_user_ip.clone());
+                            }
+                            GameAction::JoinGame(player_details) => {
+                                player_details.ip = Some(recv_user_ip.clone());
+                            }
+                            _ => {}
                         }
+                        // if let GameAction::JoinGame(ref mut playerdetails) = &mut gm.action {
+                        //     playerdetails.ip = recv_user_ip.clone();
+                        // }
 
                         let _ = gamesender.send(gm);
                     }
@@ -185,7 +201,7 @@ async fn handle_socket(
                 }
                 Destination::User(player) => {
                     todo!("User IP is not set for the ai client...");
-                    if player.ip == user_ip {
+                    if player.ip.is_some() && player.ip.clone().unwrap() == user_ip {
                         let _ = sender
                             .send(Message::Text(
                                 json!(game_event_result.msg.clone()).to_string(),

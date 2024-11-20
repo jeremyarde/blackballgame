@@ -83,7 +83,10 @@ impl GameClient {
         let hand = self.hand.clone();
         let plaintext_hand = json!(hand).to_string();
         let player_secret = &self.details.client_secret;
-        let encoded = xor_encrypt_decrypt(&plaintext_hand, player_secret);
+        let encoded = xor_encrypt_decrypt(
+            &plaintext_hand,
+            player_secret.as_ref().unwrap_or(&"".to_string()),
+        );
         let secret_data = BASE64.encode(&encoded);
 
         self.encrypted_hand = secret_data;
@@ -269,19 +272,16 @@ pub enum GameAction {
     StartGame(SetupGameOptions),
     Deal,
     CurrentState,
-    Connect {
-        username: String,
-        channel: String,
-        secret: Option<String>,
-    },
+    Connect(PlayerDetails),
     JoinGame(PlayerDetails),
 }
 
 #[derive(Debug, Clone, PartialOrd, PartialEq, Ord, Eq, Serialize, Deserialize)]
 pub struct PlayerDetails {
     pub username: String,
-    pub ip: String,
-    pub client_secret: String,
+    pub ip: Option<String>,
+    pub client_secret: Option<String>,
+    pub lobby: String,
 }
 
 #[derive(Debug, Clone, PartialOrd, PartialEq, Ord, Eq, Serialize, Deserialize)]

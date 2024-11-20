@@ -215,27 +215,24 @@ impl GameState {
 
         info!("Processing event: {:?}", event);
         match &event.action {
-            GameAction::Connect {
-                username,
-                channel,
-                secret,
-            } => {
+            GameAction::Connect(player_details) => {
                 let secret = self.add_player(
-                    username.clone(),
+                    player_details.username.clone(),
                     PlayerRole::Player,
-                    "Connect action".to_string(),
+                    player_details.ip.clone().unwrap(),
                 );
                 return GameEventResult {
                     dest: Destination::User(PlayerDetails {
                         username: event.username.clone(),
-                        ip: String::new(),
+                        ip: player_details.ip.clone(),
                         client_secret: self
                             .players
-                            .get(username)
+                            .get(&player_details.username.clone())
                             .expect("Failed to get player")
                             .details
                             .client_secret
                             .clone(),
+                        lobby: player_details.lobby.clone(),
                     }),
                     msg: crate::GameActionResponse::Connect(Connect {
                         username: event.username.clone(),
@@ -254,7 +251,7 @@ impl GameState {
                 let secret = self.add_player(
                     player.username.clone(),
                     PlayerRole::Player,
-                    player.ip.clone(),
+                    player.ip.clone().unwrap(),
                 );
                 return GameEventResult {
                     dest: Destination::User(
@@ -361,7 +358,13 @@ impl GameState {
         info!("Adding player: {}, {}", player_id, client_secret);
         self.players.insert(
             player_id.clone(),
-            GameClient::new(player_id, role, ip, client_secret.clone()),
+            GameClient::new(
+                player_id,
+                role,
+                ip,
+                client_secret.clone(),
+                self.lobby_code.clone(),
+            ),
         );
         client_secret
     }
