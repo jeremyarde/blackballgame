@@ -236,6 +236,22 @@ fn main() {
     let mut gamestate: Option<GameState> = None;
     let mut num_error_status_messages = 0;
 
+    let connection_success = socket.read().unwrap();
+    match connection_success {
+        Message::Text(x) => {
+            match serde_json::from_str::<Connect>(&x) {
+                Ok(connectmessage) => {}
+                Err(err) => todo!(),
+            };
+        }
+        // Message::Binary(vec) => todo!(),
+        // Message::Ping(vec) => todo!(),
+        // Message::Pong(vec) => todo!(),
+        // Message::Close(close_frame) => todo!(),
+        // Message::Frame(frame) => todo!(),
+        _ => {}
+    }
+
     loop {
         // sleep(Duration::from_secs(1));
 
@@ -261,6 +277,8 @@ fn main() {
                     break;
                 }
             };
+
+            // GameEventResult { dest: User(PlayerDetails { username: "ai", ip: "", client_secret: "sky_669zn8s6ji4q" }), msg: Connect(Connect { username: "ai", channel: "a", secret: Some("sky_669zn8s6ji4q") }) }
 
             match serde_json::from_str::<GameActionResponse>(&text).unwrap() {
                 common::GameActionResponse::Connect(con) => {
