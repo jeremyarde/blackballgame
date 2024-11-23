@@ -408,7 +408,7 @@ fn Home() -> Element {
             Card::new(Suit::Spade, 10),
         ];
         gamestate.curr_winning_card = Some(Card::new(Suit::Club, 5));
-        gamestate.gameplay_state = GameplayState::PostRound;
+        gamestate.gameplay_state = GameplayState::Bid;
         gamestate.player_bids = vec![("player1".to_string(), 0), ("player2".to_string(), 0)];
 
         let mut gamestate_signal = use_signal(|| gamestate);
@@ -963,6 +963,17 @@ fn GameRoom(room_code: String) -> Element {
                                                 }
                                             }
                                         }
+                                        if app_props.read().is_debug_mode() {
+                                            label { class: "text-sm md:text-base", "start round" }
+                                            input {
+                                                class: "{styles::INPUT_FIELD} w-16 md:w-20",
+                                                r#type: "text",
+                                                // "data-input-counter": "false",
+                                                // placeholder: "",
+                                                required: "false",
+                                                value: "{setupgameoptions.read().start_round.unwrap_or(1)}",
+                                            }
+                                        }
                                     }
                                     div {
                                         class: "flex flex-row items-center justify-center space-x-4",
@@ -1418,6 +1429,17 @@ fn GameStateComponent(
                                             button {
                                                 class: "bg-gray-300 p-2 rounded-lg text-lg",
                                                 // disabled: true,
+                                                onclick: move |_| {
+                                                    info!("Clicked on bid {i}");
+                                                    ws_send().send(InnerMessage::GameMessage {
+                                                        msg: GameMessage {
+                                                            username: user_config.read().username.clone(),
+                                                            action: GameAction::Bid(i),
+                                                            lobby: user_config.read().lobby_code.clone(),
+                                                            timestamp: Utc::now(),
+                                                    }});
+                                                },
+                                                "{i}"
                                             }
                                         )
                                     } else {
