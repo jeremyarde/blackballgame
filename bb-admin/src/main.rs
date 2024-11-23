@@ -674,7 +674,7 @@ fn GameRoom(room_code: String) -> Element {
         } else {
             false
         },
-        start_round: Some(4),
+        start_round: None,
         max_players: 4,
         game_mode: "Standard".to_string(),
         visibility: GameVisibility::Public,
