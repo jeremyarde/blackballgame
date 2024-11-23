@@ -225,6 +225,7 @@ fn Home() -> Element {
 
     let mut disabled = use_signal(|| true);
     let mut open_modal = use_signal(|| false);
+    let mut show_username_error = use_signal(|| false);
     let ws_send: Coroutine<InnerMessage> = use_coroutine(|mut rx| async move {});
     let ws_send_signal = use_signal(|| ws_send);
 
@@ -252,6 +253,9 @@ fn Home() -> Element {
                                     disabled.set(true);
                                     user_config.write().username = event.value();
                                 }
+                                if event.value().len() == 0 {
+                                    show_username_error.set(true);
+                                }
                             }
                         }
                     }
@@ -263,7 +267,7 @@ fn Home() -> Element {
                         },
                         "Play"
                     }
-                    if user_config.read().username.is_empty() {
+                    if user_config.read().username.is_empty() && *show_username_error.read() {
                         span { class: "text-red-500 text-sm ",
                             p { "Please enter a username to play" }
                         }
