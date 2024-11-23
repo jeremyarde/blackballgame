@@ -264,7 +264,7 @@ fn Home() -> Element {
                         "Play"
                     }
                     if user_config.read().username.is_empty() {
-                        span { class: "text-red-500 text-sm sm:text-base",
+                        span { class: "text-red-500 text-sm ",
                             p { "Please enter a username to play" }
                         }
                     }
@@ -288,7 +288,7 @@ fn Home() -> Element {
                                             "How to Play"
                                         }
                                         div { class: "space-y-4",
-                                            ul { class: "list-disc list-inside space-y-2 text-left text-sm sm:text-base",
+                                            ul { class: "list-disc list-inside space-y-2 text-left text-sm ",
                                                 li {
                                                     "Blackball is played with a standard deck of 52 cards."
                                                 }
@@ -1131,12 +1131,17 @@ fn CardComponent(card: Card, onclick: EventHandler<Card>, is_winning: bool) -> E
     rsx!(
         button {
             class: format!(
-                "grid text-center justify-center {}",
-                if is_winning { "border-2 border-orange-500" } else { "" },
+                "grid text-center justify-center p-1 {}",
+                if is_winning { "border-4 border-green-500" } else { "" },
             ),
             onclick: move |evt| {
                 onclick(card.clone());
             },
+            if is_winning {
+                span { class: "top-0 right-0  bg-black text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-md",
+                    "winning"
+                }
+            }
             svg {
                 class: "col-start-1 row-start-1 w-full h-[100px]",
                 "shape-rendering": "crispEdges",
@@ -1216,18 +1221,18 @@ fn GameStateComponent(
                     div { class: "bg-[var(--bg-color)] rounded-lg p-2 shadow-lg border border-black flex flex-row w-full items-center justify-between",
                         div { class: "flex items-center justify-between",
                             match gamestate().gameplay_state {
-                                GameplayState::PostHand(ps) => rsx!(span { class: "text-sm sm:text-base font-bold", "End of hand {ps.hand_num}" }),
-                                GameplayState::Play(ps) => rsx!(span { class: "text-sm sm:text-base font-bold", "Playing hand {ps.hand_num}/{gamestate().curr_round}" }),
-                                _ => rsx!(span { class: "text-sm sm:text-base font-bold", "{gamestate().gameplay_state:?}" }),
+                                GameplayState::PostHand(ps) => rsx!(span { class: "text-sm  font-bold", "End of hand {ps.hand_num}" }),
+                                GameplayState::Play(ps) => rsx!(span { class: "text-sm  font-bold", "Playing hand {ps.hand_num}/{gamestate().curr_round}" }),
+                                _ => rsx!(span { class: "text-sm  font-bold", "{gamestate().gameplay_state:?}" }),
                             }
                         }
                         div { class: "flex flex-col items-center md:flex-row justify-between",
-                            // span { class: "font-semibold text-sm sm:text-base", "Trump:" }
+                            // span { class: "font-semibold text-sm ", "Trump:" }
                             div { class: "flex items-center", {trump_svg} }
                         }
                         div { class: "flex flex-col items-center justify-between",
-                            span { class: "font-semibold text-sm sm:text-base", "Round" }
-                            span { class: "text-sm sm:text-base",
+                            span { class: "font-semibold text-sm ", "Round" }
+                            span { class: "text-sm ",
                                 "{gamestate().curr_round}/{gamestate().setup_game_options.rounds}"
                             }
                         }
@@ -1376,7 +1381,7 @@ fn GameStateComponent(
                                     " won the game!"
                                 }
                                 ul {
-                                    class: "text-sm sm:text-base",
+                                    class: "text-sm ",
                                     {gamestate().players.iter().map(|(player, client)| {
                                         let score = gamestate().score.get(player).unwrap_or(&0).clone();
                                         let text = format!("{player}: {score}");
@@ -1404,7 +1409,7 @@ fn GameStateComponent(
                 }
                 div {
                     class: format!(
-                        "relative w-full bg-[var(--bg-color)] rounded-lg p-2  shadow-lg border border-black {}",
+                        "flex flex-col relative w-full bg-[var(--bg-color)] rounded-lg p-2  shadow-lg border border-black {}",
                         if gamestate().curr_player_turn.clone().unwrap_or("".to_string())
                             == user_config.read().username
                         {
@@ -1495,7 +1500,7 @@ fn GameStateComponent(
                     {if let GameplayState::PostHand(ps) = gamestate().gameplay_state {
                         rsx!(
                             button {
-                                class: "{styles::STANDARD_BUTTON} text-sm sm:text-base",
+                                class: "{styles::STANDARD_BUTTON} text-white",
                                 onclick: move |_| {
                                     ws_send()
                                         .send(InnerMessage::GameMessage {
@@ -1513,12 +1518,12 @@ fn GameStateComponent(
                     } else {
                         rsx!()
                     }},
-                    {if let GameplayState::PostRound = gamestate().gameplay_state {
-                        rsx!(
+                    if let GameplayState::PostRound = gamestate().gameplay_state {
+                        {rsx!(
                             div {
                                 class: "container",
                                 button {
-                                    class: "{styles::STANDARD_BUTTON} text-sm sm:text-base",
+                                    class: "{styles::STANDARD_BUTTON} text-white",
                                     onclick: move |_| {
                                         ws_send()
                                             .send(InnerMessage::GameMessage {
@@ -1533,21 +1538,19 @@ fn GameStateComponent(
                                     "Acknowledge"
                                 }
                             }
-                        )
-                    } else {
-                        rsx!()
-                    }},
-                    {if let GameplayState::End = gamestate().gameplay_state {
-                        rsx!(
+                        )}
+                    }
+                    if let GameplayState::End = gamestate().gameplay_state {
+                        {rsx!(
                             div {
-                                class: "container text-sm sm:text-base",
+                                class: "container text-sm ",
                                 div {"GAME OVER"}
                                 {gamestate().score.iter().map(|(player, score)| {rsx!(li { "{player}: {score}" })})}
                             }
                             div {
                                 class: "container",
                                 button {
-                                    class: "button text-sm sm:text-base",
+                                    class: "{styles::STANDARD_BUTTON} text-white",
                                     onclick: move |_| {
                                         ws_send()
                                             .send(InnerMessage::GameMessage {
@@ -1562,10 +1565,17 @@ fn GameStateComponent(
                                     "Acknowledge"
                                 }
                             }
-                        )
-                    } else {
-                        rsx!()
-                    }}
+                        )}
+                    }
+                }
+                // must be your turn and there are errors
+                if gamestate.read().system_status.len() > 0
+                    && gamestate.read().curr_player_turn.clone().unwrap_or("".to_string())
+                        == user_config.read().username
+                {
+                    span { class: "text-red-500 text-sm",
+                        "{gamestate.read().system_status.last().unwrap()}"
+                    }
                 }
             }
         }

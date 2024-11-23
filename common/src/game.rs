@@ -216,6 +216,7 @@ impl GameState {
     pub fn process_event(&mut self, event: GameMessage) -> GameEventResult {
         self.event_log.push(event.clone());
         self.updated_at = Utc::now();
+        self.system_status.clear(); // clear system status on every event, because we only want to show the current player the last error
 
         info!("Processing event: {:?}", event);
         match &event.action {
