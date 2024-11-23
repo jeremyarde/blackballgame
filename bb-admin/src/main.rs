@@ -33,8 +33,6 @@ use websocket::websocket_connection::WebsocketConnection;
 mod server_client;
 mod websocket;
 
-const STANDARD_BUTTON: &str = "px-4 py-2 bg-gray-800 text-white font-semibold rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75";
-
 mod styles {
     pub const TITLE_CONTAINER: &str = "grid items-center justify-center";
     pub const TITLE_TEXT: &str = "col-start-1 row-start-1 text-8xl md:text-6xl font-extrabold \
@@ -44,6 +42,8 @@ mod styles {
         "w-full text-2xl font-semibold text-black bg-white border border-gray-700 rounded-md 
          placeholder-gray-500 shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 
          focus:border-indigo-500 hover:scale-102 transition-transform duration-200 ease-in-out text-center";
+    pub const ROUND_DETAILS_TAILWIND: &str = "w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg text-center p-2";
+    pub const STANDARD_BUTTON: &str = "px-4 py-2 bg-gray-800 font-semibold rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75";
 }
 
 #[derive(Clone, Debug)]
@@ -256,7 +256,7 @@ fn Home() -> Element {
                         }
                     }
                     button {
-                        class: "{STANDARD_BUTTON} w-full sm:w-auto sm:mx-auto px-8 py-2 disabled:bg-gray-400 disabled:text-gray-500",
+                        class: "{styles::STANDARD_BUTTON} w-full bg-green-200 text-black hover:bg-green-400",
                         disabled: if user_config.read().username.is_empty() { true } else { false },
                         onclick: move |_| {
                             current_route.set("Explorer".to_string());
@@ -277,7 +277,7 @@ fn Home() -> Element {
                                     open_modal.set(true);
                                 }
                             },
-                            class: "bg-yellow-400 text-lg sm:text-xl rounded-md border border-solid w-full py-2 hover:bg-yellow-500 transition-colors",
+                            class: "{styles::STANDARD_BUTTON} w-full bg-yellow-200 hover:bg-yellow-400",
                             "How to Play"
                         }
                         if open_modal() == true {
@@ -391,31 +391,35 @@ fn Home() -> Element {
 
             timestamp: Utc::now(),
         });
-        if let Some(x) = gamestate.players.get_mut(&"player1".to_string()) {
-            x.hand = vec![
-                Card::new(Suit::Club, 5),
-                Card::new(Suit::Club, 14),
-                Card::new(Suit::Club, 1),
-                Card::new(Suit::Club, 10),
-            ];
-        }
+        // if let Some(x) = gamestate.players.get_mut(&"player1".to_string()) {
+        //     x.hand = vec![
+        //         Card::new(Suit::Club, 5),
+        //         Card::new(Suit::Club, 14),
+        //         Card::new(Suit::Club, 1),
+        //       Card::new(Suit::Club, 10),
+        //     ];
+        // }
 
-        gamestate.curr_player_turn = Some("player1".to_string());
-        gamestate.curr_played_cards = vec![
-            Card::new(Suit::Club, 5),
-            Card::new(Suit::Heart, 14),
-            Card::new(Suit::Diamond, 1),
-            Card::new(Suit::Spade, 10),
-        ];
+        // gamestate.curr_player_turn = Some("player1".to_string());
+        // gamestate.curr_played_cards = vec![
+        //     Card::new(Suit::Club, 5),
+        //     Card::new(Suit::Heart, 14),
+        //     Card::new(Suit::Diamond, 1),
+        //     Card::new(Suit::Spade, 10),
+        // ];
         gamestate.curr_winning_card = Some(Card::new(Suit::Club, 5));
         gamestate.gameplay_state = GameplayState::Bid;
         gamestate.player_bids = vec![("player1".to_string(), 0), ("player2".to_string(), 0)];
 
         let mut gamestate_signal = use_signal(|| gamestate);
 
-        rsx!(GameStateComponent {
-            gamestate: gamestate_signal,
-            ws_send: ws_send_signal
+        // rsx!(GameStateComponent {
+        //     gamestate: gamestate_signal,
+        //     ws_send: ws_send_signal
+        // })
+
+        rsx!(GameRoom {
+            room_code: user_config.read().lobby_code.clone()
         })
     }
 }
@@ -542,10 +546,10 @@ pub fn LobbyList() -> Element {
     };
 
     rsx!(
-        div { class: "container mx-auto px-4 sm:px-6 lg:px-8",
+        div { class: "container mx-auto",
             div { class: "flex flex-col justify-center space-between cursor-pointer p-2",
-                h1 { class: "text-2xl font-bold text-center sm:text-left", "Game Lobbies" }
-                div { class: "flex flex-col sm:flex-row justify-center items-center w-full p-1 gap-2 sm:gap-1",
+                h1 { class: "text-2xl font-bold text-center", "Game Lobbies" }
+                div { class: "flex flex-col sm:flex-row justify-center items-center w-full gap-2 p-2",
                     label { class: "text-xl whitespace-nowrap", "new lobby" }
                     input {
                         class: "{styles::INPUT_FIELD} w-full sm:w-auto",
@@ -555,7 +559,7 @@ pub fn LobbyList() -> Element {
                         "lobby"
                     }
                     button {
-                        class: "bg-yellow-400 border border-solid border-black text-center rounded-md w-full sm:w-auto px-4 py-2",
+                        class: "bg-yellow-400 border border-solid border-black text-center rounded-md w-full p-2",
                         onclick: move |_| {
                             info!("Clicked create lobby");
                             create_lobby_function(lobby_name.read().clone());
@@ -563,13 +567,13 @@ pub fn LobbyList() -> Element {
                         "create"
                     }
                     button {
-                        class: "bg-gray-300 flex flex-row text-center border p-2 border-solid border-black rounded-md justify-center items-center cursor-pointer w-full sm:w-auto",
+                        class: "bg-gray-300 flex flex-row text-center border border-solid border-black rounded-md justify-center items-center cursor-pointer w-full p-2 hover:bg-gray-400",
                         onclick: move |evt| {
                             all_lobbies.restart();
                         },
                         svg {
-                            class: "w-6 h-6",
-                            fill: "none",
+                            class: "w-6 h-6 transition-transform duration-300 hover:rotate-180",
+                            fill: "black",
                             stroke: "currentColor",
                             "stroke-width": "1",
                             "view-box": "0 0 24 24",
@@ -579,10 +583,9 @@ pub fn LobbyList() -> Element {
                                 d: "M4 4v5h.582c.523-1.838 1.856-3.309 3.628-4.062A7.978 7.978 0 0112 4c4.418 0 8 3.582 8 8s-3.582 8-8 8a7.978 7.978 0 01-7.658-5.125c-.149-.348-.54-.497-.878-.365s-.507.537-.355.885A9.956 9.956 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2c-2.045 0-3.94.613-5.514 1.653A6.978 6.978 0 004.582 4H4z"
                             }
                         }
-                        label { class: "text-lg ml-2", "Refresh" }
                     }
                 }
-                {if create_lobby_response_msg() == String::from("") { rsx!(div{}) } else { rsx!(div { class: "text-center sm:text-left ", "{create_lobby_response_msg.read()}" }) }}
+                {if create_lobby_response_msg() == String::from("") { rsx!(div{}) } else { rsx!(div { class: "text-center", "{create_lobby_response_msg.read()}" }) }}
             }
             div { class: "flex flex-col p-2 gap-2",
                 div { class: "relative",
@@ -631,13 +634,20 @@ pub fn LobbyList() -> Element {
                             }
                         }
                         tbody { class: "divide-y divide-gray-200",
-                            {search_lobbies.iter().map(|lobby| {
-                                rsx!(
-                                    LobbyComponent {
-                                        lobby: lobby.clone(),
+                            if search_lobbies.len() == 0 {
+                                {rsx!(
+                                    div { class: "text-center w-full p-4",
+                                        "No lobbies found"
                                     }
-                                )
-                            })
+                                )}
+                            } else {
+                                {search_lobbies.iter().map(|lobby| {
+                                    rsx!(
+                                        LobbyComponent {
+                                            lobby: lobby.clone(),
+                                        }
+                                    )
+                                })}
                             }
                         }
                     }
@@ -660,7 +670,7 @@ fn GameRoom(room_code: String) -> Element {
         } else {
             false
         },
-        start_round: None,
+        start_round: Some(4),
         max_players: 4,
         game_mode: "Standard".to_string(),
         visibility: GameVisibility::Public,
@@ -838,7 +848,7 @@ fn GameRoom(room_code: String) -> Element {
 
     let ws_send_signal = use_signal(|| ws_send);
     rsx!(
-        div { class: "flex flex-col md:flex-row text-center bg-[--bg-color] min-h-screen w-full flex-wrap md:flex-nowrap justify-center gap-2 p-2 md:p-4 items-start",
+        div { class: "flex flex-col md:flex-row text-center bg-[--bg-color] min-h-screen w-full flex-wrap md:flex-nowrap justify-center gap-2 p-2 md:p-4 items-center align-middle",
             {
                 if error().is_null() {
                     rsx!()
@@ -863,16 +873,16 @@ fn GameRoom(room_code: String) -> Element {
                 if gamestate().gameplay_state == GameplayState::Pregame {
                     rsx!(
                         div {
-                            class: "flex flex-col md:flex-row gap-2 w-full",
+                            class: "flex flex-col gap-2 w-full self-center max-w-[600px]",
                             div {
-                                class: "flex flex-row w-full md:max-w-[600px] border border-black rounded-md p-2 md:p-4",
+                                class: "flex flex-row w-full border border-black rounded-md p-2 md:p-4 self-center",
                                 button {
-                                    class: "{STANDARD_BUTTON}",
+                                    class: "{styles::STANDARD_BUTTON} text-white",
                                     onclick: move |evt| get_game_details(room_code_clone.clone()),
                                     "Refresh player list"
                                 }
                                 button {
-                                    class: "{STANDARD_BUTTON}",
+                                    class: "{styles::STANDARD_BUTTON} text-white",
                                     onclick: move |evt| {
                                         async move {
                                             info!("Clicked join game");
@@ -897,21 +907,21 @@ fn GameRoom(room_code: String) -> Element {
                                     "Join this game"
                                 }
                                 div {
-                                    class: "flex flex-col md:flex-row justify-center align-top text-center items-center w-full border border-black rounded-md p-2 md:p-4",
+                                    class: "flex flex-col md:flex-row justify-center align-top text-center items-center w-full border border-black rounded-md p-2",
                                     h1 {class: "text-xl md:text-2xl", "{get_lobby_response.read().lobby.name}" }
                                     div { class: "container", "Players ({get_lobby_response.read().lobby.players.len()})"
                                         {get_lobby_response.read().lobby.players.iter().enumerate().map(|(i, player)| rsx!(div { "{i}: {player}" }))}
                                     }
                                 }
                             }
-                            div { class: "flex flex-col w-full md:max-w-[600px] border border-black rounded-md p-2 md:p-4",
+                            div { class: "flex flex-col w-full md:max-w-[600px] self-center border border-black rounded-md p-2",
                                 h2 {
                                     class: "text-xl md:text-2xl",
                                     "Game options"
                                 }
                                 // settings
-                                div { class: "flex flex-col align-middle justify-center text-center w-full space-y-4",
-                                    div { class: "flex flex-row items-center justify-center space-x-2",
+                                div { class: "flex flex-col align-middle justify-center text-center w-full container mx-auto p-4 max-w-lg gap-2",
+                                    div { class: "flex flex-row items-center justify-center",
                                         label { class: "text-sm md:text-base", "Rounds" }
                                         input {
                                             class: "{styles::INPUT_FIELD} w-16 md:w-20",
@@ -963,7 +973,10 @@ fn GameRoom(room_code: String) -> Element {
                                                 }
                                             }
                                         }
-                                        if app_props.read().is_debug_mode() {
+                                    }
+                                    if app_props.read().is_debug_mode() {
+                                        div {
+                                            class: "flex flex-row items-center justify-center space-x-4",
                                             label { class: "text-sm md:text-base", "start round" }
                                             input {
                                                 class: "{styles::INPUT_FIELD} w-16 md:w-20",
@@ -979,24 +992,31 @@ fn GameRoom(room_code: String) -> Element {
                                         class: "flex flex-row items-center justify-center space-x-4",
                                         span { class: "text-sm md:text-base", "Public" }
                                         label {
-                                            class: "relative items-center cursor-pointer",
+                                            class: "relative flex items-center cursor-pointer",
                                             div {
                                                 class: "relative",
                                                 input {
                                                     checked: "{setupgameoptions.read().visibility == GameVisibility::Private}",
-                                                    class: "{styles::INPUT_FIELD}",
+                                                    class: "peer hidden",
                                                     r#type: "checkbox",
                                                     onchange: move |evt| {
                                                         setupgameoptions.write().visibility = if setupgameoptions.read().visibility == GameVisibility::Private { GameVisibility::Public } else { GameVisibility::Private };
                                                     },
                                                 }
                                                 div {
-                                                    class: format!("block w-12 md:w-14 h-6 md:h-8 rounded-full {}", if setupgameoptions.read().visibility == GameVisibility::Private { "bg-red-300" } else { "bg-green-200" }) }
+                                                    class: "block w-12 md:w-14 h-6 md:h-8 rounded-full transition-colors duration-300 ease-in-out",
+                                                    class: if setupgameoptions.read().visibility == GameVisibility::Private {
+                                                        "bg-red-300"
+                                                    } else {
+                                                        "bg-green-200"
+                                                    }
+                                                }
                                                 div {
-                                                    class: format!("absolute left-1 top-1 bg-white w-4 md:w-6 h-4 md:h-6 rounded-full transition-transform duration-300 ease-in-out {}", if setupgameoptions.read().visibility == GameVisibility::Private { "transform translate-x-full" } else { "" })
+                                                    class: "absolute left-1 top-1 bg-white w-4 md:w-6 h-4 md:h-6 rounded-full transition-transform duration-300 ease-in-out peer-checked:translate-x-6",
                                                 }
                                             }
                                         }
+
                                         span { class: "text-sm md:text-base", "Private" }
 
                                     }
@@ -1281,56 +1301,48 @@ fn GameStateComponent(
                     }
                 }
             }
-            div { class: "flex flex-col justify-between gap-4 sm:gap-6 w-full",
-                div { class: "relative w-full bg-[var(--bg-color)] rounded-lg p-2  shadow-lg text-gray-100 border border-black",
-                    div { class: "absolute top-2 left-2 px-2 sm:px-3 py-1 text-xs sm:text-sm font-bold text-white bg-indigo-600 rounded-md shadow",
-                        "Played cards"
-                    }
-                    div { class: "flex flex-row mt-6 sm:mt-8 justify-center gap-1 sm:gap-2",
-                        {gamestate().curr_played_cards.iter().map(|card| rsx!(
-                            CardComponent {
-                                onclick: move |_| { info!("Clicked a card: {:?}", "fake card") },
-                                card: card.clone(),
-                                is_winning: gamestate.read().curr_winning_card.is_some() && gamestate.read().curr_winning_card.clone().unwrap() == card.clone(),
-                            }
-                        ))}
-                    }
-                    match gamestate().gameplay_state {
-                        GameplayState::PostHand(ps) => {
-                            let round_winner = gamestate.read().curr_winning_card.clone().unwrap().played_by.unwrap_or("Nobody".to_string());
-                            rsx!(
-                                div { class: "max-w-md mx-auto bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-2 text-center",
-                                    p { class: "text-base sm:text-lg font-semibold",
-                                        "Hand over, winner is "
-                                        span { class: "text-yellow-300", "{round_winner}" }
-                                        "!"
-                                    }
+            div { class: "flex flex-col justify-between gap-2 w-full",
+                match gamestate().gameplay_state {
+                    GameplayState::PostHand(ps) => {
+                        let round_winner = gamestate.read().curr_winning_card.clone().unwrap().played_by.unwrap_or("Nobody".to_string());
+                        rsx!(
+                            div { class: "{styles::ROUND_DETAILS_TAILWIND}",
+                                p { class: "text-base sm:text-lg font-semibold",
+                                    "Hand over, winner is "
+                                    span { class: "text-yellow-300", "{round_winner}" }
+                                    "!"
                                 }
-                            )
-                        },
-                        GameplayState::Bid => {
-                            rsx!(div { class: "max-w-md mx-auto bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-2 text-center",
+                            }
+                        )
+                    },
+                    GameplayState::Bid => {
+                        rsx!(
+                            div { class: "{styles::ROUND_DETAILS_TAILWIND}",
                                 p { class: "text-base sm:text-lg font-semibold",
                                     "{gamestate().curr_player_turn.clone().unwrap()}'s turn to bid"
                                 }
-                            })
-                        },
-                        GameplayState::Play(ps) => {
-                            rsx!(div { class: "max-w-md mx-auto  bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-3 sm:p-6 text-center",
+                            }
+                        )
+                    },
+                    GameplayState::Play(ps) => {
+                        rsx!(
+                            div { class: "{styles::ROUND_DETAILS_TAILWIND}",
                                 p { class: "text-base sm:text-lg font-semibold",
                                     "{gamestate().curr_player_turn.clone().unwrap()}'s turn to play a card"
                                 }
-                            })
-                        },
-                        GameplayState::Pregame => {
-                            rsx!(div { class: "max-w-md mx-auto  bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-3 sm:p-6 text-center",
-                                p { class: "text-base sm:text-lg font-semibold",
-                                    "Waiting to start the game"
-                                }
-                            })
-                        },
-                        GameplayState::PostRound => {
-                            rsx!(div { class: "flex flex-col max-w-md mx-auto bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-2 text-center",
+                        })
+                    },
+                    GameplayState::Pregame => {
+                        rsx!(
+                            div { class: "{styles::ROUND_DETAILS_TAILWIND}",
+                            p { class: "text-base sm:text-lg font-semibold",
+                                "Waiting to start the game"
+                            }
+                        })
+                    },
+                    GameplayState::PostRound => {
+                        rsx!(
+                            div { class: "{styles::ROUND_DETAILS_TAILWIND}",
                                 p { class: "text-base sm:text-lg font-semibold",
                                     "Round over"
                                 }
@@ -1351,11 +1363,13 @@ fn GameStateComponent(
                                         )
                                     })}
                                 }
-                            })
-                        },
-                        GameplayState::End => {
-                            let gamewinner = gamestate().score.iter().max_by_key(|(_, v)| *v).unwrap().0.clone();
-                            rsx!(div { class: "max-w-md mx-auto  bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg shadow-lg p-3 sm:p-6 text-center",
+                            }
+                        )
+                    },
+                    GameplayState::End => {
+                        let gamewinner = gamestate().score.iter().max_by_key(|(_, v)| *v).unwrap().0.clone();
+                        rsx!(
+                            div { class: "{styles::ROUND_DETAILS_TAILWIND}",
                                 p { class: "text-base sm:text-lg font-semibold",
                                     "Game over!"
                                     span { class: "text-yellow-300", "{gamewinner}" }
@@ -1369,9 +1383,23 @@ fn GameStateComponent(
                                         rsx!(li { "{text}" })
                                     })}
                                 }
-                            })
-                        },
-                        _ => rsx!(div {}),
+                            }
+                        )
+                    },
+                    _ => rsx!(div {}),
+                },
+                div { class: "relative w-full bg-[var(--bg-color)] rounded-lg p-2  shadow-lg text-gray-100 border border-black",
+                    div { class: "absolute top-2 left-2 px-2 sm:px-3 py-1 text-xs sm:text-sm font-bold text-white bg-indigo-600 rounded-md shadow",
+                        "Played cards"
+                    }
+                    div { class: "flex flex-row mt-6 sm:mt-8 justify-center gap-1 sm:gap-2",
+                        {gamestate().curr_played_cards.iter().map(|card| rsx!(
+                            CardComponent {
+                                onclick: move |_| { info!("Clicked a card: {:?}", "fake card") },
+                                card: card.clone(),
+                                is_winning: gamestate.read().curr_winning_card.is_some() && gamestate.read().curr_winning_card.clone().unwrap() == card.clone(),
+                            }
+                        ))}
                     }
                 }
                 div {
@@ -1467,7 +1495,7 @@ fn GameStateComponent(
                     {if let GameplayState::PostHand(ps) = gamestate().gameplay_state {
                         rsx!(
                             button {
-                                class: "{STANDARD_BUTTON} text-sm sm:text-base",
+                                class: "{styles::STANDARD_BUTTON} text-sm sm:text-base",
                                 onclick: move |_| {
                                     ws_send()
                                         .send(InnerMessage::GameMessage {
@@ -1490,7 +1518,7 @@ fn GameStateComponent(
                             div {
                                 class: "container",
                                 button {
-                                    class: "{STANDARD_BUTTON} text-sm sm:text-base",
+                                    class: "{styles::STANDARD_BUTTON} text-sm sm:text-base",
                                     onclick: move |_| {
                                         ws_send()
                                             .send(InnerMessage::GameMessage {

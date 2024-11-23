@@ -1444,4 +1444,16 @@ mod tests {
             ".players" => insta::sorted_redaction(),
         });
     }
+
+    #[test]
+    fn test_test() {
+        // let secret = "sky_jce98iqm6y7j";
+        // let enc_hand = "KBBbNg5BXwgARVMdWhhODxc0GyZIWUdJVAgICERLFUZRGAw2HkFfG1wAEABZF1NIX0kPPgYWABsCXgxBTVteDlFRTWhGQRVVWRAUCWkbTkhJSQkzCxoASwpLXU9FDF4eUVFbLBoCAVwaRVMbVxVCD1FRSG8XTx4bUQ1TVwVVFRofCgA6DjwHQBpTUx1aGE4PAVlbc0gQEFBMS0tPXhxWGAdJVX0cAglMXUtLWEtVTEgaD1tlXlpJG0gFEBRTHWgICklDfRoPBEBdG0NPGltEHxofW2VIEBVYXAxTQRQPVgYGDltlW1EYZA==";
+
+        let secret = "sky_p1zp1271hspm";
+        let enc_hand = "KBBbNhQTQEEFHhVBBBIJCBc0GyZSC1hBAwEDA0pfUh4GAg19ShMeGVBfWF8MUVxPBQoVKhUTQENMHkwTARdSV0JdVX0AXRsJVFZoUxFRSk9CWUprQhNWUkJHXkVKSVIJGgoUMB5VWFwTRFZdHRZSV0YWVSRSWB5SCwIbExgfERQWDyY9CRNAUgAABAVaUVxPAB4QK1ILWBhUU0VFSl9SGxIHDDpSC0gNHUkVWAxRSl5HR1svHFADFVVtVUhKSVJcQVhNbVIdWANEW0MTUlETAQYJW3NSRxscRFcVC1lDDTA=";
+
+        let hand = GameState::decrypt_player_hand(enc_hand.to_owned(), &secret.to_owned());
+        println!("Decrypted: {:?}", hand);
+    }
 }
