@@ -117,9 +117,9 @@ pub struct GameState {
     #[serde(skip)]
     curr_player_turn_idx: usize,
     pub curr_winning_card: Option<Card>,
-    pub curr_dealer: String,
+    curr_dealer: String,
     #[serde(skip)]
-    pub curr_dealer_idx: usize,
+    curr_dealer_idx: usize,
     pub bids: HashMap<String, i32>,
     pub player_bids: Vec<(String, i32)>,
     pub wins: HashMap<String, i32>,

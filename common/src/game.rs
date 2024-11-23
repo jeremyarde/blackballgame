@@ -14,6 +14,10 @@ use crate::{
 };
 
 impl GameState {
+    pub fn get_dealer(&self) -> String {
+        self.player_order[self.curr_dealer_idx].clone()
+    }
+
     pub fn update_to_next_state(&mut self) {
         let newstate = match &self.gameplay_state {
             GameplayState::Bid => GameplayState::Play(PlayState::new()),

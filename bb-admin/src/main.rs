@@ -81,6 +81,7 @@ mod environment;
 #[component]
 fn StateProvider() -> Element {
     let environment = environment::get_env_variable();
+    let is_debug = environment::get_debug_variable();
     info!("Environment: {:?}", environment);
     let is_prod = if environment.is_some() {
         environment.unwrap() == "production"
@@ -95,7 +96,7 @@ fn StateProvider() -> Element {
             } else {
                 Env::Development
             },
-            debug_mode: false,
+            debug_mode: is_debug.unwrap_or(false),
         })
     });
 
@@ -529,11 +530,11 @@ pub fn LobbyList() -> Element {
             match resp {
                 Ok(data) => {
                     info!("create_lobby success");
-                    create_lobby_response_msg.set(format!("response: {:?}", data).into());
+                    create_lobby_response_msg
+                        .set(format!("Success! Created new game lobby").into());
                     all_lobbies.restart();
                 }
                 Err(err) => {
-                    // log::info!("Request failed with error: {err:?}")
                     create_lobby_response_msg.set(format!("{err}").into());
                 }
             }
@@ -545,7 +546,7 @@ pub fn LobbyList() -> Element {
             div { class: "flex flex-col justify-center space-between cursor-pointer p-2",
                 h1 { class: "text-2xl font-bold text-center sm:text-left", "Game Lobbies" }
                 div { class: "flex flex-col sm:flex-row justify-center items-center w-full p-1 gap-2 sm:gap-1",
-                    label { class: "text-xl whitespace-nowrap", "New lobby" }
+                    label { class: "text-xl whitespace-nowrap", "new lobby" }
                     input {
                         class: "{styles::INPUT_FIELD} w-full sm:w-auto",
                         r#type: "text",
@@ -1213,6 +1214,12 @@ fn GameStateComponent(
                                         div {
                                             class: "flex flex-row justify-between gap-2 items-baseline",
                                             span { class: "font-semibold text-base sm:text-lg", "{playername}" }
+                                            if *playername == user_config.read().username {
+                                                span {
+                                                    class: "top-0 right-0  bg-black text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-md",
+                                                    "(you)"
+                                                }
+                                            }
                                         }
                                         div { class: "text-right",
                                             span { class: "text-xs sm:text-sm font-medium text-green-600", "Score: {gamestate().score.get(playername).unwrap_or(&0)}" }
@@ -1247,8 +1254,9 @@ fn GameStateComponent(
                                                     9 => {"10th"}
                                                     _ => {"??th"}
                                                 }
+
                                             }
-                                            if *playername == gamestate.read().curr_player_turn.clone().unwrap() {
+                                            if *playername == gamestate.read().get_dealer().clone() {
                                                 span {
                                                     class: "top-0 right-0  bg-black text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-md",
                                                     "Dealer"
@@ -1405,11 +1413,11 @@ fn GameStateComponent(
                             }
                             ul { class: "flex flex-row gap-2 items-center p-2 justify-center",
                                 {(0..=gamestate().curr_round).map(|i| {
-                                    if user_config.read().username == gamestate().curr_dealer && (i + gamestate().bids.values().sum::<i32>()) == gamestate().curr_round {
+                                    if user_config.read().username == gamestate().get_dealer() && (i + gamestate().bids.values().sum::<i32>()) == gamestate().curr_round {
                                         rsx!(
                                             button {
                                                 class: "bg-gray-300 p-2 rounded-lg text-lg",
-                                                disabled: true,
+                                                // disabled: true,
                                             }
                                         )
                                     } else {

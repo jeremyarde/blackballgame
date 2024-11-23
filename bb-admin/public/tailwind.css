@@ -779,10 +779,6 @@ video {
   width: 100vw;
 }
 
-.w-auto {
-  width: auto;
-}
-
 .min-w-full {
   min-width: 100%;
 }
@@ -1575,10 +1571,6 @@ video {
     width: auto;
   }
 
-  .sm\:w-full {
-    width: 100%;
-  }
-
   .sm\:max-w-\[600px\] {
     max-width: 600px;
   }
@@ -1680,10 +1672,6 @@ video {
     width: auto;
   }
 
-  .md\:w-full {
-    width: 100%;
-  }
-
   .md\:max-w-\[600px\] {
     max-width: 600px;
   }
@@ -1726,10 +1714,6 @@ video {
 }
 
 @media (min-width: 1024px) {
-  .lg\:w-auto {
-    width: auto;
-  }
-
   .lg\:overflow-hidden {
     overflow: hidden;
   }
