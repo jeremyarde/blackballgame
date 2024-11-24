@@ -23,17 +23,12 @@ impl GameState {
             GameplayState::Bid => GameplayState::Play(PlayState::new()),
             GameplayState::Pregame => GameplayState::Bid,
             GameplayState::Play(ps) => {
-                info!(
-                    "jere/ update state play -> ?? {}, {}",
-                    ps.hand_num, self.curr_round
-                );
                 // move to new "hand" in the round when each player played a card
                 if self.curr_played_cards.len() == self.player_order.len() {
                     GameplayState::PostHand(ps.clone())
                 } else {
                     self.gameplay_state.clone()
                 }
-                // GameplayState::PostHand(ps.clone())
             }
             GameplayState::PostHand(ps) => {
                 if ps.hand_num
@@ -48,10 +43,6 @@ impl GameState {
                 }
             }
             GameplayState::PostRound => {
-                info!(
-                    "jere/ post round, maybe end game?? {} vs {}",
-                    self.curr_round, self.setup_game_options.rounds
-                );
                 if self.curr_round > self.setup_game_options.rounds as i32 {
                     GameplayState::End
                 } else {
@@ -72,15 +63,66 @@ impl GameState {
             self.gameplay_state,
             newstate
         );
-        // self.transition_state(newstate.clone());
         self.gameplay_state = newstate;
     }
 
-    pub fn process_event_pregame(&mut self, event: GameMessage) {
-        if let GameAction::StartGame(sgo) = event.action {
-            let result = self.setup_game(sgo);
-            info!("Setup game result: {:?}", result);
-        }
+    pub fn process_event_pregame(&mut self, event: GameMessage) -> Option<GameEventResult> {
+        match event.action {
+            GameAction::StartGame(sgo) => {
+                let result = self.setup_game(sgo);
+                info!("Setup game result: {:?}", result);
+            }
+            GameAction::Connect(player_details) => {
+                let secret = self.add_player(
+                    player_details.username.clone(),
+                    PlayerRole::Player,
+                    player_details.ip.clone().unwrap(),
+                );
+                return Some(GameEventResult {
+                    dest: Destination::User(PlayerDetails {
+                        username: event.username.clone(),
+                        ip: player_details.ip.clone(),
+                        client_secret: self
+                            .players
+                            .get(&player_details.username.clone())
+                            .expect("Failed to get player")
+                            .details
+                            .client_secret
+                            .clone(),
+                        lobby: player_details.lobby.clone(),
+                    }),
+                    msg: crate::GameActionResponse::Connect(Connect {
+                        username: event.username.clone(),
+                        channel: self.lobby_code.clone(),
+                        secret: Some(secret),
+                    }),
+                });
+            }
+            GameAction::JoinGame(player) => {
+                let secret = self.add_player(
+                    player.username.clone(),
+                    PlayerRole::Player,
+                    player.ip.clone().unwrap(),
+                );
+                return Some(GameEventResult {
+                    dest: Destination::User(
+                        self.players
+                            .get(&event.username)
+                            .expect("Failed to get player")
+                            .clone()
+                            .details,
+                    ),
+                    msg: crate::GameActionResponse::Connect(Connect {
+                        username: event.username.clone(),
+                        channel: self.lobby_code.clone(),
+                        secret: Some(secret),
+                    }),
+                });
+            }
+            _ => {}
+        };
+
+        None
     }
 
     fn is_correct_player_turn(&mut self, event: &GameMessage) -> bool {
@@ -101,9 +143,9 @@ impl GameState {
         true
     }
 
-    pub fn process_event_bid(&mut self, event: GameMessage) {
+    pub fn process_event_bid(&mut self, event: GameMessage) -> Option<GameEventResult> {
         if !self.is_correct_player_turn(&event) {
-            return;
+            return None;
         };
 
         if let GameAction::Bid(bid) = event.action {
@@ -127,40 +169,28 @@ impl GameState {
                 self.update_to_next_state();
             }
         }
+
+        None
     }
 
-    pub fn process_event_postround(&mut self, event: GameMessage) {
-        // if self.is_correct_player_turn(&event) == false {
-        //     return None;
-        // };
-
+    pub fn process_event_postround(&mut self, event: GameMessage) -> Option<GameEventResult> {
         match event.action {
             GameAction::Deal | GameAction::Ack => {
                 self.start_next_round();
             }
             _ => {}
         }
+        None
     }
 
-    pub fn process_event_play(&mut self, event: GameMessage) {
+    pub fn process_event_play(&mut self, event: GameMessage) -> Option<GameEventResult> {
         if !self.is_correct_player_turn(&event) {
-            return;
+            return None;
         };
         let player_id = event.username.clone();
 
         if let GameAction::PlayCard(card) = &event.action {
-            // let player = self
-            //     .players
-            //     .get_mut(&player_id)
-            //     .expect("Did not find player");
-
-            match &self.is_played_card_valid(
-                // &self.curr_played_cards.clone(),
-                // player.hand.clone(),
-                player_id.clone(),
-                card.clone(),
-                // &self.trump,
-            ) {
+            match &self.is_played_card_valid(player_id.clone(), card.clone()) {
                 Ok(x) => {
                     tracing::info!("card is valid");
                     if x.suit == self.trump {
@@ -211,6 +241,8 @@ impl GameState {
         }
 
         self.update_to_next_state();
+
+        None
     }
 
     pub fn process_event(&mut self, event: GameMessage) -> GameEventResult {
@@ -219,63 +251,7 @@ impl GameState {
         self.system_status.clear(); // clear system status on every event, because we only want to show the current player the last error
 
         info!("Processing event: {:?}", event);
-        match &event.action {
-            GameAction::Connect(player_details) => {
-                let secret = self.add_player(
-                    player_details.username.clone(),
-                    PlayerRole::Player,
-                    player_details.ip.clone().unwrap(),
-                );
-                return GameEventResult {
-                    dest: Destination::User(PlayerDetails {
-                        username: event.username.clone(),
-                        ip: player_details.ip.clone(),
-                        client_secret: self
-                            .players
-                            .get(&player_details.username.clone())
-                            .expect("Failed to get player")
-                            .details
-                            .client_secret
-                            .clone(),
-                        lobby: player_details.lobby.clone(),
-                    }),
-                    msg: crate::GameActionResponse::Connect(Connect {
-                        username: event.username.clone(),
-                        channel: self.lobby_code.clone(),
-                        secret: Some(secret),
-                    }),
-                };
-            }
-            GameAction::PlayCard(_) => {}
-            GameAction::Bid(_) => {}
-            GameAction::Ack => {}
-            GameAction::StartGame(_) => {}
-            GameAction::Deal => {}
-            GameAction::CurrentState => {}
-            GameAction::JoinGame(player) => {
-                let secret = self.add_player(
-                    player.username.clone(),
-                    PlayerRole::Player,
-                    player.ip.clone().unwrap(),
-                );
-                return GameEventResult {
-                    dest: Destination::User(
-                        self.players
-                            .get(&event.username)
-                            .expect("Failed to get player")
-                            .clone()
-                            .details,
-                    ),
-                    msg: crate::GameActionResponse::Connect(Connect {
-                        username: event.username.clone(),
-                        channel: self.lobby_code.clone(),
-                        secret: Some(secret),
-                    }),
-                };
-            }
-        }
-
-        match &self.gameplay_state {
+        let has_result = match &self.gameplay_state {
             // Allow new players to join
             GameplayState::Pregame => self.process_event_pregame(event),
             // Get bids from all players
@@ -289,11 +265,13 @@ impl GameState {
                     self.start_next_hand();
                     self.update_to_next_state();
                 }
+                None
             }
             GameplayState::End => {
                 if event.action == GameAction::Ack {
                     self.update_to_next_state();
                 }
+                None
             }
         };
 
@@ -302,6 +280,10 @@ impl GameState {
             .values()
             .map(|player| player.details.clone())
             .collect();
+
+        if let Some(result) = has_result {
+            return result;
+        }
 
         GameEventResult {
             dest: Destination::Lobby(players),
@@ -429,7 +411,6 @@ impl GameState {
         self.bids.clear();
         self.deck = create_deck();
         self.advance_trump();
-        // self.advance_dealer();
 
         let (next_turn_idx, next_player) =
             self.advance_turn(self.curr_player_turn_idx, &self.player_order);
