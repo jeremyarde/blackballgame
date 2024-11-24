@@ -275,15 +275,15 @@ impl GameState {
             }
         };
 
+        if let Some(result) = has_result {
+            return result;
+        }
+
         let players = self
             .players
             .values()
             .map(|player| player.details.clone())
             .collect();
-
-        if let Some(result) = has_result {
-            return result;
-        }
 
         GameEventResult {
             dest: Destination::Lobby(players),
@@ -412,18 +412,19 @@ impl GameState {
         self.deck = create_deck();
         self.advance_trump();
 
-        let (next_turn_idx, next_player) =
-            self.advance_turn(self.curr_player_turn_idx, &self.player_order);
-        self.curr_player_turn_idx = next_turn_idx;
-        self.curr_player_turn = Some(next_player);
-
+        // change dealers to next player
         let (next_turn_idx, next_player) =
             self.advance_turn(self.curr_dealer_idx, &self.player_order);
         self.curr_dealer_idx = next_turn_idx;
         self.curr_dealer = next_player;
 
-        self.curr_round += 1;
+        // upcoming player to bid is the player after the dealer
+        let (next_turn_idx, next_player) =
+            self.advance_turn(self.curr_dealer_idx, &self.player_order);
+        self.curr_player_turn_idx = next_turn_idx;
+        self.curr_player_turn = Some(next_player);
 
+        self.curr_round += 1;
         self.curr_played_cards = vec![];
         self.curr_winning_card = None;
         self.player_bids = vec![];

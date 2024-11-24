@@ -417,14 +417,14 @@ fn Home() -> Element {
 
         let mut gamestate_signal = use_signal(|| gamestate);
 
-        // rsx!(GameStateComponent {
-        //     gamestate: gamestate_signal,
-        //     ws_send: ws_send_signal
-        // })
-
-        rsx!(GameRoom {
-            room_code: user_config.read().lobby_code.clone()
+        rsx!(GameStateComponent {
+            gamestate: gamestate_signal,
+            ws_send: ws_send_signal
         })
+
+        // rsx!(GameRoom {
+        //     room_code: user_config.read().lobby_code.clone()
+        // })
     }
 }
 
@@ -1135,7 +1135,7 @@ fn CardComponent(card: Card, onclick: EventHandler<Card>, is_winning: bool) -> E
     rsx!(
         button {
             class: format!(
-                "grid text-center justify-center p-1 {}",
+                "text-center justify-center p-1 {}",
                 if is_winning { "border-4 border-green-500" } else { "" },
             ),
             onclick: move |evt| {
@@ -1146,36 +1146,40 @@ fn CardComponent(card: Card, onclick: EventHandler<Card>, is_winning: bool) -> E
                     "winning"
                 }
             }
-            svg {
-                class: "col-start-1 row-start-1 w-full h-[100px]",
-                "shape-rendering": "crispEdges",
-                "viewBox": "0 -0.5 48 64",
-                "xmlns": "http://www.w3.org/2000/svg",
-                fill: "none",
-                meta { data: "false" }
-                "Made with Pixels to Svg https://codepen.io/shshaw/pen/XbxvNj"
-                path {
-                    "d": "M4 3h1M28 3h7M39 3h3M43 3h1M43 4h1M43 11h1M3 13h1M43 21h1M3 24h1M3 25h1M3 27h1M3 28h1M3 29h1M43 32h1M3 36h1M3 37h1M3 40h1M3 41h1M3 42h1M43 42h1M3 43h1M3 44h1M3 45h1M3 46h1M3 47h1M3 48h1M43 50h1M43 51h1M3 52h1M3 53h1M3 54h1M3 55h1M3 59h1M6 59h2M14 59h2M29 59h4M34 59h9",
-                    "stroke": "#000000"
+            div { class: "relative items-center gap-2 h-full w-full",
+                div { class: "absolute inset-0 flex-col flex items-center top-4",
+                    {suit_svg},
+                    span { class: "text-white content-center text-center text-4xl self-center justify-center drop-shadow-[0_2.2px_2.2px_rgba(0,0,0,0.8)]",
+                        "{textvalue}"
+                    }
                 }
-                path {
-                    "d": "M5 3h23M35 3h4M42 3h1M3 4h1M3 5h1M43 5h1M3 6h1M43 6h1M3 7h1M43 7h1M3 8h1M43 8h1M3 9h1M43 9h1M3 10h1M43 10h1M3 11h1M3 12h1M43 12h1M43 13h1M3 14h1M43 14h1M3 15h1M43 15h1M3 16h1M43 16h1M3 17h1M43 17h1M3 18h1M43 18h1M3 19h1M43 19h1M3 20h1M43 20h1M3 21h1M3 22h1M43 22h1M3 23h1M43 23h1M43 24h1M43 25h1M3 26h1M43 26h1M43 27h1M43 28h1M43 29h1M3 30h1M43 30h1M3 31h1M43 31h1M3 32h1M3 33h1M43 33h1M3 34h1M43 34h1M3 35h1M43 35h1M43 36h1M43 37h1M3 38h1M43 38h1M3 39h1M43 39h1M43 40h1M43 41h1M43 43h1M43 44h1M43 45h1M43 46h1M43 47h1M43 48h1M3 49h1M43 49h1M3 50h1M3 51h1M43 52h1M43 53h1M43 54h1M43 55h1M3 56h1M43 56h1M3 57h1M43 57h1M3 58h1M43 58h1M4 59h2M8 59h6M16 59h13M33 59h1",
-                    "stroke": "#010101"
+                svg {
+                    class: "w-full h-[100px]",
+                    "shape-rendering": "crispEdges",
+                    "viewBox": "0 -0.5 48 64",
+                    "xmlns": "http://www.w3.org/2000/svg",
+                    fill: "none",
+                    meta { data: "false" }
+                    "Made with Pixels to Svg https://codepen.io/shshaw/pen/XbxvNj"
+                    path {
+                        "d": "M4 3h1M28 3h7M39 3h3M43 3h1M43 4h1M43 11h1M3 13h1M43 21h1M3 24h1M3 25h1M3 27h1M3 28h1M3 29h1M43 32h1M3 36h1M3 37h1M3 40h1M3 41h1M3 42h1M43 42h1M3 43h1M3 44h1M3 45h1M3 46h1M3 47h1M3 48h1M43 50h1M43 51h1M3 52h1M3 53h1M3 54h1M3 55h1M3 59h1M6 59h2M14 59h2M29 59h4M34 59h9",
+                        "stroke": "#000000"
+                    }
+                    path {
+                        "d": "M5 3h23M35 3h4M42 3h1M3 4h1M3 5h1M43 5h1M3 6h1M43 6h1M3 7h1M43 7h1M3 8h1M43 8h1M3 9h1M43 9h1M3 10h1M43 10h1M3 11h1M3 12h1M43 12h1M43 13h1M3 14h1M43 14h1M3 15h1M43 15h1M3 16h1M43 16h1M3 17h1M43 17h1M3 18h1M43 18h1M3 19h1M43 19h1M3 20h1M43 20h1M3 21h1M3 22h1M43 22h1M3 23h1M43 23h1M43 24h1M43 25h1M3 26h1M43 26h1M43 27h1M43 28h1M43 29h1M3 30h1M43 30h1M3 31h1M43 31h1M3 32h1M3 33h1M43 33h1M3 34h1M43 34h1M3 35h1M43 35h1M43 36h1M43 37h1M3 38h1M43 38h1M3 39h1M43 39h1M43 40h1M43 41h1M43 43h1M43 44h1M43 45h1M43 46h1M43 47h1M43 48h1M3 49h1M43 49h1M3 50h1M3 51h1M43 52h1M43 53h1M43 54h1M43 55h1M3 56h1M43 56h1M3 57h1M43 57h1M3 58h1M43 58h1M4 59h2M8 59h6M16 59h13M33 59h1",
+                        "stroke": "#010101"
+                    }
+                    path {
+                        "stroke": "#807f7f",
+                        "d": "M44 4h1M44 5h1M44 6h1M44 7h1M44 8h1M44 9h1M44 10h1M44 11h1M44 12h1M44 13h1M44 14h1M44 15h1M44 16h1M44 17h1M44 18h1M44 19h1M44 20h1M44 21h1M44 22h1M44 23h1M44 24h1M44 25h1M44 26h1M44 27h1M44 28h1M44 29h1M44 30h1M44 31h1M44 32h1M44 33h1M44 34h1M44 35h1M44 36h1M44 37h1M44 38h1M44 39h1M44 40h1M44 41h1M44 42h1M44 43h1M44 44h1M44 45h1M44 46h1M44 47h1M44 48h1M44 49h1M44 50h1M44 51h1M44 52h1M44 53h1M44 54h1M44 55h1M44 56h1M44 57h1M44 58h1M44 59h1M4 60h40"
+                    }
+                    path {
+                        "d": "M45 5h1M45 6h1M45 7h1M45 8h1M45 9h1M45 10h1M45 11h1M45 12h1M45 13h1M45 14h1M45 15h1M45 16h1M45 17h1M45 18h1M45 19h1M45 20h1M45 21h1M45 22h1M45 23h1M45 24h1M45 25h1M45 26h1M45 27h1M45 28h1M45 29h1M45 30h1M45 31h1M45 32h1M45 33h1M45 34h1M45 35h1M45 36h1M45 37h1M45 38h1M45 39h1M45 40h1M45 41h1M45 42h1M45 43h1M45 44h1M45 45h1M45 46h1M45 47h1M45 48h1M45 49h1M45 50h1M45 51h1M45 52h1M45 53h1M45 54h1M45 55h1M45 56h1M45 57h1M45 58h1M45 59h1M44 60h2M5 61h12M18 61h2M21 61h20M42 61h3",
+                        "stroke": "#d7d2d2"
+                    }
+                    path { "stroke": "#7f7e7e", "d": "M43 59h1" }
+                    path { "stroke": "#d8d2d2", "d": "M17 61h1M20 61h1M41 61h1" }
                 }
-                path {
-                    "stroke": "#807f7f",
-                    "d": "M44 4h1M44 5h1M44 6h1M44 7h1M44 8h1M44 9h1M44 10h1M44 11h1M44 12h1M44 13h1M44 14h1M44 15h1M44 16h1M44 17h1M44 18h1M44 19h1M44 20h1M44 21h1M44 22h1M44 23h1M44 24h1M44 25h1M44 26h1M44 27h1M44 28h1M44 29h1M44 30h1M44 31h1M44 32h1M44 33h1M44 34h1M44 35h1M44 36h1M44 37h1M44 38h1M44 39h1M44 40h1M44 41h1M44 42h1M44 43h1M44 44h1M44 45h1M44 46h1M44 47h1M44 48h1M44 49h1M44 50h1M44 51h1M44 52h1M44 53h1M44 54h1M44 55h1M44 56h1M44 57h1M44 58h1M44 59h1M4 60h40"
-                }
-                path {
-                    "d": "M45 5h1M45 6h1M45 7h1M45 8h1M45 9h1M45 10h1M45 11h1M45 12h1M45 13h1M45 14h1M45 15h1M45 16h1M45 17h1M45 18h1M45 19h1M45 20h1M45 21h1M45 22h1M45 23h1M45 24h1M45 25h1M45 26h1M45 27h1M45 28h1M45 29h1M45 30h1M45 31h1M45 32h1M45 33h1M45 34h1M45 35h1M45 36h1M45 37h1M45 38h1M45 39h1M45 40h1M45 41h1M45 42h1M45 43h1M45 44h1M45 45h1M45 46h1M45 47h1M45 48h1M45 49h1M45 50h1M45 51h1M45 52h1M45 53h1M45 54h1M45 55h1M45 56h1M45 57h1M45 58h1M45 59h1M44 60h2M5 61h12M18 61h2M21 61h20M42 61h3",
-                    "stroke": "#d7d2d2"
-                }
-                path { "stroke": "#7f7e7e", "d": "M43 59h1" }
-                path { "stroke": "#d8d2d2", "d": "M17 61h1M20 61h1M41 61h1" }
-                {suit_svg}
-            }
-            span { class: "text-white content-center text-center text-5xl self-center h-full col-start-1 justify-center row-start-1 drop-shadow-[0_2.2px_2.2px_rgba(0,0,0,0.8)]",
-                "{textvalue}"
             }
         }
     )
@@ -1296,7 +1300,8 @@ fn GameStateComponent(
                                                 }
 
                                             }
-                                            if *playername == gamestate.read().get_dealer().clone() {
+                                            if *playername == gamestate.read().get_dealer() {
+                                            // if *playername == gamestate.read().curr_dealer {
                                                 span {
                                                     class: "top-0 right-0  bg-black text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-md",
                                                     "Dealer"

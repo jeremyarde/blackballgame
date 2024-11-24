@@ -114,11 +114,9 @@ pub struct GameState {
     pub player_order: Vec<String>,
     pub curr_played_cards: Vec<Card>,
     pub curr_player_turn: Option<String>,
-    #[serde(skip)]
     curr_player_turn_idx: usize,
     pub curr_winning_card: Option<Card>,
-    curr_dealer: String,
-    #[serde(skip)]
+    pub curr_dealer: String,
     curr_dealer_idx: usize,
     pub bids: HashMap<String, i32>,
     pub player_bids: Vec<(String, i32)>,
@@ -126,7 +124,6 @@ pub struct GameState {
     pub score: HashMap<String, i32>,
     pub gameplay_state: GameplayState,
     pub event_log: Vec<GameMessage>,
-    // #[serde(skip)]
     pub system_status: Vec<String>, // useful to tell players what is going wrong
     is_public: bool,
     pub updated_at: DateTime<Utc>,

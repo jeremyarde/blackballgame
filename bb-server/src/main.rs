@@ -68,7 +68,7 @@ mod websocket;
 const ROOT: &str = "";
 const DEFAULT_FILES: [&str; 1] = ["index.html"];
 const NOT_FOUND: &str = "404.html";
-const STALE_GAME_TIME_DURATION_SECONDS: i64 = 60 * 10;
+const STALE_GAME_TIME_DURATION_SECONDS: i64 = 30;
 const STALE_GAME_THREAD_SLEEP_SECONDS: u64 = 60 * 5;
 
 // async fn serve_asset(path: Option<Path<String>>) -> impl IntoResponse {
@@ -494,7 +494,12 @@ async fn main() {
                         if Utc::now().signed_duration_since(game.updated_at)
                             > TimeDelta::seconds(STALE_GAME_TIME_DURATION_SECONDS)
                         {
-                            info!("[STALE] Stale game found, deleting: {:?}", lobby_code);
+                            info!(
+                                "[STALE] Stale game found, deleting: {} - ({} (updated_at) vs. {}(now))",
+                                lobby_code,
+                                game.updated_at,
+                                Utc::now(),
+                            );
                             rooms_to_remove.push(lobby_code.clone());
                         }
                     }
