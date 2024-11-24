@@ -5,7 +5,7 @@ name: CI
 on:
   push:
     branches: [main]
-    # branches: [ ]
+    paths: ["bb-server/**"]
   pull_request:
     branches: [main]
     # branches: [ ]
