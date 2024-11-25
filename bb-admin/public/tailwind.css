@@ -1461,7 +1461,7 @@ video {
 }
 
 .animate-gamestate-transition {
-  animation: gamestate-transition 4s ease-in-out;
+  animation: gamestate-transition 6s ease-in-out;
 }
 
 /* .animate-gamestate-slide-in {
