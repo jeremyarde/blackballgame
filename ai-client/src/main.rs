@@ -28,7 +28,7 @@ struct AI {
 
 fn get_bid(gamestate: &GameState) -> GameAction {
     let round_num = gamestate.curr_round;
-    let bid_total: i32 = gamestate.bids.values().sum();
+    let bid_total: i32 = gamestate.bids.values().map(|x| x.unwrap()).sum::<i32>();
     let total_players = gamestate.players.len();
     // let bid_order = gamestate.bid_order.clone();
 
