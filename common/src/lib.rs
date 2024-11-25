@@ -118,7 +118,7 @@ pub struct GameState {
     pub curr_winning_card: Option<Card>,
     pub curr_dealer: String,
     curr_dealer_idx: usize,
-    pub bids: HashMap<String, i32>,
+    pub bids: HashMap<String, Option<i32>>,
     pub player_bids: Vec<(String, i32)>,
     pub wins: HashMap<String, i32>,
     pub score: HashMap<String, i32>,

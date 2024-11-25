@@ -23,6 +23,35 @@
   animation: subtle-pulse 2s ease-in-out infinite;
 }
 
+@keyframes gamestate-transition {
+  0% {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+
+  40% {
+    opacity: 1;
+    transform: translateX(0%);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateX(0%);
+  }
+}
+
+.animate-gamestate-transition {
+  animation: gamestate-transition 4s ease-in-out;
+}
+/* .animate-gamestate-slide-in {
+  animation: gamestate-transition 2s ease-in-out;
+} */
+
 @keyframes gradient-border {
   0% {
     background-position: 0% 50%;

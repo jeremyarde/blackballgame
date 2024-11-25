@@ -1221,6 +1221,42 @@ fn GameStateComponent(
 
     rsx!(
         div { class: "flex flex-col sm:flex-row h-screen w-screen text-center bg-[--bg-color] flex-nowrap justify-center p-2 items-start overflow-auto gap-2",
+            match gamestate().gameplay_state {
+                GameplayState::Bid => {
+                    let curr_player = gamestate().curr_player_turn.clone().unwrap();
+                    rsx!(
+                        div {
+                            class: "absolute items-center justify-center z-20 w-[200%] h-[20%] animate-gamestate-transition text-4xl font-bold bg-black text-white opacity-0",
+                            h2 {
+                                class: "text-4xl font-bold text-white",
+                                "Bid phase",
+                            }
+                            h3 {
+                                class: "text-4xl font-bold text-white",
+                                "{curr_player}'s turn first"
+                            }
+                        }
+                    )
+                },
+                GameplayState::Play(ps) => {
+                    let round = gamestate.read().curr_round;
+                    let curr_player = gamestate().curr_player_turn.clone().unwrap();
+                    rsx!(
+                        div {
+                            class: "absolute items-center justify-center z-20 w-[200%] h-[20%] animate-gamestate-transition text-4xl font-bold bg-black text-white opacity-0",
+                            h2 {
+                                class: "text-4xl font-bold text-white",
+                                "Hand {ps.hand_num}/{round}",
+                            }
+                            h3 {
+                                class: "text-4xl font-bold text-white",
+                                "{curr_player} plays first"
+                            }
+                        }
+                    )
+                },
+                _ => rsx!()
+            },
             div { class: "flex flex-col bg-[var(--bg-color)] rounded-lg p-2 shadow-lg border border-black gap-2 w-full md:w-auto",
                 h2 { class: "text-lg sm:text-2xl font-bold rounded-md bg-black text-white",
                     "BLACKBALL"
@@ -1248,8 +1284,9 @@ fn GameStateComponent(
                     div { class: "bg-[var(--bg-color)] rounded-lg p-2  shadow-lg border border-black overflow-auto w-full",
                         div { class: "gap-2 flex sm:flex-col overflow-auto",
                             {gamestate().player_order.iter().enumerate().map(|(i, playername)| {
-                                let wins = gamestate().wins.get(playername).unwrap_or(&0).clone();
-                                let bid = gamestate().bids.get(playername).unwrap_or(&0).clone();
+                                let wins = gamestate.read().wins.get(playername).unwrap_or(&0).clone();
+                                let bid = gamestate.read().bids.get(playername).unwrap_or(&None).clone();
+                                let bid_val = if let Some(x) = bid { x.to_string() } else { "N/A".to_string() };
                                 rsx!(
                                     div {
                                         class: format!("flex flex-col items-center justify-between w-full border border-black rounded-md p-2 text-left {}",
@@ -1278,7 +1315,7 @@ fn GameStateComponent(
                                             }
                                             div { class: "text-xs sm:text-sm text-gray-600 flex justify-between",
                                                 span{"Bid:"}
-                                                span { "{bid}"}
+                                                span { "{bid_val}" }
                                             }
                                         }
                                         div {
@@ -1364,7 +1401,7 @@ fn GameStateComponent(
                                     class: "text-left text-sm w-full justify-center",
                                     {gamestate().players.iter().map(|(player, client)| {
                                         let wins = gamestate().wins.get(player).unwrap_or(&0).clone();
-                                        let bid = gamestate().bids.get(player).unwrap_or(&0).clone();
+                                        let bid = gamestate().bids.get(player).unwrap_or(&Some(0)).clone().unwrap();
                                         let win_message = format!("got {wins}/{bid}{}", if wins==bid {""} else {" got BLACKBALL"});
                                         rsx!(
                                             li {
@@ -1466,7 +1503,7 @@ fn GameStateComponent(
                             }
                             ul { class: "flex flex-row gap-2 items-center p-2 justify-center",
                                 {(0..=gamestate().curr_round).map(|i| {
-                                    if user_config.read().username == gamestate().get_dealer() && (i + gamestate().bids.values().sum::<i32>()) == gamestate().curr_round {
+                                    if user_config.read().username == gamestate().get_dealer() && (i + gamestate().bids.values().map(|x| x.unwrap()).sum::<i32>()) == gamestate().curr_round {
                                         rsx!(
                                             button {
                                                 class: "bg-gray-300 p-2 rounded-lg text-lg",

@@ -398,8 +398,10 @@ impl GameState {
         for (player_id, player) in self.players.iter_mut() {
             // let player = self.players.get_mut(player_id).expect();
 
-            if self.wins.get(&player.id) == self.bids.get(&player.id) {
-                let bidscore = self.bids.get(&player.id).expect("Did not find bid") + 10;
+            if self.bids.get(&player.id).is_some()
+                && self.wins.get(&player.id) == self.bids.get(&player.id).unwrap().as_ref()
+            {
+                let bidscore = self.bids.get(&player.id).unwrap().unwrap() + 10;
                 let curr_score = self.score.get_mut(&player.id).expect("did not find score");
                 *curr_score += bidscore;
             }
@@ -543,7 +545,7 @@ impl GameState {
         ) {
             Ok(x) => {
                 tracing::info!("bid was: {}", x);
-                self.bids.insert(client.id.clone(), x);
+                self.bids.insert(client.id.clone(), Some(x));
                 self.player_bids.push((client.id.clone(), x));
                 Ok(x)
             }
@@ -707,7 +709,7 @@ fn find_winning_card(curr_played_cards: Vec<Card>, trump: Suit) -> Card {
 fn validate_bid(
     bid: &i32,
     curr_round: i32,
-    curr_bids: &HashMap<String, i32>,
+    curr_bids: &HashMap<String, Option<i32>>,
     is_dealer: bool,
 ) -> Result<i32, BidError> {
     // can bid between 0..=round number
@@ -719,7 +721,7 @@ fn validate_bid(
     if *bid < 0 {
         return Err(BidError::Low);
     }
-    let bid_sum = curr_bids.values().sum::<i32>();
+    let bid_sum = curr_bids.values().map(|x| x.unwrap()).sum::<i32>();
     if is_dealer && (bid + bid_sum) == curr_round {
         return Err(BidError::EqualsRound);
     }
@@ -906,7 +908,7 @@ mod tests {
         game.curr_round = 5;
         game.curr_dealer = "player2".to_string();
         game.bids = HashMap::new();
-        game.bids.insert("123".to_string(), 4);
+        game.bids.insert("123".to_string(), Some(4));
         game.gameplay_state = GameplayState::Bid;
 
         let bid_msg = GameMessage {
@@ -927,7 +929,7 @@ mod tests {
         };
         game.process_event(bid_msg2.clone());
 
-        assert_eq!(game.bids.get("player2"), Some(&5));
+        assert_eq!(*game.bids.get("player2").unwrap(), Some(5));
     }
 
     #[test]
@@ -976,7 +978,7 @@ mod tests {
         });
 
         println!("Bids: {:?}", game.bids);
-        assert_eq!(game.bids.get(&firstplayer).clone(), Some(&3));
+        assert_eq!(*game.bids.get(&firstplayer).clone().unwrap(), Some(3));
 
         // curr player turn updates, and we should not be able to bid 0
         let secondplayer = game.curr_player_turn.clone().expect("No player turn");
@@ -994,7 +996,7 @@ mod tests {
             lobby: "lobby".to_string(),
             timestamp: Utc::now(),
         });
-        assert_eq!(game.bids.get(&secondplayer).clone(), Some(&1));
+        assert_eq!(*game.bids.get(&secondplayer).clone().unwrap(), Some(1));
     }
 
     #[test]
@@ -1042,7 +1044,7 @@ mod tests {
             timestamp: Utc::now(),
         });
 
-        assert_eq!(game.bids[&has_first_turn], 0);
+        assert_eq!(game.bids[&has_first_turn], Some(0));
         assert_eq!(
             game.curr_player_turn.clone().expect("No player turn"),
             has_second_turn
@@ -1055,7 +1057,7 @@ mod tests {
             // origin: crate::Actioner::Player(has_second_turn.clone()),
             timestamp: Utc::now(),
         });
-        assert_eq!(game.bids[&has_second_turn], 0);
+        assert_eq!(game.bids[&has_second_turn], Some(0));
 
         // first player that bid 0 goes first because both bid 0
         assert_eq!(
