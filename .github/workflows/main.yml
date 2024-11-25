@@ -4,11 +4,10 @@ name: CI
 
 on:
   push:
-    branches: [main]
-    paths: ["bb-server/**"]
-  pull_request:
-    branches: [main]
-    # branches: [ ]
+    branches: 
+      - 'main'
+    paths: 
+      - 'bb-server/**'
 
 jobs:
   ci:
