@@ -791,10 +791,6 @@ video {
   width: 100vw;
 }
 
-.w-\[100\%\] {
-  width: 100%;
-}
-
 .min-w-full {
   min-width: 100%;
 }
