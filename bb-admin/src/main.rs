@@ -1162,7 +1162,7 @@ fn CardComponent(
             div { class: "relative items-center gap-2 h-full w-full",
                 div { class: "absolute w-full h-full inset-0 flex-col flex ",
                     {suit_svg},
-                    span { class: "text-white content-center text-center text-4xl self-center justify-center drop--[0_2.2px_2.2px_rgba(0,0,0,0.8)]",
+                    span { class: "text-white content-center text-center text-4xl self-center justify-center drop-shadow-[0_2.2px_2.2px_rgba(0,0,0,0.8)]",
                         "{textvalue}"
                     }
                 }
@@ -1441,9 +1441,9 @@ fn GameStateComponent(
                                         div {
                                             class: "flex flex-col justify-between gap-2 items-baseline",
                                             span {
-                                                class: format!("font-semibold text-base sm:text-lg {}",
+                                                class: format!("font-semibold text-base {}",
                                                 if *playername == user_config.read().username {
-                                                    "top-0 right-0 bg-yellow-200 text-black text-xs font-bold px-2 py-0.5 rounded-md"
+                                                    "bg-yellow-200 text-black border border-black font-bold rounded-md"
                                                 } else {""}
                                             ),
                                                 "{playername}" }
