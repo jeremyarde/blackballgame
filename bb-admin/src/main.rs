@@ -1186,12 +1186,56 @@ fn CardComponent(card: Card, onclick: EventHandler<Card>, is_winning: bool) -> E
 }
 
 #[component]
+fn TransitionComponent(gamestate: Signal<GameState>, visible: bool) -> Element {
+    let mut app_props = use_context::<Signal<AppProps>>();
+    let mut user_config: Signal<UserConfig> = use_context::<Signal<UserConfig>>();
+
+    rsx!(match gamestate().gameplay_state {
+        GameplayState::Bid => {
+            let curr_player = gamestate().curr_player_turn.clone().unwrap();
+            rsx!(
+                div {
+                    class: "absolute items-center justify-center z-20 w-[200%] h-[20%] animate-gamestate-transition text-4xl font-bold bg-black text-white opacity-0",
+                    h2 {
+                        class: "text-4xl font-bold text-white",
+                        "Bid phase",
+                    }
+                    h3 {
+                        class: "text-4xl font-bold text-white",
+                        "{curr_player}'s turn first"
+                    }
+                }
+            )
+        }
+        GameplayState::Play(ps) => {
+            let round = gamestate.read().curr_round;
+            let curr_player = gamestate().curr_player_turn.clone().unwrap();
+            rsx!(
+                div {
+                    class: "absolute items-center justify-center z-20 w-[200%] h-[20%] animate-gamestate-transition text-4xl font-bold bg-black text-white opacity-0",
+                    h2 {
+                        class: "text-4xl font-bold text-white",
+                        "Hand {ps.hand_num}/{round}",
+                    }
+                    h3 {
+                        class: "text-4xl font-bold text-white",
+                        "{curr_player} plays first"
+                    }
+                }
+            )
+        }
+        _ => rsx!(),
+    })
+}
+
+#[component]
 fn GameStateComponent(
     gamestate: Signal<GameState>,
     ws_send: Signal<Coroutine<InnerMessage>>,
 ) -> Element {
     let mut app_props = use_context::<Signal<AppProps>>();
     let mut user_config: Signal<UserConfig> = use_context::<Signal<UserConfig>>();
+    let transition_visible = false;
 
     info!("Rendering gamestate...");
 
@@ -1219,44 +1263,12 @@ fn GameStateComponent(
         None
     };
 
+    // let testvec: Vec<Card> = vec![];
+    // testvec.sort_by(|a, b| a.id.cmp(&b.id));
+
     rsx!(
         div { class: "flex flex-col sm:flex-row h-screen w-screen text-center bg-[--bg-color] flex-nowrap justify-center p-2 items-start overflow-auto gap-2",
-            match gamestate().gameplay_state {
-                GameplayState::Bid => {
-                    let curr_player = gamestate().curr_player_turn.clone().unwrap();
-                    rsx!(
-                        div {
-                            class: "absolute items-center justify-center z-20 w-[200%] h-[20%] animate-gamestate-transition text-4xl font-bold bg-black text-white opacity-0",
-                            h2 {
-                                class: "text-4xl font-bold text-white",
-                                "Bid phase",
-                            }
-                            h3 {
-                                class: "text-4xl font-bold text-white",
-                                "{curr_player}'s turn first"
-                            }
-                        }
-                    )
-                },
-                GameplayState::Play(ps) => {
-                    let round = gamestate.read().curr_round;
-                    let curr_player = gamestate().curr_player_turn.clone().unwrap();
-                    rsx!(
-                        div {
-                            class: "absolute items-center justify-center z-20 w-[200%] h-[20%] animate-gamestate-transition text-4xl font-bold bg-black text-white opacity-0",
-                            h2 {
-                                class: "text-4xl font-bold text-white",
-                                "Hand {ps.hand_num}/{round}",
-                            }
-                            h3 {
-                                class: "text-4xl font-bold text-white",
-                                "{curr_player} plays first"
-                            }
-                        }
-                    )
-                },
-                _ => rsx!()
-            },
+            TransitionComponent { gamestate, visible: transition_visible }
             div { class: "flex flex-col bg-[var(--bg-color)] rounded-lg p-2 shadow-lg border border-black gap-2 w-full md:w-auto",
                 h2 { class: "text-lg sm:text-2xl font-bold rounded-md bg-black text-white",
                     "BLACKBALL"
@@ -1471,9 +1483,11 @@ fn GameStateComponent(
                         {if cards_in_hand.is_none() {
                             rsx!()
                         } else {
+                            let mut sortedcards = GameState::decrypt_player_hand(cards_in_hand.unwrap(), &user_config.read().client_secret.clone()).clone();
+                            sortedcards.sort_by(|a, b| a.id.cmp(&b.id));
                             info!("[FE] calling to decrypt player hand: ${:?}, secret: ${:?}", cards_in_hand, user_config.read().client_secret.clone());
-                            rsx!({GameState::decrypt_player_hand(cards_in_hand.unwrap(), &user_config.read().client_secret.clone())
-                                .iter()
+                            rsx!(
+                                {sortedcards.iter()
                                 .map(|card| {
                                     return rsx!(CardComponent {
                                         onclick: move |clicked_card: Card| {
