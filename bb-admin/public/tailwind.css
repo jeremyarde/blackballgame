@@ -652,6 +652,14 @@ video {
   z-index: 50;
 }
 
+.z-0 {
+  z-index: 0;
+}
+
+.z-10 {
+  z-index: 10;
+}
+
 .col-start-1 {
   grid-column-start: 1;
 }
@@ -1105,6 +1113,16 @@ video {
   background-color: rgb(161 98 7 / var(--tw-bg-opacity));
 }
 
+.bg-gray-400 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(156 163 175 / var(--tw-bg-opacity));
+}
+
+.bg-gray-200 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(229 231 235 / var(--tw-bg-opacity));
+}
+
 .bg-opacity-50 {
   --tw-bg-opacity: 0.5;
 }
@@ -1207,6 +1225,11 @@ video {
 .py-4 {
   padding-top: 1rem;
   padding-bottom: 1rem;
+}
+
+.py-5 {
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
 }
 
 .pl-10 {
@@ -1374,6 +1397,11 @@ video {
   opacity: 0;
 }
 
+.drop-shadow {
+  --tw-drop-shadow: drop-shadow(0 1px 2px rgb(0 0 0 / 0.1)) drop-shadow(0 1px 1px rgb(0 0 0 / 0.06));
+  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
+
 .drop-shadow-\[0_2\.2px_2\.2px_rgba\(0\2c 0\2c 0\2c 0\.8\)\] {
   --tw-drop-shadow: drop-shadow(0 2.2px 2.2px rgba(0,0,0,0.8));
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
@@ -1428,8 +1456,23 @@ video {
   }
 }
 
+@keyframes subtle-pulse-winning {
+  0%,
+  100% {
+    border-color: rgb(255, 255, 0);
+  }
+
+  50% {
+    border-color: rgba(255, 150, 13, 0.9);
+  }
+}
+
 .animate-subtle-pulse {
   animation: subtle-pulse 2s ease-in-out infinite;
+}
+
+.animate-subtle-pulse-winning {
+  animation: subtle-pulse-winning 2s ease-in-out infinite;
 }
 
 @keyframes gamestate-transition {
@@ -1728,11 +1771,6 @@ video {
 @media (min-width: 1024px) {
   .lg\:overflow-hidden {
     overflow: hidden;
-  }
-
-  .lg\:px-8 {
-    padding-left: 2rem;
-    padding-right: 2rem;
   }
 }
 

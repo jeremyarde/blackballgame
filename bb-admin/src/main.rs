@@ -208,7 +208,7 @@ fn validate_username(username: &str, disabled: &mut Signal<bool>) -> bool {
 fn get_title_logo() -> Element {
     rsx!(
         div { class: "grid items-center justify-center",
-            h1 { class: "col-start-1 row-start-1 text-8xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 drop- animate-gradient-shine",
+            h1 { class: "col-start-1 row-start-1 text-8xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 drop-shadow animate-gradient-shine",
                 "Blackball"
             }
             div { class: "inset-0 w-[300px] h-[300px] bg-black justify-self-center rounded-full z-1 col-start-1 row-start-1" }
@@ -231,11 +231,11 @@ fn Home() -> Element {
 
     let current_component = match current_route.read().as_str() {
         "Home" => rsx!(
-            div { class: "flex flex-col items-center justify-center text-center min-h-screen w-full px-4 sm:px-6 lg:px-8 bg-[--bg-color] lg:overflow-hidden",
+            div { class: "flex flex-col items-center justify-center text-center min-h-screen w-full  bg-[--bg-color] lg:overflow-hidden",
                 {get_title_logo()},
                 div { class: "flex flex-col gap-4 w-full max-w-md",
                     div { class: "flex flex-col sm:flex-row items-center justify-center p-2 gap-3",
-                        label { class: "text-xl sm:text-2xl whitespace-nowrap", "Username" }
+                        label { class: "text-xl whitespace-nowrap", "Username" }
                         input {
                             class: "{styles::INPUT_FIELD} w-full",
                             r#type: "text",
@@ -1146,7 +1146,7 @@ fn CardComponent(
             class: format!(
                 "text-center justify-center {}",
                 if is_winning {
-                    "border-4 border-red-400 rounded-lg animate-subtle-pulse"
+                    "border-4 border-red-400 rounded-lg animate-subtle-pulse-winning"
                 } else {
                     ""
                 },
@@ -1154,20 +1154,15 @@ fn CardComponent(
             onclick: move |evt| {
                 onclick(card.clone());
             },
-            // if is_winning {
-            //     span { class: "top-0 right-0  bg-black text-white text-xs font-bold px-2 py-0.5 rounded-full ",
-            //         "{card.played_by}"
-            //     }
-            // }
             div { class: "relative items-center gap-2 h-full w-full",
-                div { class: "absolute w-full h-full inset-0 flex-col flex ",
-                    {suit_svg},
+                div { class: "absolute w-full h-full inset-0 flex-col flex z-20",
+                    div { class: "w-full h-full  flex-col flex", {suit_svg} }
                     span { class: "text-white content-center text-center text-4xl self-center justify-center drop-shadow-[0_2.2px_2.2px_rgba(0,0,0,0.8)]",
                         "{textvalue}"
                     }
                 }
                 svg {
-                    class: "w-[64px]",
+                    class: "w-[64px] relative",
                     "shape-rendering": "crispEdges",
                     "viewBox": "0 -0.5 48 64",
                     "xmlns": "http://www.w3.org/2000/svg",
@@ -1194,7 +1189,7 @@ fn CardComponent(
                     path { "stroke": "#d8d2d2", "d": "M17 61h1M20 61h1M41 61h1" }
                 }
                 if show_player && card.played_by.is_some() {
-                    span { class: "relative bg-black text-white text-xs px-0.5 rounded-md",
+                    span { class: "absolute bg-black text-white text-xs px-0.5 rounded-md top-0",
                         "{card.played_by.as_ref().unwrap()}"
                     }
                 }
@@ -1398,7 +1393,7 @@ fn GameStateComponent(
             div { class: "flex flex-col bg-[var(--bg-color)] rounded-lg p-2 border border-black gap-2 w-full",
                 div { class: "flex flex-col justify-between gap-2",
                     div { class: "bg-[var(--bg-color)] rounded-lg flex flex-col w-full items-center justify-between",
-                        div { class: "flex flex-row w-full gap-2",
+                        div { class: "flex flex-row w-full gap-2 items-center",
                             h2 { class: "text-lg font-bold rounded-md bg-black text-white flex-1",
                                 "BLACKBALL"
                             }
@@ -1429,24 +1424,39 @@ fn GameStateComponent(
                                 let bid_val = if let Some(x) = bid { x.to_string() } else { "N/A".to_string() };
                                 rsx!(
                                     div {
-                                        class: format!("flex flex-col items-center justify-between w-full border border-black rounded-md text-left {} {}",
+                                        class: format!("flex flex-col items-center justify-between w-full border border-black rounded-lg text-left {} {}",
                                                 if gamestate().curr_player_turn.clone().unwrap_or("".to_string()) == *playername{
                                                     "border-4 rounded-lg animate-subtle-pulse"} else { "" },
                                                 if bid.is_some() && wins == bid.unwrap() {
                                                     "bg-green-200"
                                                 } else if bid.is_some() && wins > bid.unwrap() {
                                                     "bg-red-200"
-                                                } else {"bg-green-100"}
-                                                ),
+                                                } else {"bg-green-100"}),
                                         div {
-                                            class: "flex flex-col justify-between gap-2 items-baseline",
+                                            class: "flex flex-col justify-between gap-2 items-baseline w-full text-center",
+                                            div {
+                                                class: format!("text-black font-bold w-full rounded-md {}",
+                                                    if *playername == user_config.read().username {
+                                                        "bg-yellow-200"
+                                                    } else {""}
+                                                ),
+                                                span {
+                                                    class: "font-semibold text-base",
+                                                    "{playername}"
+                                                }
+                                            }
+                                        }
+                                        if *playername == gamestate.read().get_dealer() {
+                                        // if *playername == gamestate.read().curr_dealer {
                                             span {
-                                                class: format!("font-semibold text-base {}",
-                                                if *playername == user_config.read().username {
-                                                    "bg-yellow-200 text-black border border-black font-bold rounded-md"
-                                                } else {""}
-                                            ),
-                                                "{playername}" }
+                                                class: "top-0 right-0 bg-black text-white text-xs font-bold px-2 py-0.5 rounded-full",
+                                                "Dealer"
+                                            }
+                                        } else {
+                                            span {
+                                                class: "top-0 right-0 bg-gray-200 text-white text-xs font-bold px-2 py-0.5 rounded-full ",
+                                                "(position)"
+                                            }
                                         }
                                         div { class: "text-right",
                                             span { class: "text-xs sm:text-sm font-medium text-green-600", "Score: {gamestate().score.get(playername).unwrap_or(&0)}" }
@@ -1482,13 +1492,13 @@ fn GameStateComponent(
                                             //         _ => {"??th"}
                                             //     }
                                             // }
-                                            if *playername == gamestate.read().get_dealer() {
-                                            // if *playername == gamestate.read().curr_dealer {
-                                                span {
-                                                    class: "top-0 right-0  bg-black text-white text-xs font-bold px-2 py-0.5 rounded-full ",
-                                                    "Dealer"
-                                                }
-                                            }
+                                            // if *playername == gamestate.read().get_dealer() {
+                                            // // if *playername == gamestate.read().curr_dealer {
+                                            //     span {
+                                            //         class: "top-0 right-0  bg-black text-white text-xs font-bold px-2 py-0.5 rounded-full ",
+                                            //         "Dealer"
+                                            //     }
+                                            // }
                                         }
                                     }
                                 )})

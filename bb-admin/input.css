@@ -19,8 +19,23 @@
     border-color: rgba(34, 197, 94, 0.4);
   }
 }
+
+@keyframes subtle-pulse-winning {
+  0%,
+  100% {
+    border-color: rgb(255, 255, 0);
+  }
+  50% {
+    border-color: rgba(255, 150, 13, 0.9);
+  }
+}
+
 .animate-subtle-pulse {
   animation: subtle-pulse 2s ease-in-out infinite;
+}
+
+.animate-subtle-pulse-winning {
+  animation: subtle-pulse-winning 2s ease-in-out infinite;
 }
 
 @keyframes gamestate-transition {
