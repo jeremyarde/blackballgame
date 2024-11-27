@@ -11,6 +11,7 @@ use common::{
     GameState, GameVisibility, GameplayState, PlayState, PlayerDetails, SetupGameOptions, Suit,
 };
 use components::lobbylist;
+use components::state_provider::state_provider::StateProvider;
 use dioxus::prelude::*;
 use dioxus_elements::link;
 use dotenvy::dotenv;
@@ -77,50 +78,6 @@ enum InnerMessage {
 }
 
 mod environment;
-
-#[component]
-fn StateProvider() -> Element {
-    let environment = environment::get_env_variable();
-    let is_debug = environment::get_debug_variable();
-    info!("Environment: {:?}", environment);
-    let is_prod = if environment.is_some() {
-        environment.unwrap() == "production"
-    } else {
-        true // default to production
-    };
-
-    let mut app_props = use_context_provider(|| {
-        Signal::new(AppProps {
-            environment: if is_prod {
-                Env::Production
-            } else {
-                Env::Development
-            },
-            debug_mode: is_debug.unwrap_or(false),
-        })
-    });
-
-    let mut current_route = use_context_provider(|| Signal::new("Home".to_string()));
-    let mut user_config = use_context_provider(|| {
-        Signal::new(UserConfig {
-            username: if is_prod {
-                String::new()
-            } else {
-                String::from("player2")
-            },
-            lobby_code: String::new(),
-            client_secret: String::new(),
-        })
-    });
-
-    let mut server_config = use_context_provider(|| Signal::new(ServerConfig::new(is_prod)));
-    let mut server_client = use_context_provider(|| {
-        Signal::new(ServerClient::new(server_config.read().server_url.clone()))
-    });
-    // let mut websocket_connection = use_context_provider(|| Signal::new(None));
-
-    rsx!(Home {})
-}
 
 fn main() {
     dioxus_logger::init(Level::INFO).expect("failed to init logger");
@@ -208,7 +165,7 @@ fn validate_username(username: &str, disabled: &mut Signal<bool>) -> bool {
 fn get_title_logo() -> Element {
     rsx!(
         div { class: "grid items-center justify-center",
-            h1 { class: "col-start-1 row-start-1 text-8xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 drop-shadow animate-gradient-shine",
+            h1 { class: "col-start-1 row-start-1 text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 drop-shadow animate-gradient-shine",
                 "Blackball"
             }
             div { class: "inset-0 w-[300px] h-[300px] bg-black justify-self-center rounded-full z-1 col-start-1 row-start-1" }
@@ -231,10 +188,10 @@ fn Home() -> Element {
 
     let current_component = match current_route.read().as_str() {
         "Home" => rsx!(
-            div { class: "flex flex-col items-center justify-center text-center min-h-screen w-full  bg-[--bg-color] lg:overflow-hidden",
+            div { class: "flex flex-col items-center justify-center text-center min-h-screen w-full bg-[--bg-color] overflow-hidden p-10",
                 {get_title_logo()},
-                div { class: "flex flex-col gap-4 w-full max-w-md",
-                    div { class: "flex flex-col sm:flex-row items-center justify-center p-2 gap-3",
+                div { class: "flex flex-col gap-2 w-full max-w-md",
+                    div { class: "flex flex-col sm:flex-row items-center justify-center",
                         label { class: "text-xl whitespace-nowrap", "Username" }
                         input {
                             class: "{styles::INPUT_FIELD} w-full",
