@@ -51,4 +51,5 @@ jobs:
       FORCE_COLOR: 1
     steps:
       - name: Send request to trigger deploy
-        run: curl https://api.render.com/deploy/srv-cq0od33v2p9s73cdroe0?key=ycr2DX977tM
+        # run: curl https://api.render.com/deploy/srv-cq0od33v2p9s73cdroe0?key=ycr2DX977tM
+        run: echo "N/A"
