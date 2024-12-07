@@ -17,6 +17,11 @@ dx serve --hot-reload
 export STAGE="test"
 dx serve --port 5173 --hot-reload true
 
+
+export STAGE="production"
+dx serve --port 5173 --hot-reload true
+
+
 cargo install dioxus-cli
 ```
 

@@ -1,6 +1,4 @@
 VERSION --global-cache 0.7
-# VERSION 0.7
-# ARG docker_tag=ghcr.io/jeremyarde/mdp-server
 
 IMPORT github.com/earthly/lib/rust AS rust
 

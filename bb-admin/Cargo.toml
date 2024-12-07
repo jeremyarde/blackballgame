@@ -15,6 +15,7 @@ dioxus = {version = "0.6.0-alpha.4", features = ["web", "router"]}
 dioxus-logger = "0.5.0"
 dotenvy = "0.15.7"
 futures-util = "0.3.30"
+gloo-storage = "0.3.0"
 manganis = "=0.6.0-alpha.4"
 # manganis = "0.2.2"
 reqwest = {version = "0.12.5", features = ["json"]}

@@ -1,16 +1,30 @@
 pub mod state_provider {
     use dioxus::prelude::*;
+    use gloo_storage::{LocalStorage, Storage};
+    use serde_json::Value;
+    use svg_attributes::local;
     use tracing::info;
 
     use crate::{
         environment, server_client::server_client::ServerClient, AppProps, Env, Home, ServerConfig,
-        UserConfig,
+        UserConfig, USERNAME_KEY,
     };
+
+    fn get_string_from_local_storage(key: &str) -> String {
+        Value::String(
+            LocalStorage::get(key)
+                .unwrap_or(Value::String("".to_string()).as_str().unwrap().to_string()),
+        )
+        .as_str()
+        .unwrap()
+        .to_string()
+    }
 
     #[component]
     pub(crate) fn StateProvider() -> Element {
         let environment = environment::get_env_variable();
         let is_debug = environment::get_debug_variable();
+
         info!("Environment: {:?}", environment);
         let is_prod = if environment.is_some() {
             environment.unwrap() == "production"
@@ -29,11 +43,15 @@ pub mod state_provider {
             })
         });
 
+        let localstorage: String =
+            use_context_provider(|| get_string_from_local_storage(USERNAME_KEY));
+
+        info!("jere/ localstorage: {:?}", localstorage);
         let mut current_route = use_context_provider(|| Signal::new("Home".to_string()));
         let mut user_config = use_context_provider(|| {
             Signal::new(UserConfig {
                 username: if is_prod {
-                    String::new()
+                    localstorage
                 } else {
                     String::from("player2")
                 },

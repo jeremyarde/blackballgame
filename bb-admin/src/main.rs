@@ -21,6 +21,7 @@ mod components;
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use futures_util::{TryFutureExt, TryStreamExt};
+use gloo_storage::{LocalStorage, Storage};
 use manganis::{asset, Asset, ImageAsset, ImageAssetBuilder};
 use reqwest::Client;
 use reqwest_websocket::{Message, RequestBuilderExt};
@@ -108,11 +109,14 @@ impl ServerConfig {
     fn new(is_prod: bool) -> Self {
         if is_prod {
             Self {
-                server_url: String::from("https://blackballgame-blackballgame-server.onrender.com"),
-                server_base_url: String::from("blackballgame-blackballgame-server.onrender.com"),
-                server_ws_url: String::from(
-                    "wss://blackballgame-blackballgame-server.onrender.com/ws",
-                ),
+                server_url: String::from("https://bball.fly.dev"),
+                server_base_url: String::from("bball.fly.dev"),
+                server_ws_url: String::from("wss://bball.fly.dev/ws"),
+                // server_url: String::from("https://blackballgame-blackballgame-server.onrender.com"),
+                // server_base_url: String::from("blackballgame-blackballgame-server.onrender.com"),
+                // server_ws_url: String::from(
+                //     "wss://blackballgame-blackballgame-server.onrender.com/ws",
+                // ),
             }
         } else {
             Self {
@@ -155,6 +159,10 @@ mod constants {
 }
 
 use crate::styles::INPUT_FIELD;
+
+const USERNAME_KEY: &str = "bb_username";
+const LOBBY_CODE_KEY: &str = "bb_lobby_code";
+const CLIENT_SECRET_KEY: &str = "bb_client_secret";
 
 fn validate_username(username: &str, disabled: &mut Signal<bool>) -> bool {
     let is_valid = username.len() >= constants::MIN_USERNAME_LENGTH;
@@ -206,6 +214,7 @@ fn Home() -> Element {
                                     info!("Username length is good");
                                     disabled.set(false);
                                     user_config.write().username = event.value();
+                                    LocalStorage::set(USERNAME_KEY, event.value());
                                 } else {
                                     disabled.set(true);
                                     user_config.write().username = event.value();
@@ -223,6 +232,16 @@ fn Home() -> Element {
                             current_route.set("Explorer".to_string());
                         },
                         "Play"
+                    }
+                    if !user_config.read().client_secret.is_empty() {
+                        button {
+                            class: "{styles::STANDARD_BUTTON} w-full bg-green-200 text-black hover:bg-green-400",
+                            disabled: if user_config.read().username.is_empty() { true } else { false },
+                            onclick: move |_| {
+                                current_route.set("Explorer".to_string());
+                            },
+                            "Rejoin"
+                        }
                     }
                     if user_config.read().username.is_empty() && *show_username_error.read() {
                         span { class: "text-red-500 text-sm ",
