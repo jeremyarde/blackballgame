@@ -42,30 +42,27 @@ jobs:
         # env:
         #   GITHUB_TOKEN: ${{ secrets.ACTIONS_DEPLOY_KEY }}
         env:
-
-        env:
           FORCE_COLOR: 1
           EARTHLY_TOKEN: "${{ secrets.EARTHLY_TOKEN }}"
           DOCKERHUB_USERNAME: "${{secrets.DOCKERHUB_USERNAME}}"
           DOCKERHUB_TOKEN: "${{secrets.DOCKERHUB_TOKEN}}"
           ENVIRONMENT: production
           STAGE: production
-        steps:
-          - uses: actions/checkout@v3
-          - uses: earthly/actions/setup-earthly@v1
-          # - name: Run +all on Earthly satellite
-          #   if: github.ref == 'refs/heads/main'
-          #   run: earthly --org jeremyarde --ci --satellite my-satellite +all
-          - name: Run build and push
-            run: |
-            earthly --org jeremyarde --ci --satellite my-satellite +all
-            git config --global user.email "jere.arde@gmail.com"
-            git config --global user.name "Jeremy"
-            git checkout -B deploy
-            cd bb-admin && dx build --release
-            git add -f ../target/dx/bb-admin/release/web/public
-            git commit -m "Committing assets"
-            git push -f origin deploy
+      - uses: actions/checkout@v3
+      - uses: earthly/actions/setup-earthly@v1
+      # - name: Run +all on Earthly satellite
+      #   if: github.ref == 'refs/heads/main'
+      #   run: earthly --org jeremyarde --ci --satellite my-satellite +all
+      - name: Run build and push
+        run: |
+          earthly --org jeremyarde --ci --satellite my-satellite +all
+          git config --global user.email "jere.arde@gmail.com"
+          git config --global user.name "Jeremy"
+          git checkout -B deploy
+          cd bb-admin && dx build --release
+          git add -f ../target/dx/bb-admin/release/web/public
+          git commit -m "Committing assets"
+          git push -f origin deploy
 
       # - name: Setup Pages
       #   uses: actions/configure-pages@v5
