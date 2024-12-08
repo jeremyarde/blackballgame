@@ -8,6 +8,10 @@ build:
 buildfe:
     cd bb-admin && dx build --release
 
+deployfe:
+    cd bb-admin && dx build --release
+    target/dx/bb-admin/release/web/public
+
 lint:
     earthly --no-sat +lint
 
