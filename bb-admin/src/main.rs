@@ -22,7 +22,7 @@ use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use futures_util::{TryFutureExt, TryStreamExt};
 use gloo_storage::{LocalStorage, Storage};
-use manganis::{asset, Asset, ImageAsset, ImageAssetBuilder};
+use manganis::{asset, Asset};
 use reqwest::Client;
 use reqwest_websocket::{Message, RequestBuilderExt};
 use reqwest_websocket::{UpgradeResponse, WebSocket};
@@ -85,7 +85,8 @@ fn main() {
     info!("Starting app");
     launch(|| {
         rsx! {
-            link { rel: "stylesheet", href: asset!("./public/tailwind.css") }
+            link { rel: "stylesheet", href: "./assets/tailwind.css" }
+            // link { rel: "stylesheet", href: asset!("./assets/tailwind.css") }
             StateProvider {}
         }
     });
@@ -1086,11 +1087,16 @@ fn GameRoom(room_code: String) -> Element {
     )
 }
 
-pub const SUIT_CLUB: ImageAsset = asset!("./assets/suits/club.png").image();
-pub const SUIT_HEART: manganis::ImageAsset = asset!("./assets/suits/heart.png").image();
-pub const SUIT_DIAMOND: manganis::ImageAsset = asset!("./assets/suits/diamond.png").image();
-pub const SUIT_SPADE: manganis::ImageAsset = asset!("./assets/suits/spade.png").image();
-pub const SUIT_NOTRUMP: ImageAsset = asset!("./assets/suits/notrump.png").image();
+// pub const SUIT_CLUB: ImageAsset = asset!("./assets/suits/club.png").image();
+// pub const SUIT_HEART: manganis::ImageAsset = asset!("./assets/suits/heart.png").image();
+// pub const SUIT_DIAMOND: manganis::ImageAsset = asset!("./assets/suits/diamond.png").image();
+// pub const SUIT_SPADE: manganis::ImageAsset = asset!("./assets/suits/spade.png").image();
+// pub const SUIT_NOTRUMP: ImageAsset = asset!("./assets/suits/notrump.png").image();
+pub const SUIT_CLUB: Asset = asset!("./assets/suits/club.png");
+pub const SUIT_HEART: Asset = asset!("./assets/suits/heart.png");
+pub const SUIT_DIAMOND: Asset = asset!("./assets/suits/diamond.png");
+pub const SUIT_SPADE: Asset = asset!("./assets/suits/spade.png");
+pub const SUIT_NOTRUMP: Asset = asset!("./assets/suits/notrump.png");
 
 #[component]
 fn CardComponent(

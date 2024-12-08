@@ -1,6 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@source "./src/**/*.{rs,html,css}";
 
 :root {
   --bg-color: #f6eee3;

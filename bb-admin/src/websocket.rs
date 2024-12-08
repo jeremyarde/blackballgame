@@ -12,7 +12,7 @@ pub mod websocket_connection {
     use futures_util::stream::{SplitSink, SplitStream};
     use futures_util::TryStreamExt;
     use futures_util::{SinkExt, StreamExt};
-    use manganis::{asset, Asset, ImageAsset, ImageAssetBuilder};
+    use manganis::{asset, Asset};
     use reqwest::Client;
     use reqwest_websocket::{websocket, WebSocket};
     use reqwest_websocket::{Message, RequestBuilderExt};
