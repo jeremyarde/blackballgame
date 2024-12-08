@@ -50,7 +50,7 @@ jobs:
           git config --global user.name "Jeremy"
           git checkout -B deploy
           cd bb-admin && dx build --release
-          git add -f dist
+          git add -f public
           git commit -m "Committing assets"
           git push -f origin deploy
 
