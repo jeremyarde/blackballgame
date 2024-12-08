@@ -4,3 +4,7 @@
 4. remove tailwind
 5. add last action to each game
 6. use last action to determine if game is abandoned
+
+todo
+- fix colors with tailwind 4 upgrade
+- make game not change higght or layout wihle playing. Everything should be fixed.

@@ -174,7 +174,7 @@ fn validate_username(username: &str, disabled: &mut Signal<bool>) -> bool {
 fn get_title_logo() -> Element {
     rsx!(
         div { class: "grid items-center justify-center",
-            h1 { class: "col-start-1 row-start-1 text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 drop-shadow animate-gradient-shine",
+            h1 { class: "col-start-1 row-start-1 z-10 text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 drop-shadow animate-gradient-shine",
                 "Blackball"
             }
             div { class: "inset-0 w-[300px] h-[300px] bg-black justify-self-center rounded-full z-1 col-start-1 row-start-1" }
@@ -197,10 +197,10 @@ fn Home() -> Element {
 
     let current_component = match current_route.read().as_str() {
         "Home" => rsx!(
-            div { class: "flex flex-col items-center justify-center text-center min-h-screen w-full bg-[--bg-color] overflow-hidden p-10",
+            div { class: "bg-bg-color flex flex-col items-center justify-center text-center min-h-screen w-full overflow-hidden p-10",
                 {get_title_logo()},
                 div { class: "flex flex-col gap-2 w-full max-w-md",
-                    div { class: "flex flex-col sm:flex-row items-center justify-center",
+                    div { class: "flex flex-col sm:flex-row items-center justify-center gap-2",
                         label { class: "text-xl whitespace-nowrap", "Username" }
                         input {
                             class: "{styles::INPUT_FIELD} w-full",
@@ -301,7 +301,7 @@ fn Home() -> Element {
                                     }
                                     button {
                                         onclick: move |evt| open_modal.set(false),
-                                        class: "bg-[--bg-color] border border-black text-black w-full p-3 rounded hover:bg-gray-400 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50",
+                                        class: "bg-bg-color border border-black text-black w-full p-3 rounded hover:bg-gray-400 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50",
                                         "Close"
                                     }
                                 }
@@ -429,7 +429,7 @@ fn Explorer() -> Element {
     // });
 
     rsx! {
-        div { class: "flex flex-col sm:flex-row min-h-screen w-full text-center bg-[--bg-color] flex-nowrap justify-center gap-2 p-2  items-start",
+        div { class: "flex flex-col sm:flex-row min-h-screen w-full text-center bg-bg-color flex-nowrap justify-center gap-2 p-2  items-start",
             div { class: "flex flex-col justify-center align-top w-full sm:max-w-[600px] border border-black rounded-md p-2  items-start",
                 div { class: "w-full border border-solid border-black bg-white rounded-md p-2",
                     LobbyList {}
@@ -833,7 +833,7 @@ fn GameRoom(room_code: String) -> Element {
 
     let ws_send_signal = use_signal(|| ws_send);
     rsx!(
-        div { class: "flex flex-col md:flex-row text-center bg-[--bg-color] min-h-screen w-full flex-wrap md:flex-nowrap justify-center gap-2 p-2 md:p-4 items-center align-middle",
+        div { class: "flex flex-col md:flex-row text-center bg-bg-color min-h-screen w-full flex-wrap md:flex-nowrap justify-center gap-2 p-2 md:p-4 items-center align-middle",
             {
                 if error().is_null() {
                     rsx!()
@@ -1370,7 +1370,7 @@ fn GameStateComponent(
     // testvec.sort_by(|a, b| a.id.cmp(&b.id));
 
     rsx!(
-        div { class: "flex flex-col sm:flex-row h-screen w-screen text-center bg-[--bg-color] flex-nowrap justify-center p-2 items-start overflow-auto gap-2",
+        div { class: "flex flex-col sm:flex-row h-screen w-screen text-center bg-red-400 flex-nowrap justify-center p-2 items-start overflow-auto gap-2",
             TransitionComponent { gamestate, visible: transition_visible }
             div { class: "flex flex-col bg-[var(--bg-color)] rounded-lg p-2 border border-black gap-2 w-full",
                 div { class: "flex flex-col justify-between gap-2",
