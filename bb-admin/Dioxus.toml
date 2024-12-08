@@ -8,7 +8,7 @@ name = "bb-admin"
 default_platform = "web"
 
 # `build` & `serve` dist path
-out_dir = "dist"
+out_dir = "public"
 
 # resource (assets) file folder
 asset_dir = "assets"
