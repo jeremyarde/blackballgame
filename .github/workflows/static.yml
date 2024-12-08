@@ -38,22 +38,21 @@ jobs:
         run: cargo install dioxus-cli
       # - name: Build tailwind file
       #   run: npx tailwindcss -i ./input.css -o ./assets/tailwind.css
-      - name: Build Project 🎁
-        # env:
-        #   GITHUB_TOKEN: ${{ secrets.ACTIONS_DEPLOY_KEY }}
-        env:
-          FORCE_COLOR: 1
-          EARTHLY_TOKEN: "${{ secrets.EARTHLY_TOKEN }}"
-          DOCKERHUB_USERNAME: "${{secrets.DOCKERHUB_USERNAME}}"
-          DOCKERHUB_TOKEN: "${{secrets.DOCKERHUB_TOKEN}}"
-          ENVIRONMENT: production
-          STAGE: production
       - uses: actions/checkout@v3
       - uses: earthly/actions/setup-earthly@v1
       # - name: Run +all on Earthly satellite
       #   if: github.ref == 'refs/heads/main'
       #   run: earthly --org jeremyarde --ci --satellite my-satellite +all
-      - name: Run build and push
+      - name: Build Project 🎁
+        # env:
+        #   GITHUB_TOKEN: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+        env:
+          STAGE: production
+          FORCE_COLOR: 1
+          EARTHLY_TOKEN: "${{ secrets.EARTHLY_TOKEN }}"
+          DOCKERHUB_USERNAME: "${{secrets.DOCKERHUB_USERNAME}}"
+          DOCKERHUB_TOKEN: "${{secrets.DOCKERHUB_TOKEN}}"
+          ENVIRONMENT: production
         run: |
           earthly --org jeremyarde --ci --satellite my-satellite +all
           git config --global user.email "jere.arde@gmail.com"
