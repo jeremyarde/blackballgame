@@ -1437,7 +1437,7 @@ fn GameStateComponent(
     // testvec.sort_by(|a, b| a.id.cmp(&b.id));
 
     rsx!(
-        div { class: "grid grid-cols-1 sm:flex-row h-screen w-screen text-center bg-bg-color flex-nowrap justify-center p-2 items-start gap-2 overflow-hidden",
+        div { class: "grid grid-cols-1 w-full h-full text-center bg-bg-color flex-nowrap justify-center p-2 items-start gap-2 overflow-hidden",
             TransitionComponent { gamestate, visible: transition_visible }
             div { class: "flex flex-col bg-[var(--bg-color)] rounded-lg p-2 border border-black gap-2 w-full",
                 div { class: "flex flex-col justify-between gap-2",
