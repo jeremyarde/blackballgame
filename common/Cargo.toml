@@ -4,6 +4,7 @@ name = "common"
 version = "0.1.0"
 
 [dependencies]
+# ai = {path = "../ai"}
 chrono = {version = "0.4.38", features = ["serde"]}
 data-encoding = "2.6.0"
 fastrand = "2.0.2"

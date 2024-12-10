@@ -1,6 +1,16 @@
 all:
     earthly --no-sat +all
 
+fe:
+    cd bb-admin && export STAGE="test" && dx serve --port 5173 --hot-reload true
+
+be:
+    cd bb-server && cargo run
+
+tailwind:
+    cd bb-admin && npx tailwindcss -i ./input.css -o ./assets/tailwind.css --watch
+
+
 build:
     earthly --no-sat +build
     # earthly +build

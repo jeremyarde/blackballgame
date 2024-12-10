@@ -1,17 +1,31 @@
 use std::collections::HashMap;
 
 use chrono::Utc;
+// use common::{Destination, GameClient, GameEventResult, GameState, PlayerRole};
 use data_encoding::BASE64;
-
 use nanoid::nanoid_gen;
 use serde_json::json;
 use tracing::{error, info};
 
+// use crate::{
+//     create_deck, Card, Connect, Destination, GameAction, GameClient, GameError, GameEventResult,
+//     GameMessage, GameState, GameplayState, PlayState, PlayerDetails, PlayerRole, SetupGameOptions,
+//     Suit,
+// };
+
 use crate::{
-    create_deck, Card, Connect, Destination, GameAction, GameClient, GameError, GameEventResult,
-    GameMessage, GameState, GameplayState, PlayState, PlayerDetails, PlayerRole, SetupGameOptions,
-    Suit,
+    ai, create_deck, Card, Connect, Destination, GameAction, GameActionResponse, GameClient,
+    GameError, GameEventResult, GameMessage, GameState, GameplayState, PlayState, PlayerDetails,
+    PlayerRole, SetupGameOptions, Suit,
 };
+
+pub fn xor_encrypt_decrypt(data: &str, key: &str) -> Vec<u8> {
+    data.as_bytes()
+        .iter()
+        .zip(key.as_bytes().iter().cycle())
+        .map(|(d, k)| d ^ k)
+        .collect()
+}
 
 impl GameState {
     pub fn get_dealer(&self) -> String {
@@ -275,6 +289,35 @@ impl GameState {
             }
         };
 
+        if self.curr_player_turn.is_some()
+            && self
+                .players
+                .get(self.curr_player_turn.as_ref().unwrap())
+                .unwrap()
+                .role
+                == PlayerRole::Computer
+        {
+            // self.process_event(event)
+            let comp_player = self
+                .players
+                .get(self.curr_player_turn.as_ref().unwrap())
+                .unwrap();
+            let action = ai::decide_action(
+                self,
+                self.curr_player_turn.clone().unwrap().to_string(),
+                comp_player.details.client_secret.clone().unwrap(),
+            );
+            info!("AI chose an action: {:?}", action);
+            if action.is_some() {
+                self.process_event(GameMessage {
+                    username: self.curr_player_turn.clone().unwrap().to_string(),
+                    action: action.unwrap().clone(),
+                    timestamp: chrono::Utc::now(),
+                    lobby: self.lobby_code.clone(),
+                });
+            }
+        }
+
         if let Some(result) = has_result {
             return result;
         }
@@ -287,7 +330,7 @@ impl GameState {
 
         GameEventResult {
             dest: Destination::Lobby(players),
-            msg: crate::GameActionResponse::GameState(self.get_state_for_lobby()),
+            msg: GameActionResponse::GameState((self.get_state_for_lobby())),
         }
     }
 
@@ -308,26 +351,26 @@ impl GameState {
         player.encrypted_hand = secret_data;
     }
 
-    pub fn decrypt_player_hand(hand: String, player_secret: &String) -> Vec<Card> {
-        info!("Decrypting hand: {:?}, {:?}", hand, player_secret);
-        if player_secret.is_empty() {
-            error!("Player secret is empty");
-            return vec![];
-        }
+    // pub fn decrypt_player_hand(hand: String, player_secret: &String) -> Vec<Card> {
+    //     info!("Decrypting hand: {:?}, {:?}", hand, player_secret);
+    //     if player_secret.is_empty() {
+    //         error!("Player secret is empty");
+    //         return vec![];
+    //     }
 
-        if hand.is_empty() {
-            info!("Hand is empty");
-            return vec![];
-        }
-        let hand = BASE64
-            .decode(hand.as_bytes())
-            .expect("Could not decode hand");
-        let str_hand = String::from_utf8(hand).expect("Could not convert hand to string");
-        let secret_data = xor_encrypt_decrypt(&str_hand, player_secret);
-        let actual_hand: Vec<Card> =
-            serde_json::from_slice(&secret_data).expect("Could not parse hand");
-        actual_hand
-    }
+    //     if hand.is_empty() {
+    //         info!("Hand is empty");
+    //         return vec![];
+    //     }
+    //     let hand = BASE64
+    //         .decode(hand.as_bytes())
+    //         .expect("Could not decode hand");
+    //     let str_hand = String::from_utf8(hand).expect("Could not convert hand to string");
+    //     let secret_data = xor_encrypt_decrypt(&str_hand, player_secret);
+    //     let actual_hand: Vec<Card> =
+    //         serde_json::from_slice(&secret_data).expect("Could not parse hand");
+    //     actual_hand
+    // }
 
     pub fn get_state_for_lobby(&mut self) -> Self {
         let mut state_copy = self.clone();
@@ -453,6 +496,15 @@ impl GameState {
 
     pub fn setup_game(&mut self, sgo: SetupGameOptions) -> Result<(), GameError> {
         self.setup_game_options = sgo;
+        // add the computer players
+        for i in 0..self.setup_game_options.computer_players {
+            self.add_player(
+                format!("computer_{}", i),
+                PlayerRole::Computer,
+                "0.0.0.0:0".to_string(),
+            );
+        }
+
         if self.players.len() <= 1 {
             // Should maybe send a better message
             // self.system_status.push("Not enough players".into());
@@ -743,13 +795,13 @@ pub enum PlayedCardError {
     CantUseTrump,
 }
 
-pub fn xor_encrypt_decrypt(data: &str, key: &str) -> Vec<u8> {
-    data.as_bytes()
-        .iter()
-        .zip(key.as_bytes().iter().cycle())
-        .map(|(d, k)| d ^ k)
-        .collect()
-}
+// pub fn xor_encrypt_decrypt(data: &str, key: &str) -> Vec<u8> {
+//     data.as_bytes()
+//         .iter()
+//         .zip(key.as_bytes().iter().cycle())
+//         .map(|(d, k)| d ^ k)
+//         .collect()
+// }
 
 mod tests {
     use std::collections::HashMap;

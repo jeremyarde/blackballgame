@@ -36,6 +36,7 @@ mod server_client;
 mod websocket;
 
 mod styles {
+    pub const INC_DEC_BUTTONS: &str = "bg-gray-100 disabled:bg-red-100 hover:bg-gray-200 border border-gray-300 p-2 h-9 focus:ring-gray-100 focus:ring-2 focus:outline-none";
     pub const TITLE_CONTAINER: &str = "grid items-center justify-center";
     pub const TITLE_TEXT: &str = "col-start-1 row-start-1 text-8xl md:text-6xl font-extrabold \
         text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 \
@@ -197,7 +198,7 @@ fn Home() -> Element {
 
     let current_component = match current_route.read().as_str() {
         "Home" => rsx!(
-            div { class: "bg-bg-color flex flex-col items-center justify-center text-center min-h-screen w-full overflow-hidden p-10",
+            div { class: "overflow-hidden bg-bg-color flex flex-col items-center justify-center text-center min-h-screen w-full p-10",
                 {get_title_logo()},
                 div { class: "flex flex-col gap-2 w-full max-w-md",
                     div { class: "flex flex-col sm:flex-row items-center justify-center gap-2",
@@ -368,6 +369,7 @@ fn Home() -> Element {
                 game_mode: "Standard".to_string(),
                 visibility: GameVisibility::Public,
                 password: None,
+                computer_players: 0,
             }),
 
             timestamp: Utc::now(),
@@ -450,7 +452,7 @@ pub fn LobbyComponent(lobby: Lobby) -> Element {
         tr { key: "{lobby.name}",
             td { class: "px-6 py-4 whitespace-nowrap", "{lobby.name}" }
             td { class: "px-6 py-4 whitespace-nowrap", "{lobby.players.len()}/{lobby.max_players}" }
-            td { class: "px-6 py-4 whitespace-nowrap", "{lobby.game_mode}" }
+            // td { class: "px-6 py-4 whitespace-nowrap", "{lobby.game_mode}" }
             td { class: "px-6 py-4 whitespace-nowrap",
                 button {
 
@@ -610,9 +612,9 @@ pub fn LobbyList() -> Element {
                                 th { class: "px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
                                     "Players"
                                 }
-                                th { class: "px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
-                                    "Game Mode"
-                                }
+                                // th { class: "px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
+                                //     "Game Mode"
+                                // }
                                 th { class: "px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
                                     "Action"
                                 }
@@ -660,6 +662,7 @@ fn GameRoom(room_code: String) -> Element {
         game_mode: "Standard".to_string(),
         visibility: GameVisibility::Public,
         password: None,
+        computer_players: 0,
     });
 
     let mut ws_url = use_signal(|| {
@@ -919,8 +922,9 @@ fn GameRoom(room_code: String) -> Element {
                                         button {
                                             "data-input-counter-decrement": "quantity-input",
                                             r#type: "button",
-                                            class: "bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 dark:border-gray-600 hover:bg-gray-200 border border-gray-300 rounded-s-lg p-2 md:p-3 h-9 md:h-11 focus:ring-gray-100 dark:focus:ring-gray-700 focus:ring-2 focus:outline-none",
+                                            class: "{styles::INC_DEC_BUTTONS} rounded-s-lg",
                                             id: "decrement-button",
+                                            disabled: if setupgameoptions.read().rounds <= 1 {true} else {false},
                                             onclick: move |evt| setupgameoptions.write().rounds -= 1,
                                             svg {
                                                 "viewBox": "0 0 18 2",
@@ -940,7 +944,7 @@ fn GameRoom(room_code: String) -> Element {
                                         button {
                                             "data-input-counter-increment": "quantity-input",
                                             r#type: "button",
-                                            class: "bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 dark:border-gray-600 hover:bg-gray-200 border border-gray-300 rounded-e-lg p-2 md:p-3 h-9 md:h-11 focus:ring-gray-100 dark:focus:ring-gray-700 focus:ring-2 focus:outline-none",
+                                            class: "{styles::INC_DEC_BUTTONS} rounded-e-lg",
                                             id: "increment-button",
                                             onclick: move |_| setupgameoptions.write().rounds += 1,
                                             svg {
@@ -959,6 +963,66 @@ fn GameRoom(room_code: String) -> Element {
                                             }
                                         }
                                     }
+                                        div {
+                                            class: "flex flex-row items-center justify-center",
+                                            label { class: "text-sm md:text-base", "computer players" }
+                                            input {
+                                                class: "{styles::INPUT_FIELD} w-16 md:w-20",
+                                                r#type: "number",
+                                                required: "false",
+                                                value: "{setupgameoptions.read().computer_players}",
+                                                // onchange: move |evt| {
+                                                //     setupgameoptions.write().computer_players = evt.value().parse::<usize>().unwrap_or(0);
+                                                // }
+                                            }
+                                            button {
+                                                "data-input-counter-decrement": "quantity-input",
+                                                r#type: "button",
+                                                class: "{styles::INC_DEC_BUTTONS} rounded-s-lg",
+                                                id: "decrement-button",
+                                                disabled: if setupgameoptions.read().computer_players == 0 { true } else { false },
+                                                onclick: move |evt|{
+                                                    if setupgameoptions.read().computer_players > 0 {
+                                                        setupgameoptions.write().computer_players -= 1;
+                                                    }
+                                                },
+                                                svg {
+                                                    "viewBox": "0 0 18 2",
+                                                    "fill": "none",
+                                                    "xmlns": "http://www.w3.org/2000/svg",
+                                                    "aria-hidden": "true",
+                                                    class: "w-3 h-3 text-gray-900 dark:text-white",
+                                                    path {
+                                                        "stroke-width": "2",
+                                                        "d": "M1 1h16",
+                                                        "stroke": "currentColor",
+                                                        "stroke-linecap": "round",
+                                                        "stroke-linejoin": "round"
+                                                    }
+                                                }
+                                            }
+                                            button {
+                                                "data-input-counter-increment": "quantity-input",
+                                                r#type: "button",
+                                                class: "{styles::INC_DEC_BUTTONS} rounded-e-lg",
+                                                id: "increment-button",
+                                                onclick: move |_| setupgameoptions.write().computer_players += 1,
+                                                svg {
+                                                    "xmlns": "http://www.w3.org/2000/svg",
+                                                    "aria-hidden": "true",
+                                                    "fill": "none",
+                                                    "viewBox": "0 0 18 18",
+                                                    class: "w-3 h-3 text-gray-900 dark:text-white",
+                                                    path {
+                                                        "stroke-linejoin": "round",
+                                                        "stroke": "currentColor",
+                                                        "stroke-width": "2",
+                                                        "stroke-linecap": "round",
+                                                        "d": "M9 1v16M1 9h16"
+                                                    }
+                                                }
+                                            }
+                                        }
                                     if app_props.read().is_debug_mode() {
                                         div {
                                             class: "flex flex-row items-center justify-center space-x-4",
@@ -970,6 +1034,9 @@ fn GameRoom(room_code: String) -> Element {
                                                 // placeholder: "",
                                                 required: "false",
                                                 value: "{setupgameoptions.read().start_round.unwrap_or(1)}",
+                                                onchange: move |evt| {
+                                                    setupgameoptions.write().start_round = evt.value().parse::<usize>().ok();
+                                                }
                                             }
                                         }
                                     }
@@ -1370,7 +1437,7 @@ fn GameStateComponent(
     // testvec.sort_by(|a, b| a.id.cmp(&b.id));
 
     rsx!(
-        div { class: "flex flex-col sm:flex-row h-screen w-screen text-center bg-red-400 flex-nowrap justify-center p-2 items-start overflow-auto gap-2",
+        div { class: "grid grid-cols-1 sm:flex-row h-screen w-screen text-center bg-bg-color flex-nowrap justify-center p-2 items-start gap-2 overflow-hidden",
             TransitionComponent { gamestate, visible: transition_visible }
             div { class: "flex flex-col bg-[var(--bg-color)] rounded-lg p-2 border border-black gap-2 w-full",
                 div { class: "flex flex-col justify-between gap-2",
@@ -1545,7 +1612,7 @@ fn GameStateComponent(
                                         },
                                         card: card.clone(),
                                         is_winning: gamestate.read().curr_winning_card.is_some() && gamestate.read().curr_winning_card.clone().unwrap() == card.clone(),
-                                        show_player: true,
+                                        show_player: false,
 
                                     });
                                 })})

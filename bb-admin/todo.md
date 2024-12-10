@@ -8,3 +8,6 @@
 todo
 - fix colors with tailwind 4 upgrade
 - make game not change higght or layout wihle playing. Everything should be fixed.
+- hand height should be consistent
+  - remove names from the cards in your hand
+  - fix card positioning

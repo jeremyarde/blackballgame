@@ -1,10 +1,11 @@
 use chrono::{DateTime, Utc};
 use data_encoding::BASE64;
-use game::xor_encrypt_decrypt;
+// use game::xor_encrypt_decrypt;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{collections::HashMap, fmt};
 
+mod ai;
 mod client;
 mod game;
 
@@ -52,6 +53,7 @@ impl PlayState {
 pub enum PlayerRole {
     Leader,
     Player,
+    Computer,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -71,6 +73,13 @@ pub struct GameClient {
     pub num_cards: i32,
     pub role: PlayerRole,
     pub details: PlayerDetails,
+}
+pub fn xor_encrypt_decrypt(data: &str, key: &str) -> Vec<u8> {
+    data.as_bytes()
+        .iter()
+        .zip(key.as_bytes().iter().cycle())
+        .map(|(d, k)| d ^ k)
+        .collect()
 }
 
 impl GameClient {
@@ -131,6 +140,29 @@ pub struct GameState {
     pub trump_played_in_round: bool,
 }
 
+impl GameState {
+    pub fn decrypt_player_hand(hand: String, player_secret: &String) -> Vec<Card> {
+        // info!("Decrypting hand: {:?}, {:?}", hand, player_secret);
+        if player_secret.is_empty() {
+            // error!("Player secret is empty");
+            return vec![];
+        }
+
+        if hand.is_empty() {
+            // info!("Hand is empty");
+            return vec![];
+        }
+        let hand = BASE64
+            .decode(hand.as_bytes())
+            .expect("Could not decode hand");
+        let str_hand = String::from_utf8(hand).expect("Could not convert hand to string");
+        let secret_data = xor_encrypt_decrypt(&str_hand, player_secret);
+        let actual_hand: Vec<Card> =
+            serde_json::from_slice(&secret_data).expect("Could not parse hand");
+        actual_hand
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameEventResult {
     pub dest: Destination,
@@ -153,6 +185,7 @@ pub struct SetupGameOptions {
     pub game_mode: String,
     pub visibility: GameVisibility,
     pub password: Option<String>,
+    pub computer_players: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -177,6 +210,7 @@ impl SetupGameOptions {
             game_mode: "Standard".to_string(),
             visibility: GameVisibility::Public,
             password: None,
+            computer_players: 0,
         }
     }
 
@@ -197,6 +231,7 @@ impl SetupGameOptions {
             game_mode,
             visibility,
             password,
+            computer_players: 0,
         }
     }
 }

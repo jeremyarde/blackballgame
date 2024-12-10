@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [dependencies]
 # aes-gcm = "0.10.3"
+ai = {path = "../ai"}
 api_types = {path = "../api_types"}
 axum = {version = "0.7.9", features = ["ws", "macros"]}
 axum-extra = {version = "0.9.3", features = ["typed-header"]}
