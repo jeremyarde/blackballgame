@@ -27,15 +27,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ai"
-version = "0.1.0"
-dependencies = [
- "common",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "ai-client"
 version = "0.1.0"
 dependencies = [
@@ -311,7 +302,6 @@ dependencies = [
 name = "bb-server"
 version = "0.1.0"
 dependencies = [
- "ai",
  "anyhow",
  "api_types",
  "axum",
@@ -457,6 +447,7 @@ dependencies = [
  "fastrand",
  "insta",
  "nanoid",
+ "once_cell",
  "serde",
  "serde_json",
  "tracing",

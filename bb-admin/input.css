@@ -3,6 +3,7 @@
 
 @theme {
   --color-bg-color: oklch(95.24% 0.017 76.11);
+  --color-name-tag: oklch(91.17% 0.0773 82.99);
 }
 
 * {

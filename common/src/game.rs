@@ -3,10 +3,10 @@ use std::collections::HashMap;
 use chrono::Utc;
 // use common::{Destination, GameClient, GameEventResult, GameState, PlayerRole};
 use data_encoding::BASE64;
+use fastrand::shuffle;
 use nanoid::nanoid_gen;
 use serde_json::json;
 use tracing::{error, info};
-
 // use crate::{
 //     create_deck, Card, Connect, Destination, GameAction, GameClient, GameError, GameEventResult,
 //     GameMessage, GameState, GameplayState, PlayState, PlayerDetails, PlayerRole, SetupGameOptions,
@@ -260,7 +260,7 @@ impl GameState {
     }
 
     pub fn process_event(&mut self, event: GameMessage) -> GameEventResult {
-        self.event_log.push(event.clone());
+        let event_to_log = event.clone();
         self.updated_at = Utc::now();
         self.system_status.clear(); // clear system status on every event, because we only want to show the current player the last error
 
@@ -289,6 +289,12 @@ impl GameState {
             }
         };
 
+        if let Some(result) = has_result {
+            self.event_log.push(event_to_log);
+            return result;
+        }
+
+        info!("Current player turn: {:?}", self.curr_player_turn);
         if self.curr_player_turn.is_some()
             && self
                 .players
@@ -297,13 +303,11 @@ impl GameState {
                 .role
                 == PlayerRole::Computer
         {
-            // self.process_event(event)
             let comp_player = self
                 .players
                 .get(self.curr_player_turn.as_ref().unwrap())
                 .unwrap();
-            let action = ai::decide_action(
-                self,
+            let action = self.ai_decide_action(
                 self.curr_player_turn.clone().unwrap().to_string(),
                 comp_player.details.client_secret.clone().unwrap(),
             );
@@ -318,10 +322,6 @@ impl GameState {
             }
         }
 
-        if let Some(result) = has_result {
-            return result;
-        }
-
         let players = self
             .players
             .values()
@@ -330,7 +330,7 @@ impl GameState {
 
         GameEventResult {
             dest: Destination::Lobby(players),
-            msg: GameActionResponse::GameState((self.get_state_for_lobby())),
+            msg: GameActionResponse::GameState(self.get_state_for_lobby()),
         }
     }
 
@@ -484,7 +484,7 @@ impl GameState {
         if curr_turn_idx == player_order.len() - 1 {
             next_player_idx = 0;
         } else {
-            next_player_idx += 1;
+            next_player_idx = curr_turn_idx + 1;
         }
 
         (next_player_idx, player_order[next_player_idx].clone())
@@ -499,7 +499,7 @@ impl GameState {
         // add the computer players
         for i in 0..self.setup_game_options.computer_players {
             self.add_player(
-                format!("computer_{}", i),
+                format!("cpu_{}", i),
                 PlayerRole::Computer,
                 "0.0.0.0:0".to_string(),
             );
@@ -729,6 +729,68 @@ impl GameState {
         }
         Ok(played_card.clone())
     }
+
+    pub fn ai_decide_action(&self, username: String, secret_key: String) -> Option<GameAction> {
+        let action = match &self.gameplay_state {
+            GameplayState::Bid => ai::get_bid(self),
+            GameplayState::Pregame => return None,
+            GameplayState::PostHand(ps) => return None,
+            GameplayState::Play(ps) => {
+                // let player = gamestate.players.get(&self.username).unwrap();
+
+                // let cards = GameState::decrypt_player_hand(
+                //     self.
+                //         .players
+                //         .get(&username)
+                //         .unwrap()
+                //         .encrypted_hand
+                //         .clone(),
+                //     &secret_key,
+                // );
+                // info!("Cards: {:?}", cards);
+                // GameAction::PlayCard(cards.get(0).unwrap().clone())
+                let mut toplay: GameAction = GameAction::PlayCard(Card::new(Suit::Heart, 1));
+                for card in &self.players[&username].hand {
+                    let valid = self.is_played_card_valid(username.clone(), card.clone());
+                    if valid.is_ok() {
+                        toplay = GameAction::PlayCard(card.clone());
+                    }
+                }
+                toplay
+            }
+            GameplayState::PostRound => GameAction::Deal,
+            GameplayState::End => GameAction::Ack,
+        };
+        Some(action)
+    }
+}
+
+pub fn deal_hand(
+    num_cards: i32,
+    deck: &Vec<Card>,
+    players: &Vec<String>,
+) -> HashMap<String, Vec<Card>> {
+    let mut hands = HashMap::new();
+    for player in players {
+        hands.insert(player.clone(), vec![]);
+    }
+    let mut random_deck = deck.clone();
+    shuffle(&mut random_deck);
+
+    for i in 1..=num_cards {
+        for player in players.iter() {
+            let card = random_deck.pop().expect("Could not get card");
+            hands
+                .entry(player.to_string())
+                .and_modify(|x| x.push(card.clone()));
+        }
+    }
+
+    for (player, hand) in hands.iter_mut() {
+        hand.sort_by(|a, b| a.id.cmp(&b.id));
+    }
+
+    hands
 }
 
 fn find_winning_card(curr_played_cards: Vec<Card>, trump: Suit) -> Card {
@@ -794,14 +856,6 @@ pub enum PlayedCardError {
     DidNotFollowSuit,
     CantUseTrump,
 }
-
-// pub fn xor_encrypt_decrypt(data: &str, key: &str) -> Vec<u8> {
-//     data.as_bytes()
-//         .iter()
-//         .zip(key.as_bytes().iter().cycle())
-//         .map(|(d, k)| d ^ k)
-//         .collect()
-// }
 
 mod tests {
     use std::collections::HashMap;

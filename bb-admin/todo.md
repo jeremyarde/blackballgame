@@ -11,3 +11,5 @@ todo
 - hand height should be consistent
   - remove names from the cards in your hand
   - fix card positioning
+- change location of name of player on cards, should be bottom middle?
+- make bottom section actually grid

@@ -368,6 +368,14 @@ impl Card {
             played_by: None,
         }
     }
+    pub fn with_played_by(suit: Suit, value: i32, played_by: String) -> Self {
+        Card {
+            id: 0,
+            suit,
+            value,
+            played_by: Some(played_by),
+        }
+    }
 }
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
