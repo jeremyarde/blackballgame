@@ -6,7 +6,7 @@
   --color-name-tag: oklch(91.17% 0.0773 82.99);
 }
 
-* {
+root {
   /* border: 1px solid red; */
   overflow: hidden;
 }

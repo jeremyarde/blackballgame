@@ -7,7 +7,7 @@ pub mod websocket_connection {
     };
     use dioxus::prelude::*;
     use dioxus_elements::link;
-    use dotenvy::dotenv;
+    // use dotenvy::dotenv;
 
     use futures_util::stream::{SplitSink, SplitStream};
     use futures_util::TryStreamExt;
