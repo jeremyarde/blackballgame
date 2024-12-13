@@ -99,7 +99,7 @@ fn main() {
     launch(|| {
         rsx! {
             link { rel: "stylesheet", href: "./assets/tailwind.css" }
-            // link { rel: "stylesheet", href: asset!("./assets/tailwind.css") }
+            // document::Link { rel: "stylesheet", href: asset!("/public/tailwind.css") }
             StateProvider {}
         }
     });
@@ -190,7 +190,7 @@ fn get_title_logo() -> Element {
             h1 { class: "col-start-1 row-start-1 z-10 text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 drop-shadow animate-gradient-shine",
                 "Blackball"
             }
-            div { class: "inset-0 w-[300px] h-[300px] bg-black justify-self-center rounded-full z-1 col-start-1 row-start-1" }
+            div { class: "inset-0 w-[300px] h-[300px] bg-black justify-self-center rounded-full col-start-1 row-start-1" }
         }
     )
 }
@@ -457,9 +457,9 @@ fn Explorer() -> Element {
     // });
 
     rsx! {
-        div { class: "flex flex-col h-screen w-full text-center bg-bg-color flex-nowrap justify-center gap-2 p-2  items-start",
+        div { class: "flex flex-col h-screen w-screen text-center bg-bg-color flex-nowrap justify-center gap-2 p-2 items-start",
             // div { class: "flex flex-col justify-center align-top w-full h-full border border-black rounded-md p-2  items-start",
-            div { class: "w-full border border-solid border-black h-full bg-white rounded-md p-2",
+            div { class: "w-full h-full border border-solid border-black bg-white rounded-md p-2",
                 LobbyList {}
             }
         }
@@ -496,6 +496,8 @@ pub fn LobbyComponent(lobby: Lobby) -> Element {
 pub fn LobbyList() -> Element {
     let mut server_config: Signal<ServerConfig> = use_context::<Signal<ServerConfig>>();
     let mut server_client: Signal<ServerClient> = use_context::<Signal<ServerClient>>();
+    let mut current_route: Signal<String> = use_context::<Signal<String>>();
+    let mut user_config: Signal<UserConfig> = use_context::<Signal<UserConfig>>();
 
     let mut create_lobby_response_msg = use_signal(|| String::from(""));
     let mut lobby_name = use_signal(|| String::new());
@@ -557,11 +559,10 @@ pub fn LobbyList() -> Element {
     };
 
     rsx!(
-        div { class: "w-full h-full",
+        div { class: "max-w-[300px]",
             div { class: "flex flex-col justify-center space-between cursor-pointer p-2",
                 h1 { class: "text-2xl font-bold text-center", "Game Lobbies" }
-                div { class: "flex flex-col sm:flex-row justify-center items-center w-full gap-2",
-                    // label { class: "text-xl whitespace-nowrap", "new lobby" }
+                div { class: "flex flex-col justify-center items-center w-full gap-2",
                     div { class: "flex flex-row",
                         input {
                             class: "{styles::INPUT_FIELD} w-full sm:w-auto",
@@ -600,7 +601,7 @@ pub fn LobbyList() -> Element {
                 }
                 {if create_lobby_response_msg() == String::from("") { rsx!(div{}) } else { rsx!(div { class: "text-center", "{create_lobby_response_msg.read()}" }) }}
             }
-            div { class: "flex flex-col p-2 gap-2",
+            div { class: "flex flex-col",
                 div { class: "relative",
                     svg {
                         class: "absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5",
@@ -628,34 +629,36 @@ pub fn LobbyList() -> Element {
                         }
                     }
                 }
-                div { class: "overflow-y-hidden overflow-x-hidden",
-                    div { class: "bg-white border border-gray-300 w-full",
-                        div { class: "grid grid-cols-[200px_auto_auto] items-center w-full bg-gray-200",
-                            div { class: "px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider",
-                                "Lobby Name"
-                            }
-                            div { class: "px-1 py-3 text-left text-xs text-gray-500 uppercase tracking-wider",
-                                "Players"
-                            }
-                            div { class: "text-left text-xs text-gray-500 uppercase tracking-wider",
-                                "Action"
-                            }
+                div { class: "bg-white border border-gray-300 w-full",
+                    div { class: "grid grid-cols-3 items-center bg-gray-200",
+                        div {
+                            // class: "px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider",
+                            "Lobby Name"
                         }
-                        div { class: "divide-y divide-gray-200 w-full max-h-[300px] overflow-y-auto overflow-x-hidden",
-                            if search_lobbies.len() == 0 {
-                                {rsx!(
-                                    div { class: "text-center w-full p-4",
-                                        "No lobbies found"
+                        div {
+                            // class: "px-1 py-3 text-left text-xs text-gray-500 uppercase tracking-wider",
+                            "Players"
+                        }
+                        div {
+                            // class: "text-left text-xs text-gray-500 uppercase tracking-wider",
+                            "Action"
+                        }
+                        // if search_lobbies.len() == 0 {
+                        //     div { class: "text-center w-full p-4", "No lobbies found" }
+                        // } else {
+                        div {
+                            for lobby in search_lobbies.iter() {
+                                div { class: "break-words text-center", "{lobby.name}" }
+                                div { class: "", "{lobby.players.len()}/{lobby.max_players}" }
+                                div { class: "",
+                                    button {
+                                        onclick: move |evt| {
+                                            current_route.set("GameRoom".to_string());
+                                        },
+                                        class: "py-2 rounded-md text-sm font-medium w-full bg-yellow-300",
+                                        "Join"
                                     }
-                                )}
-                            } else {
-                                {search_lobbies.iter().map(|lobby| {
-                                    rsx!(
-                                        LobbyComponent {
-                                            lobby: lobby.clone(),
-                                        }
-                                    )
-                                })}
+                                }
                             }
                         }
                     }

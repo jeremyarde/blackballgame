@@ -1,46 +1,60 @@
 [application]
 
-# App (Project) Name
+# dioxus project name
 name = "bb-admin"
 
-# Dioxus App Default Platform
-# desktop, web
+# default platform
+# you can also use `dx serve/build --platform XXX` to use other platform
+# value: web | desktop
 default_platform = "web"
 
-# `build` & `serve` dist path
-out_dir = "public"
+# Web `build` & `serve` dist path
+out_dir = "dist"
 
-# resource (assets) file folder
-asset_dir = "assets"
+# resource (static) file folder
+asset_dir = "public"
 
-port = 5173
+# hot reload by default
+hot_reload = true
+
+[web.wasm_opt]
+# The level wasm-opt should target. z is the smallest. 4 is the fastest.
+level = "4"
 
 [web.app]
 
 # HTML title tag content
 title = "Blackball"
-# The application will be served at domain.com/my_application/, so we need to modify the base_path to the path where the application will be served
-# base_path = ""
 
 [web.watcher]
 
-# when watcher trigger, regenerate the `index.html`
-reload_html = true
+index_on_404 = true
 
-# which files or dirs will be watcher monitoring
 watch_path = ["src", "assets", "input.css"]
 
-# include `assets` in web platform
-[web.resource]
+[bundler]
+# Bundle identifier
+identifier = "io.github.jeremyarde"
 
-# CSS style file
-style = ["assets/tailwind.css"]
+# Bundle publisher
+publisher = "."
 
-# Javascript code file
-script = []
+# Bundle icon
+icon = ["icons/icon.png"]
 
-[web.resource.dev]
+# Bundle resources
+resources = ["public/*"]
 
-# Javascript code file
-# serve: [dev-server] only
-script = []
+# Bundle copyright
+copyright = ""
+
+# Bundle category
+# category = "Utility"
+
+# Bundle short description
+short_description = "Card game for friends."
+
+# Bundle long description
+long_description = """
+Card game for friends.
+"""
