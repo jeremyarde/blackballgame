@@ -20,7 +20,10 @@ buildfe:
 
 deployfe:
     cd bb-admin && dx build --release
-    target/dx/bb-admin/release/web/public
+    git checkout deploy
+    git add -f target/dx/bb-admin/release/web/public/*
+    git commit -m "deploy"
+    git push origin deploy
 
 lint:
     earthly --no-sat +lint
