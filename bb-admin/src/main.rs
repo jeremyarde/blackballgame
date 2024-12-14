@@ -652,17 +652,19 @@ pub fn LobbyList() -> Element {
         // if search_lobbies.len() == 0 {
         //     div { class: "text-center w-full p-4", "No lobbies found" }
         // } else {
-        div { class: "grid grid-cols-3 items-center overflow-scroll h-[400px] border border-black rounded-md",
-            for lobby in search_lobbies.iter() {
-                div { class: "break-words text-center", "{lobby.name}" }
-                div { class: "", "{lobby.players.len()}/{lobby.max_players}" }
-                div { class: "",
-                    button {
-                        onclick: move |evt| {
-                            current_route.set("GameRoom".to_string());
-                        },
-                        class: "py-2 rounded-md text-sm font-medium w-full bg-yellow-300",
-                        "Join"
+        div { class: "border border-black rounded-md h-[400px]",
+            div { class: "grid grid-cols-3 overflow-scroll items-baseline h-[400px]",
+                for lobby in search_lobbies.iter() {
+                    div { class: "break-words text-center", "{lobby.name}" }
+                    div { class: "", "{lobby.players.len()}/{lobby.max_players}" }
+                    div { class: "",
+                        button {
+                            onclick: move |evt| {
+                                current_route.set("GameRoom".to_string());
+                            },
+                            class: "py-2 rounded-md text-sm font-medium w-full bg-yellow-300",
+                            "Join"
+                        }
                     }
                 }
             }
@@ -888,35 +890,6 @@ fn GameRoom(room_code: String) -> Element {
                     rsx! {
                         div { class: "flex flex-col gap-2 w-full self-center max-w-[600px]",
                             div { class: "flex flex-row w-full border border-black rounded-md p-2 md:p-4 self-center",
-                                button {
-                                    class: "{styles::STANDARD_BUTTON} text-white",
-                                    onclick: move |evt| get_game_details(room_code_clone.clone()),
-                                    "Refresh"
-                                }
-                                button {
-                                    class: "{styles::STANDARD_BUTTON} text-white",
-                                    onclick: move |evt| {
-                                        async move {
-                                            info!("Clicked join game");
-                                            listen_for_server_messages.send(("ready".to_string()));
-                                            ws_send
-                                                .send(InnerMessage::GameMessage {
-                                                    msg: GameMessage {
-                                                        username: user_config().username.clone(),
-                                                        timestamp: Utc::now(),
-                                                        action: GameAction::JoinGame(PlayerDetails {
-                                                            lobby: user_config.read().lobby_code.clone(),
-                                                            username: user_config.read().username.clone(),
-                                                            ip: None,
-                                                            client_secret: Some(user_config.read().client_secret.clone()),
-                                                        }),
-                                                        lobby: user_config.read().lobby_code.clone(),
-                                                    },
-                                                });
-                                        }
-                                    },
-                                    "Join"
-                                }
                                 div { class: "flex flex-col md:flex-row justify-center align-top text-center items-center w-full border border-black rounded-md p-2",
                                     h1 { class: "text-xl md:text-2xl", "{get_lobby_response.read().lobby.name}" }
                                     div { class: "container",
@@ -933,6 +906,11 @@ fn GameRoom(room_code: String) -> Element {
                                                 })
                                         }
                                     }
+                                }
+                                button {
+                                    class: "{styles::STANDARD_BUTTON} text-white",
+                                    onclick: move |evt| get_game_details(room_code_clone.clone()),
+                                    "Refresh"
                                 }
                             }
                             div { class: "flex flex-col w-full md:max-w-[600px] self-center border border-black rounded-md p-2",
@@ -1119,7 +1097,30 @@ fn GameRoom(room_code: String) -> Element {
                                         }
                                     }
                                 }
-
+                                button {
+                                    class: "{styles::STANDARD_BUTTON} text-white",
+                                    onclick: move |evt| {
+                                        async move {
+                                            info!("Clicked join game");
+                                            listen_for_server_messages.send(("ready".to_string()));
+                                            ws_send
+                                                .send(InnerMessage::GameMessage {
+                                                    msg: GameMessage {
+                                                        username: user_config().username.clone(),
+                                                        timestamp: Utc::now(),
+                                                        action: GameAction::JoinGame(PlayerDetails {
+                                                            lobby: user_config.read().lobby_code.clone(),
+                                                            username: user_config.read().username.clone(),
+                                                            ip: None,
+                                                            client_secret: Some(user_config.read().client_secret.clone()),
+                                                        }),
+                                                        lobby: user_config.read().lobby_code.clone(),
+                                                    },
+                                                });
+                                        }
+                                    },
+                                    "Join"
+                                }
                                 button {
                                     class: "bg-yellow-300 border border-solid border-black text-center rounded-md p-2  hover:bg-yellow-400 transition-colors",
                                     onclick: move |evt| {
@@ -1583,7 +1584,7 @@ fn GameStateComponent(
             div { class: "col-start-1 row-start-2 h-[40px] w-full",
                 GameStatusInfoComponent { gamestate, visible: true }
             }
-            div { class: "col-start-1 row-start-3 relative w-full h-full bg-bg-color rounded-lg text-gray-100 border border-black",
+            div { class: "col-start-1 row-start-3 relative w-full h-full bg-card-area rounded-lg text-gray-100 border border-black",
                 div { class: "absolute top-1 left-1 px-1 py-1 text-[9px] bg-indigo-600 rounded-md z-10",
                     "Played cards"
                 }
@@ -1610,7 +1611,7 @@ fn GameStateComponent(
             div { class: "col-start-1 row-start-4 justify-between gap-2 w-full h-full",
                 div {
                     class: format!(
-                        "relative w-full bg-bg-color h-full rounded-lg border border-black {}",
+                        "relative w-full bg-card-area h-full rounded-lg border border-black {}",
                         if gamestate().curr_player_turn.clone().unwrap_or("".to_string())
                             == user_config.read().username
                         {
@@ -1821,15 +1822,6 @@ fn GameStateComponent(
                 {
                     span { class: "text-red-500 text-sm",
                         "{gamestate.read().system_status.last().unwrap()}"
-                    }
-                }
-            }
-            div { class: "absolute flex flex-col items-center justify-center",
-                span {
-                    {
-                        gamestate.read().event_log.iter().map(|event| rsx! {
-                            span { class: "text-xs text-gray-500", "{event:?}" }
-                        })
                     }
                 }
             }

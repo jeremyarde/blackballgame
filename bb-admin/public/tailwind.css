@@ -378,6 +378,7 @@
       --font-mono--font-variation-settings
     );
     --color-bg-color: oklch(95.24% 0.017 76.11);
+    --color-card-area: oklch(95.24% 0.0493 67.1);
     --color-name-tag: oklch(91.17% 0.0773 82.99);
   }
 }
@@ -673,12 +674,6 @@
   .h-\[400px\] {
     height: 400px;
   }
-  .h-\[500px\] {
-    height: 500px;
-  }
-  .h-\[600px\] {
-    height: 600px;
-  }
   .h-full {
     height: 100%;
   }
@@ -946,6 +941,9 @@
   }
   .bg-black {
     background-color: var(--color-black);
+  }
+  .bg-card-area {
+    background-color: var(--color-card-area);
   }
   .bg-gray-100 {
     background-color: var(--color-gray-100);
