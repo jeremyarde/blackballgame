@@ -9,7 +9,7 @@ name = "bb-admin"
 default_platform = "web"
 
 # Web `build` & `serve` dist path
-out_dir = "dist"
+out_dir = "docs"
 
 # resource (static) file folder
 asset_dir = "public"
@@ -24,6 +24,7 @@ level = "4"
 [web.app]
 
 # HTML title tag content
+base_path = "blackballgame"
 title = "Blackball"
 
 [web.watcher]
