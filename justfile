@@ -7,7 +7,7 @@ fe:
 be:
     cd bb-server && cargo run
 
-tailwind:
+tw:
     cd bb-admin && npx tailwindcss -i ./input.css -o ./public/tailwind.css --watch
 
 

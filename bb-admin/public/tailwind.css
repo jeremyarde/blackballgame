@@ -670,6 +670,15 @@
   .h-\[300px\] {
     height: 300px;
   }
+  .h-\[400px\] {
+    height: 400px;
+  }
+  .h-\[500px\] {
+    height: 500px;
+  }
+  .h-\[600px\] {
+    height: 600px;
+  }
   .h-full {
     height: 100%;
   }
@@ -868,6 +877,9 @@
   }
   .overflow-hidden {
     overflow: hidden;
+  }
+  .overflow-scroll {
+    overflow: scroll;
   }
   .overflow-x-auto {
     overflow-x: auto;
@@ -1428,6 +1440,11 @@
       height: calc(var(--spacing) * 8);
     }
   }
+  .md\:max-h-\[600px\] {
+    @media (width >= 48rem) {
+      max-height: 600px;
+    }
+  }
   .md\:w-6 {
     @media (width >= 48rem) {
       width: calc(var(--spacing) * 6);
@@ -1446,11 +1463,6 @@
   .md\:w-40 {
     @media (width >= 48rem) {
       width: calc(var(--spacing) * 40);
-    }
-  }
-  .md\:w-auto {
-    @media (width >= 48rem) {
-      width: auto;
     }
   }
   .md\:max-w-\[600px\] {

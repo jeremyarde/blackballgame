@@ -211,7 +211,7 @@ fn Home() -> Element {
     let current_component = match current_route.read().as_str() {
         "Home" => rsx!(
             div { class: "overflow-hidden bg-bg-color flex flex-col items-center justify-center text-center min-h-screen w-full p-10",
-                {get_title_logo()},
+                {get_title_logo()}
                 div { class: "flex flex-col gap-2 w-full max-w-md",
                     div { class: "flex flex-col sm:flex-row items-center justify-center gap-2",
                         label { class: "text-xl whitespace-nowrap", "Username" }
@@ -236,7 +236,7 @@ fn Home() -> Element {
                                 if event.value().len() == 0 {
                                     show_username_error.set(true);
                                 }
-                            }
+                            },
                         }
                     }
                     button {
@@ -420,11 +420,12 @@ fn Home() -> Element {
 
         let mut gamestate_signal = use_signal(|| gamestate);
 
-        rsx!(GameStateComponent {
-            gamestate: gamestate_signal,
-            ws_send: ws_send_signal
-        })
+        // rsx!(GameStateComponent {
+        //     gamestate: gamestate_signal,
+        //     ws_send: ws_send_signal
+        // })
 
+        rsx!(Explorer {})
         // rsx!(GameRoom {
         //     room_code: user_config.read().lobby_code.clone()
         // })
@@ -451,9 +452,9 @@ fn Explorer() -> Element {
     // });
 
     rsx! {
-        div { class: "flex flex-col h-screen w-screen text-center bg-bg-color flex-nowrap justify-center gap-2 p-2 items-start",
+        div { class: "flex flex-col text-center bg-bg-color flex-nowrap gap-2 p-2 w-screen h-screen overflow-hidden items-center justify-center",
             // div { class: "flex flex-col justify-center align-top w-full h-full border border-black rounded-md p-2  items-start",
-            div { class: "w-full h-full border border-solid border-black bg-white rounded-md p-2",
+            div { class: "border border-solid border-black bg-white rounded-md p-2 md:max-w-[600px] h-full md:max-h-[600px]",
                 LobbyList {}
             }
         }
@@ -553,7 +554,7 @@ pub fn LobbyList() -> Element {
 
     rsx!(
         // div { class: "max-w-[300px]",
-        div { class: "justify-center space-between p-2",
+        div { class: "justify-center space-between p-2 w-full",
             h1 { class: "text-2xl font-bold text-center", "Game Lobbies" }
             div { class: "justify-center items-center w-full gap-2",
                 div { class: "flex flex-row",
@@ -586,13 +587,23 @@ pub fn LobbyList() -> Element {
                             path {
                                 "stroke-linecap": "round",
                                 "stroke-linejoin": "round",
-                                d: "M4 4v5h.582c.523-1.838 1.856-3.309 3.628-4.062A7.978 7.978 0 0112 4c4.418 0 8 3.582 8 8s-3.582 8-8 8a7.978 7.978 0 01-7.658-5.125c-.149-.348-.54-.497-.878-.365s-.507.537-.355.885A9.956 9.956 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2c-2.045 0-3.94.613-5.514 1.653A6.978 6.978 0 004.582 4H4z"
+                                d: "M4 4v5h.582c.523-1.838 1.856-3.309 3.628-4.062A7.978 7.978 0 0112 4c4.418 0 8 3.582 8 8s-3.582 8-8 8a7.978 7.978 0 01-7.658-5.125c-.149-.348-.54-.497-.878-.365s-.507.537-.355.885A9.956 9.956 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2c-2.045 0-3.94.613-5.514 1.653A6.978 6.978 0 004.582 4H4z",
                             }
                         }
                     }
                 }
             }
-            {if create_lobby_response_msg() == String::from("") { rsx!(div{}) } else { rsx!(div { class: "text-center", "{create_lobby_response_msg.read()}" }) }}
+            {
+                if create_lobby_response_msg() == String::from("") {
+                    rsx! {
+                        div {}
+                    }
+                } else {
+                    rsx! {
+                        div { class: "text-center", "{create_lobby_response_msg.read()}" }
+                    }
+                }
+            }
         }
         div { class: "flex flex-col",
             div { class: "relative",
@@ -619,7 +630,7 @@ pub fn LobbyList() -> Element {
                     oninput: move |evt| {
                         info!("Got search query: {evt:?}");
                         searchterm.set(evt.value().clone());
-                    }
+                    },
                 }
             }
         }
@@ -637,10 +648,11 @@ pub fn LobbyList() -> Element {
                 // class: "text-left text-xs text-gray-500 uppercase tracking-wider",
                 "Action"
             }
-            // if search_lobbies.len() == 0 {
-            //     div { class: "text-center w-full p-4", "No lobbies found" }
-            // } else {
-            // div {
+        }
+        // if search_lobbies.len() == 0 {
+        //     div { class: "text-center w-full p-4", "No lobbies found" }
+        // } else {
+        div { class: "grid grid-cols-3 items-center overflow-scroll h-[400px] border border-black rounded-md",
             for lobby in search_lobbies.iter() {
                 div { class: "break-words text-center", "{lobby.name}" }
                 div { class: "", "{lobby.players.len()}/{lobby.max_players}" }
@@ -853,31 +865,29 @@ fn GameRoom(room_code: String) -> Element {
         div { class: "grid flex-col md:flex-row text-center bg-bg-color min-h-screen w-full flex-wrap md:flex-nowrap justify-center gap-2 p-2 md:p-4 items-center align-middle",
             {
                 if error().is_null() {
-                    rsx!()
+                    rsx! {}
                 } else {
                     error
                         .read()
                         .as_str()
-                        .map(|err| rsx!(div { class: "w-full", "{err}" }))
+                        .map(|err| rsx! {
+                            div { class: "w-full", "{err}" }
+                        })
                         .expect("Failed to parse error")
                 }
-            },
-            {if !app_props.read().is_debug_mode() {
-                // rsx!(div {
-                //         class: "w-full md:w-auto",
-                //         "Debug details:"
-                //         div { class: "bg-gray-300", "Secret: {user_config.read().client_secret}" }
-                //         div { class: "bg-gray-300", "Game: {gamestate():#?}" }
-                //     })
-                rsx!()
-            } else { rsx!()}},
+            }
+            {
+                if !app_props.read().is_debug_mode() {
+                    rsx! {}
+                } else {
+                    rsx! {}
+                }
+            }
             {
                 if gamestate().gameplay_state == GameplayState::Pregame {
-                    rsx!(
-                        div {
-                            class: "flex flex-col gap-2 w-full self-center max-w-[600px]",
-                            div {
-                                class: "flex flex-row w-full border border-black rounded-md p-2 md:p-4 self-center",
+                    rsx! {
+                        div { class: "flex flex-col gap-2 w-full self-center max-w-[600px]",
+                            div { class: "flex flex-row w-full border border-black rounded-md p-2 md:p-4 self-center",
                                 button {
                                     class: "{styles::STANDARD_BUTTON} text-white",
                                     onclick: move |evt| get_game_details(room_code_clone.clone()),
@@ -890,37 +900,43 @@ fn GameRoom(room_code: String) -> Element {
                                             info!("Clicked join game");
                                             listen_for_server_messages.send(("ready".to_string()));
                                             ws_send
-                                                .send( InnerMessage::GameMessage {
+                                                .send(InnerMessage::GameMessage {
                                                     msg: GameMessage {
                                                         username: user_config().username.clone(),
                                                         timestamp: Utc::now(),
-                                                        action: GameAction::JoinGame(
-                                                            PlayerDetails{
-                                                                lobby: user_config.read().lobby_code.clone(),
-                                                                username: user_config.read().username.clone(),
-                                                                ip: None,
-                                                                client_secret: Some(user_config.read().client_secret.clone()),
-                                                            }),
+                                                        action: GameAction::JoinGame(PlayerDetails {
                                                             lobby: user_config.read().lobby_code.clone(),
-                                                        }
+                                                            username: user_config.read().username.clone(),
+                                                            ip: None,
+                                                            client_secret: Some(user_config.read().client_secret.clone()),
+                                                        }),
+                                                        lobby: user_config.read().lobby_code.clone(),
+                                                    },
                                                 });
                                         }
                                     },
                                     "Join"
                                 }
-                                div {
-                                    class: "flex flex-col md:flex-row justify-center align-top text-center items-center w-full border border-black rounded-md p-2",
-                                    h1 {class: "text-xl md:text-2xl", "{get_lobby_response.read().lobby.name}" }
-                                    div { class: "container", "Players ({get_lobby_response.read().lobby.players.len()})"
-                                        {get_lobby_response.read().lobby.players.iter().enumerate().map(|(i, player)| rsx!(div { "{i}: {player}" }))}
+                                div { class: "flex flex-col md:flex-row justify-center align-top text-center items-center w-full border border-black rounded-md p-2",
+                                    h1 { class: "text-xl md:text-2xl", "{get_lobby_response.read().lobby.name}" }
+                                    div { class: "container",
+                                        "Players ({get_lobby_response.read().lobby.players.len()})"
+                                        {
+                                            get_lobby_response
+                                                .read()
+                                                .lobby
+                                                .players
+                                                .iter()
+                                                .enumerate()
+                                                .map(|(i, player)| rsx! {
+                                                    div { "{i}: {player}" }
+                                                })
+                                        }
                                     }
                                 }
                             }
                             div { class: "flex flex-col w-full md:max-w-[600px] self-center border border-black rounded-md p-2",
-                                h2 {
-                                    class: "text-xl md:text-2xl",
-                                    "Game options"
-                                }
+                                h2 { class: "text-xl md:text-2xl", "Game options" }
                                 // settings
                                 div { class: "flex flex-col align-middle justify-center text-center w-full container mx-auto p-4 max-w-lg gap-2",
                                     div { class: "flex flex-row items-center justify-center",
@@ -938,7 +954,7 @@ fn GameRoom(room_code: String) -> Element {
                                             r#type: "button",
                                             class: "{styles::INC_DEC_BUTTONS} rounded-s-lg",
                                             id: "decrement-button",
-                                            disabled: if setupgameoptions.read().rounds <= 1 {true} else {false},
+                                            disabled: if setupgameoptions.read().rounds <= 1 { true } else { false },
                                             onclick: move |evt| setupgameoptions.write().rounds -= 1,
                                             svg {
                                                 "viewBox": "0 0 18 2",
@@ -951,7 +967,7 @@ fn GameRoom(room_code: String) -> Element {
                                                     "d": "M1 1h16",
                                                     "stroke": "currentColor",
                                                     "stroke-linecap": "round",
-                                                    "stroke-linejoin": "round"
+                                                    "stroke-linejoin": "round",
                                                 }
                                             }
                                         }
@@ -972,74 +988,72 @@ fn GameRoom(room_code: String) -> Element {
                                                     "stroke": "currentColor",
                                                     "stroke-width": "2",
                                                     "stroke-linecap": "round",
-                                                    "d": "M9 1v16M1 9h16"
+                                                    "d": "M9 1v16M1 9h16",
                                                 }
                                             }
                                         }
                                     }
-                                        div {
-                                            class: "flex flex-row items-center justify-center",
-                                            label { class: "text-sm md:text-base", "computer players" }
-                                            input {
-                                                class: "{styles::INPUT_FIELD} w-16 md:w-20",
-                                                r#type: "number",
-                                                required: "false",
-                                                value: "{setupgameoptions.read().computer_players}",
-                                                // onchange: move |evt| {
-                                                //     setupgameoptions.write().computer_players = evt.value().parse::<usize>().unwrap_or(0);
-                                                // }
-                                            }
-                                            button {
-                                                "data-input-counter-decrement": "quantity-input",
-                                                r#type: "button",
-                                                class: "{styles::INC_DEC_BUTTONS} rounded-s-lg",
-                                                id: "decrement-button",
-                                                disabled: if setupgameoptions.read().computer_players == 0 { true } else { false },
-                                                onclick: move |evt|{
-                                                    if setupgameoptions.read().computer_players > 0 {
-                                                        setupgameoptions.write().computer_players -= 1;
-                                                    }
-                                                },
-                                                svg {
-                                                    "viewBox": "0 0 18 2",
-                                                    "fill": "none",
-                                                    "xmlns": "http://www.w3.org/2000/svg",
-                                                    "aria-hidden": "true",
-                                                    class: "w-3 h-3 text-gray-900 dark:text-white",
-                                                    path {
-                                                        "stroke-width": "2",
-                                                        "d": "M1 1h16",
-                                                        "stroke": "currentColor",
-                                                        "stroke-linecap": "round",
-                                                        "stroke-linejoin": "round"
-                                                    }
+                                    div { class: "flex flex-row items-center justify-center",
+                                        label { class: "text-sm md:text-base", "computer players" }
+                                        input {
+                                            class: "{styles::INPUT_FIELD} w-16 md:w-20",
+                                            r#type: "number",
+                                            required: "false",
+                                            value: "{setupgameoptions.read().computer_players}",
+                                                        // onchange: move |evt| {
+                                        //     setupgameoptions.write().computer_players = evt.value().parse::<usize>().unwrap_or(0);
+                                        // }
+                                        }
+                                        button {
+                                            "data-input-counter-decrement": "quantity-input",
+                                            r#type: "button",
+                                            class: "{styles::INC_DEC_BUTTONS} rounded-s-lg",
+                                            id: "decrement-button",
+                                            disabled: if setupgameoptions.read().computer_players == 0 { true } else { false },
+                                            onclick: move |evt| {
+                                                if setupgameoptions.read().computer_players > 0 {
+                                                    setupgameoptions.write().computer_players -= 1;
                                                 }
-                                            }
-                                            button {
-                                                "data-input-counter-increment": "quantity-input",
-                                                r#type: "button",
-                                                class: "{styles::INC_DEC_BUTTONS} rounded-e-lg",
-                                                id: "increment-button",
-                                                onclick: move |_| setupgameoptions.write().computer_players += 1,
-                                                svg {
-                                                    "xmlns": "http://www.w3.org/2000/svg",
-                                                    "aria-hidden": "true",
-                                                    "fill": "none",
-                                                    "viewBox": "0 0 18 18",
-                                                    class: "w-3 h-3 text-gray-900 dark:text-white",
-                                                    path {
-                                                        "stroke-linejoin": "round",
-                                                        "stroke": "currentColor",
-                                                        "stroke-width": "2",
-                                                        "stroke-linecap": "round",
-                                                        "d": "M9 1v16M1 9h16"
-                                                    }
+                                            },
+                                            svg {
+                                                "viewBox": "0 0 18 2",
+                                                "fill": "none",
+                                                "xmlns": "http://www.w3.org/2000/svg",
+                                                "aria-hidden": "true",
+                                                class: "w-3 h-3 text-gray-900 dark:text-white",
+                                                path {
+                                                    "stroke-width": "2",
+                                                    "d": "M1 1h16",
+                                                    "stroke": "currentColor",
+                                                    "stroke-linecap": "round",
+                                                    "stroke-linejoin": "round",
                                                 }
                                             }
                                         }
+                                        button {
+                                            "data-input-counter-increment": "quantity-input",
+                                            r#type: "button",
+                                            class: "{styles::INC_DEC_BUTTONS} rounded-e-lg",
+                                            id: "increment-button",
+                                            onclick: move |_| setupgameoptions.write().computer_players += 1,
+                                            svg {
+                                                "xmlns": "http://www.w3.org/2000/svg",
+                                                "aria-hidden": "true",
+                                                "fill": "none",
+                                                "viewBox": "0 0 18 18",
+                                                class: "w-3 h-3 text-gray-900 dark:text-white",
+                                                path {
+                                                    "stroke-linejoin": "round",
+                                                    "stroke": "currentColor",
+                                                    "stroke-width": "2",
+                                                    "stroke-linecap": "round",
+                                                    "d": "M9 1v16M1 9h16",
+                                                }
+                                            }
+                                        }
+                                    }
                                     if app_props.read().is_debug_mode() {
-                                        div {
-                                            class: "flex flex-row items-center justify-center space-x-4",
+                                        div { class: "flex flex-row items-center justify-center space-x-4",
                                             label { class: "text-sm md:text-base", "start round" }
                                             input {
                                                 class: "{styles::INPUT_FIELD} w-16 md:w-20",
@@ -1050,118 +1064,121 @@ fn GameRoom(room_code: String) -> Element {
                                                 value: "{setupgameoptions.read().start_round.unwrap_or(1)}",
                                                 onchange: move |evt| {
                                                     setupgameoptions.write().start_round = evt.value().parse::<usize>().ok();
-                                                }
+                                                },
                                             }
                                         }
                                     }
-                                    div {
-                                        class: "flex flex-row items-center justify-center space-x-4",
+                                    div { class: "flex flex-row items-center justify-center space-x-4",
                                         span { class: "text-sm md:text-base", "Public" }
-                                        label {
-                                            class: "relative flex items-center cursor-pointer",
-                                            div {
-                                                class: "relative",
+                                        label { class: "relative flex items-center cursor-pointer",
+                                            div { class: "relative",
                                                 input {
                                                     checked: "{setupgameoptions.read().visibility == GameVisibility::Private}",
                                                     class: "peer hidden",
                                                     r#type: "checkbox",
                                                     onchange: move |evt| {
-                                                        setupgameoptions.write().visibility = if setupgameoptions.read().visibility == GameVisibility::Private { GameVisibility::Public } else { GameVisibility::Private };
+                                                        setupgameoptions.write().visibility = if setupgameoptions.read().visibility
+                                                            == GameVisibility::Private
+                                                        {
+                                                            GameVisibility::Public
+                                                        } else {
+                                                            GameVisibility::Private
+                                                        };
                                                     },
                                                 }
                                                 div {
                                                     class: "block w-12 md:w-14 h-6 md:h-8 rounded-full transition-colors duration-300 ease-in-out",
-                                                    class: if setupgameoptions.read().visibility == GameVisibility::Private {
-                                                        "bg-red-300"
-                                                    } else {
-                                                        "bg-green-200"
-                                                    }
+                                                    class: if setupgameoptions.read().visibility == GameVisibility::Private { "bg-red-300" } else { "bg-green-200" },
                                                 }
-                                                div {
-                                                    class: "absolute left-1 top-1 bg-white w-4 md:w-6 h-4 md:h-6 rounded-full transition-transform duration-300 ease-in-out peer-checked:translate-x-6",
-                                                }
+                                                div { class: "absolute left-1 top-1 bg-white w-4 md:w-6 h-4 md:h-6 rounded-full transition-transform duration-300 ease-in-out peer-checked:translate-x-6" }
                                             }
                                         }
 
                                         span { class: "text-sm md:text-base", "Private" }
 
                                     }
-                                    {if setupgameoptions.read().visibility == GameVisibility::Private {
-                                        rsx!(
-                                            div {
-                                                class: "flex flex-row items-center justify-center space-x-2",
-                                                span { class: "text-sm md:text-base", "Password" }
-                                                input {
-                                                    class: "{styles::INPUT_FIELD} w-32 md:w-40",
-                                                    r#type: "text",
-                                                    placeholder: "",
-                                                    required: "false",
-                                                    value: if setupgameoptions.read().password.is_some() {"{setupgameoptions.read().password:?}"} else {""},
-                                                    onchange: move |evt| {
-                                                        setupgameoptions.write().password = evt.value().parse::<String>().ok();
+                                    {
+                                        if setupgameoptions.read().visibility == GameVisibility::Private {
+                                            rsx! {
+                                                div { class: "flex flex-row items-center justify-center space-x-2",
+                                                    span { class: "text-sm md:text-base", "Password" }
+                                                    input {
+                                                        class: "{styles::INPUT_FIELD} w-32 md:w-40",
+                                                        r#type: "text",
+                                                        placeholder: "",
+                                                        required: "false",
+                                                        value: if setupgameoptions.read().password.is_some() { "{setupgameoptions.read().password:?}" } else { "" },
+                                                        onchange: move |evt| {
+                                                            setupgameoptions.write().password = evt.value().parse::<String>().ok();
+                                                        },
                                                     }
                                                 }
                                             }
-                                        )
-                                    } else {
-                                        rsx!()
-                                    }}
+                                        } else {
+                                            rsx! {}
+                                        }
+                                    }
                                 }
 
-                            button {
-                                class: "bg-yellow-300 border border-solid border-black text-center rounded-md p-2  hover:bg-yellow-400 transition-colors",
-                                onclick: move |evt| {
-                                    info!("Starting game");
-                                    listen_for_server_messages.send(("ready".to_string()));
-                                    // only send join game if player hasn't "Joined" the game yet
-                                    if (user_config.read().client_secret.is_empty()) {
+                                button {
+                                    class: "bg-yellow-300 border border-solid border-black text-center rounded-md p-2  hover:bg-yellow-400 transition-colors",
+                                    onclick: move |evt| {
+                                        info!("Starting game");
+                                        listen_for_server_messages.send(("ready".to_string()));
+                                        if (user_config.read().client_secret.is_empty()) {
+                                            ws_send
+                                                .send(InnerMessage::GameMessage {
+                                                    msg: GameMessage {
+                                                        username: user_config().username.clone(),
+                                                        timestamp: Utc::now(),
+                                                        action: GameAction::JoinGame(PlayerDetails {
+                                                            lobby: user_config.read().lobby_code.clone(),
+                                                            username: user_config.read().username.clone(),
+                                                            ip: None,
+                                                            client_secret: Some(user_config.read().client_secret.clone()),
+                                                        }),
+                                                        lobby: user_config.read().lobby_code.clone(),
+                                                    },
+                                                });
+                                        }
                                         ws_send
-                                        .send(InnerMessage::GameMessage { msg: GameMessage {
-                                            username: user_config().username.clone(),
-                                            timestamp: Utc::now(),
-                                            action: GameAction::JoinGame(
-                                                PlayerDetails{
-                                                    lobby: user_config.read().lobby_code.clone(),
-                                                    username: user_config.read().username.clone(),
-                                                    ip: None,
-                                                    client_secret: Some(user_config.read().client_secret.clone()),
-                                                }),
-                                                lobby: user_config.read().lobby_code.clone(),
-                                            }
-                                        });
-                                    }
-                                    ws_send
-                                        .send(
-                                            InnerMessage::GameMessage {
+                                            .send(InnerMessage::GameMessage {
                                                 msg: GameMessage {
                                                     username: user_config.read().username.clone(),
                                                     action: GameAction::StartGame(setupgameoptions()),
                                                     lobby: user_config.read().lobby_code.clone(),
                                                     timestamp: Utc::now(),
-                                            }});
-                                },
-                                "Start game"
-                            }
-                            div {
-                                class: "flex flex-col w-full",
-                                {if gamestate().system_status.len() > 0 {
-                                    rsx!(
-                                        ul {
-                                            class: "w-full mx-auto my-4 p-4 border border-blue-400 rounded-lg bg-yellow-100 text-blue-800",
-                                            {gamestate().system_status.iter().map(|issue| rsx!(li { class: "text-xs md:text-sm", "{issue}" }))}
+                                                },
+                                            });
+                                    },
+                                    "Start game"
+                                }
+                                div { class: "flex flex-col w-full",
+                                    {
+                                        if gamestate().system_status.len() > 0 {
+                                            rsx! {
+                                                ul { class: "w-full mx-auto my-4 p-4 border border-blue-400 rounded-lg bg-yellow-100 text-blue-800",
+                                                    {gamestate().system_status.iter().map(|issue| rsx! {
+                                                        li { class: "text-xs md:text-sm", "{issue}" }
+                                                    })}
+                                                }
+                                            }
+                                        } else {
+                                            rsx! {
+                                                div { class: "w-full mx-auto my-4 p-4 border border-blue-400 rounded-lg bg-yellow-100 text-blue-800 text-xs md:text-sm",
+                                                    "Please join the game"
+                                                }
+                                            }
                                         }
-                                    )
-                                    } else {
-                                        rsx!(div {class: "w-full mx-auto my-4 p-4 border border-blue-400 rounded-lg bg-yellow-100 text-blue-800 text-xs md:text-sm",
-                                            "Please join the game" })
                                     }
                                 }
                             }
                         }
-                        }
-                    )
+                    }
                 } else {
-                    rsx!{GameStateComponent { gamestate, ws_send: ws_send_signal }}
+                    rsx! {
+                        GameStateComponent { gamestate, ws_send: ws_send_signal }
+                    }
                 }
             }
         }
@@ -1244,19 +1261,19 @@ fn CardComponent(
                     "Made with Pixels to Svg https://codepen.io/shshaw/pen/XbxvNj"
                     path {
                         "d": "M4 3h1M28 3h7M39 3h3M43 3h1M43 4h1M43 11h1M3 13h1M43 21h1M3 24h1M3 25h1M3 27h1M3 28h1M3 29h1M43 32h1M3 36h1M3 37h1M3 40h1M3 41h1M3 42h1M43 42h1M3 43h1M3 44h1M3 45h1M3 46h1M3 47h1M3 48h1M43 50h1M43 51h1M3 52h1M3 53h1M3 54h1M3 55h1M3 59h1M6 59h2M14 59h2M29 59h4M34 59h9",
-                        "stroke": "#000000"
+                        "stroke": "#000000",
                     }
                     path {
                         "d": "M5 3h23M35 3h4M42 3h1M3 4h1M3 5h1M43 5h1M3 6h1M43 6h1M3 7h1M43 7h1M3 8h1M43 8h1M3 9h1M43 9h1M3 10h1M43 10h1M3 11h1M3 12h1M43 12h1M43 13h1M3 14h1M43 14h1M3 15h1M43 15h1M3 16h1M43 16h1M3 17h1M43 17h1M3 18h1M43 18h1M3 19h1M43 19h1M3 20h1M43 20h1M3 21h1M3 22h1M43 22h1M3 23h1M43 23h1M43 24h1M43 25h1M3 26h1M43 26h1M43 27h1M43 28h1M43 29h1M3 30h1M43 30h1M3 31h1M43 31h1M3 32h1M3 33h1M43 33h1M3 34h1M43 34h1M3 35h1M43 35h1M43 36h1M43 37h1M3 38h1M43 38h1M3 39h1M43 39h1M43 40h1M43 41h1M43 43h1M43 44h1M43 45h1M43 46h1M43 47h1M43 48h1M3 49h1M43 49h1M3 50h1M3 51h1M43 52h1M43 53h1M43 54h1M43 55h1M3 56h1M43 56h1M3 57h1M43 57h1M3 58h1M43 58h1M4 59h2M8 59h6M16 59h13M33 59h1",
-                        "stroke": "#010101"
+                        "stroke": "#010101",
                     }
                     path {
                         "stroke": "#807f7f",
-                        "d": "M44 4h1M44 5h1M44 6h1M44 7h1M44 8h1M44 9h1M44 10h1M44 11h1M44 12h1M44 13h1M44 14h1M44 15h1M44 16h1M44 17h1M44 18h1M44 19h1M44 20h1M44 21h1M44 22h1M44 23h1M44 24h1M44 25h1M44 26h1M44 27h1M44 28h1M44 29h1M44 30h1M44 31h1M44 32h1M44 33h1M44 34h1M44 35h1M44 36h1M44 37h1M44 38h1M44 39h1M44 40h1M44 41h1M44 42h1M44 43h1M44 44h1M44 45h1M44 46h1M44 47h1M44 48h1M44 49h1M44 50h1M44 51h1M44 52h1M44 53h1M44 54h1M44 55h1M44 56h1M44 57h1M44 58h1M44 59h1M4 60h40"
+                        "d": "M44 4h1M44 5h1M44 6h1M44 7h1M44 8h1M44 9h1M44 10h1M44 11h1M44 12h1M44 13h1M44 14h1M44 15h1M44 16h1M44 17h1M44 18h1M44 19h1M44 20h1M44 21h1M44 22h1M44 23h1M44 24h1M44 25h1M44 26h1M44 27h1M44 28h1M44 29h1M44 30h1M44 31h1M44 32h1M44 33h1M44 34h1M44 35h1M44 36h1M44 37h1M44 38h1M44 39h1M44 40h1M44 41h1M44 42h1M44 43h1M44 44h1M44 45h1M44 46h1M44 47h1M44 48h1M44 49h1M44 50h1M44 51h1M44 52h1M44 53h1M44 54h1M44 55h1M44 56h1M44 57h1M44 58h1M44 59h1M4 60h40",
                     }
                     path {
                         "d": "M45 5h1M45 6h1M45 7h1M45 8h1M45 9h1M45 10h1M45 11h1M45 12h1M45 13h1M45 14h1M45 15h1M45 16h1M45 17h1M45 18h1M45 19h1M45 20h1M45 21h1M45 22h1M45 23h1M45 24h1M45 25h1M45 26h1M45 27h1M45 28h1M45 29h1M45 30h1M45 31h1M45 32h1M45 33h1M45 34h1M45 35h1M45 36h1M45 37h1M45 38h1M45 39h1M45 40h1M45 41h1M45 42h1M45 43h1M45 44h1M45 45h1M45 46h1M45 47h1M45 48h1M45 49h1M45 50h1M45 51h1M45 52h1M45 53h1M45 54h1M45 55h1M45 56h1M45 57h1M45 58h1M45 59h1M44 60h2M5 61h12M18 61h2M21 61h20M42 61h3",
-                        "stroke": "#d7d2d2"
+                        "stroke": "#d7d2d2",
                     }
                     path { "stroke": "#7f7e7e", "d": "M43 59h1" }
                     path { "stroke": "#d8d2d2", "d": "M17 61h1M20 61h1M41 61h1" }
@@ -1280,7 +1297,7 @@ fn GameStatusInfoComponent(gamestate: Signal<GameState>, visible: bool) -> Eleme
                 .unwrap()
                 .played_by
                 .unwrap_or("Nobody".to_string());
-            rsx!(
+            rsx! {
                 div { class: "{styles::ROUND_DETAILS_TAILWIND}",
                     p { class: "text-base sm:text-lg font-semibold",
                         "Hand over, winner is "
@@ -1288,58 +1305,67 @@ fn GameStatusInfoComponent(gamestate: Signal<GameState>, visible: bool) -> Eleme
                         "!"
                     }
                 }
-            )
+            }
         }
         GameplayState::Bid => {
-            rsx!(
+            rsx! {
                 div { class: "{styles::ROUND_DETAILS_TAILWIND}",
                     p { class: "text-base sm:text-lg font-semibold",
                         "{gamestate().curr_player_turn.clone().unwrap()}'s turn to bid"
                     }
                 }
-            )
+            }
         }
         GameplayState::Play(ps) => {
-            rsx!(
+            rsx! {
                 div { class: "{styles::ROUND_DETAILS_TAILWIND}",
                     p { class: "text-base sm:text-lg font-semibold",
                         "{gamestate().curr_player_turn.clone().unwrap()}'s turn to play a card"
                     }
-            })
+                }
+            }
         }
         GameplayState::Pregame => {
-            rsx!(
+            rsx! {
                 div { class: "{styles::ROUND_DETAILS_TAILWIND}",
-                p { class: "text-base sm:text-lg font-semibold",
-                    "Waiting to start the game"
+                    p { class: "text-base sm:text-lg font-semibold", "Waiting to start the game" }
                 }
-            })
+            }
         }
         GameplayState::PostRound => {
-            rsx!(
+            rsx! {
                 div { class: "{styles::ROUND_DETAILS_TAILWIND}",
-                    p { class: "text-base sm:text-lg font-semibold",
-                        "Round over"
-                    }
-                    ul {
-                        class: "text-left text-sm w-full justify-center",
-                        {gamestate().players.iter().map(|(player, client)| {
-                            let wins = gamestate().wins.get(player).unwrap_or(&0).clone();
-                            let bid = gamestate().bids.get(player).unwrap_or(&Some(0)).clone().unwrap();
-                            let win_message = format!("got {wins}/{bid}{}", if wins==bid {""} else {" got BLACKBALL"});
-                            rsx!(
-                                li {
-                                    class: "flex flex-col items-center justify-center",
-                                    div { class: "flex justify-between gap-2",
-                                        span { "{player}" }
-                                        span { "{win_message}" }
+                    p { class: "text-base sm:text-lg font-semibold", "Round over" }
+                    ul { class: "text-left text-sm w-full justify-center",
+                        {
+                            gamestate()
+                                .players
+                                .iter()
+                                .map(|(player, client)| {
+                                    let wins = gamestate().wins.get(player).unwrap_or(&0).clone();
+                                    let bid = gamestate()
+                                        .bids
+                                        .get(player)
+                                        .unwrap_or(&Some(0))
+                                        .clone()
+                                        .unwrap();
+                                    let win_message = format!(
+                                        "got {wins}/{bid}{}",
+                                        if wins == bid { "" } else { " got BLACKBALL" },
+                                    );
+                                    rsx! {
+                                        li { class: "flex flex-col items-center justify-center",
+                                            div { class: "flex justify-between gap-2",
+                                                span { "{player}" }
+                                                span { "{win_message}" }
+                                            }
+                                        }
                                     }
-                                }
-                            )
-                        })}
+                                })
+                        }
                     }
                 }
-            )
+            }
         }
         GameplayState::End => {
             let gamewinner = gamestate()
@@ -1349,25 +1375,33 @@ fn GameStatusInfoComponent(gamestate: Signal<GameState>, visible: bool) -> Eleme
                 .unwrap()
                 .0
                 .clone();
-            rsx!(
+            rsx! {
                 div { class: "{styles::ROUND_DETAILS_TAILWIND}",
                     p { class: "text-base sm:text-lg font-semibold",
                         "Game over!"
                         span { class: "text-yellow-300", "{gamewinner}" }
                         " won the game!"
                     }
-                    ul {
-                        class: "text-sm ",
-                        {gamestate().players.iter().map(|(player, client)| {
-                            let score = gamestate().score.get(player).unwrap_or(&0).clone();
-                            let text = format!("{player}: {score}");
-                            rsx!(li { "{text}" })
-                        })}
+                    ul { class: "text-sm ",
+                        {
+                            gamestate()
+                                .players
+                                .iter()
+                                .map(|(player, client)| {
+                                    let score = gamestate().score.get(player).unwrap_or(&0).clone();
+                                    let text = format!("{player}: {score}");
+                                    rsx! {
+                                        li { "{text}" }
+                                    }
+                                })
+                        }
                     }
                 }
-            )
+            }
         }
-        _ => rsx!(div {}),
+        _ => rsx! {
+            div {}
+        },
     })
 }
 #[component]
@@ -1382,38 +1416,24 @@ fn TransitionComponent(gamestate: Signal<GameState>, visible: bool) -> Element {
     rsx!(match gamestate().gameplay_state {
         GameplayState::Bid => {
             let curr_player = gamestate().curr_player_turn.clone().unwrap();
-            rsx!(
-                div {
-                    class: "absolute items-center justify-center z-20 w-[200%] h-[20%] animate-gamestate-transition text-4xl font-bold bg-black text-white opacity-0",
-                    h2 {
-                        class: "text-4xl font-bold text-white",
-                        "Bid phase",
-                    }
-                    h3 {
-                        class: "text-4xl font-bold text-white",
-                        "{curr_player}'s turn first"
-                    }
+            rsx! {
+                div { class: "absolute items-center justify-center z-20 w-[200%] h-[20%] animate-gamestate-transition text-4xl font-bold bg-black text-white opacity-0",
+                    h2 { class: "text-4xl font-bold text-white", "Bid phase" }
+                    h3 { class: "text-4xl font-bold text-white", "{curr_player}'s turn first" }
                 }
-            )
+            }
         }
         GameplayState::Play(ps) => {
             let round = gamestate.read().curr_round;
             let curr_player = gamestate().curr_player_turn.clone().unwrap();
-            rsx!(
-                div {
-                    class: "absolute items-center justify-center z-20 w-[200%] h-[20%] animate-gamestate-transition text-4xl font-bold bg-black text-white opacity-0",
-                    h2 {
-                        class: "text-4xl font-bold text-white",
-                        "Hand {ps.hand_num}/{round}",
-                    }
-                    h3 {
-                        class: "text-4xl font-bold text-white",
-                        "{curr_player} plays first"
-                    }
+            rsx! {
+                div { class: "absolute items-center justify-center z-20 w-[200%] h-[20%] animate-gamestate-transition text-4xl font-bold bg-black text-white opacity-0",
+                    h2 { class: "text-4xl font-bold text-white", "Hand {ps.hand_num}/{round}" }
+                    h3 { class: "text-4xl font-bold text-white", "{curr_player} plays first" }
                 }
-            )
+            }
         }
-        _ => rsx!(),
+        _ => rsx! {},
     })
 }
 
@@ -1467,9 +1487,15 @@ fn GameStateComponent(
                             }
                             div { class: "flex items-center justify-between",
                                 match gamestate().gameplay_state {
-                                    GameplayState::PostHand(ps) => rsx!(span { class: "text-sm  font-bold", "End of hand {ps.hand_num}" }),
-                                    GameplayState::Play(ps) => rsx!(span { class: "text-sm  font-bold", "Playing hand {ps.hand_num}/{gamestate().curr_round}" }),
-                                    _ => rsx!(span { class: "text-sm  font-bold", "{gamestate().gameplay_state:?}" }),
+                                    GameplayState::PostHand(ps) => rsx! {
+                                        span { class: "text-sm  font-bold", "End of hand {ps.hand_num}" }
+                                    },
+                                    GameplayState::Play(ps) => rsx! {
+                                        span { class: "text-sm  font-bold", "Playing hand {ps.hand_num}/{gamestate().curr_round}" }
+                                    },
+                                    _ => rsx! {
+                                        span { class: "text-sm  font-bold", "{gamestate().gameplay_state:?}" }
+                                    },
                                 }
                             }
                             div { class: "flex flex-col items-center justify-between",
@@ -1486,67 +1512,69 @@ fn GameStateComponent(
                     }
                     div { class: "bg-bg-color rounded-lg  overflow-auto w-full",
                         div { class: "gap-2 flex overflow-auto",
-                            {gamestate().player_order.iter().enumerate().map(|(i, playername)| {
-                                let wins = gamestate.read().wins.get(playername).unwrap_or(&0).clone();
-                                let bid = gamestate.read().bids.get(playername).unwrap_or(&None).clone();
-                                let bid_val = if let Some(x) = bid { x.to_string() } else { "N/A".to_string() };
-                                rsx!(
-                                    div {
-                                        class: format!("flex flex-col items-center w-full border border-black rounded-lg text-left {} {}",
-                                                if gamestate().curr_player_turn.clone().unwrap_or("".to_string()) == *playername{
-                                                    "border-4 rounded-lg animate-subtle-pulse"} else { "" },
-                                                if bid.is_some() && wins == bid.unwrap() {
-                                                    "bg-green-200"
-                                                } else if bid.is_some() && wins > bid.unwrap() {
-                                                    "bg-red-200"
-                                                } else {"bg-green-100"}),
-                                        div {
-                                            class: "flex flex-col items-baseline w-full text-center",
+                            {
+                                gamestate()
+                                    .player_order
+                                    .iter()
+                                    .enumerate()
+                                    .map(|(i, playername)| {
+                                        let wins = gamestate.read().wins.get(playername).unwrap_or(&0).clone();
+                                        let bid = gamestate.read().bids.get(playername).unwrap_or(&None).clone();
+                                        let bid_val = if let Some(x) = bid {
+                                            x.to_string()
+                                        } else {
+                                            "N/A".to_string()
+                                        };
+                                        rsx! {
                                             div {
-                                                class: format!("w-full {}",
-                                                    if *playername == user_config.read().username {
-                                                        "bg-name-tag"
-                                                    } else {""}
+                                                class: format!(
+                                                    "flex flex-col items-center w-full border border-black rounded-lg text-left {} {}",
+                                                    if gamestate().curr_player_turn.clone().unwrap_or("".to_string()) == *playername
+                                                    {
+                                                        "border-4 rounded-lg animate-subtle-pulse"
+                                                    } else {
+                                                        ""
+                                                    },
+                                                    if bid.is_some() && wins == bid.unwrap() {
+                                                        "bg-green-200"
+                                                    } else if bid.is_some() && wins > bid.unwrap() {
+                                                        "bg-red-200"
+                                                    } else {
+                                                        "bg-green-100"
+                                                    },
                                                 ),
-                                                span {
-                                                    class: "font-semibold text-sm",
-                                                    "{playername}"
+                                                div { class: "flex flex-col items-baseline w-full text-center",
+                                                    div {
+                                                        class: format!(
+                                                            "w-full {}",
+                                                            if *playername == user_config.read().username { "bg-name-tag" } else { "" },
+                                                        ),
+                                                        span { class: "font-semibold text-sm", "{playername}" }
+                                                        if *playername == gamestate.read().get_dealer() {
+                                                            // if *playername == gamestate.read().curr_dealer {
+                                                            span { class: "top-0 right-0 bg-black text-white text-xs font-bold px-1 py-0.5 rounded-full",
+                                                                "D"
+                                                            }
+                                                        }
+                                                    }
                                                 }
-                                                if *playername == gamestate.read().get_dealer() {
-                                                // if *playername == gamestate.read().curr_dealer {
-                                                    span {
-                                                        class: "top-0 right-0 bg-black text-white text-xs font-bold px-1 py-0.5 rounded-full",
-                                                        "D"
+                                                div { class: "text-right",
+                                                    div { class: "text-xs flex justify-between",
+                                                        span { "Score:" }
+                                                        span { "{gamestate().score.get(playername).unwrap_or(&0)}" }
+                                                    }
+                                                    div { class: "text-xs flex justify-between",
+                                                        span { "Wins:" }
+                                                        span { "{wins}" }
+                                                    }
+                                                    div { class: "text-xs flex justify-between",
+                                                        span { "Bid:" }
+                                                        span { "{bid_val}" }
                                                     }
                                                 }
                                             }
                                         }
-                                        div { class: "text-right",
-                                        div {
-                                            class: "text-xs flex justify-between",
-                                                span {
-                                                    "Score:"
-                                                }
-                                                span {
-                                                    "{gamestate().score.get(playername).unwrap_or(&0)}"
-                                                }
-                                            }
-                                            div {
-                                                class: "text-xs flex justify-between",
-                                                span {
-                                                    "Wins:"
-                                                }
-                                                span{
-                                                    "{wins}"
-                                                }
-                                            }
-                                            div { class: "text-xs flex justify-between",
-                                                span{"Bid:"}
-                                                span { "{bid_val}" }
-                                            }
-                                        }
-                                    }
-                                )})
+                                    })
                             }
                         }
                     }
@@ -1560,16 +1588,23 @@ fn GameStateComponent(
                     "Played cards"
                 }
                 div { class: "flex flex-row flex-wrap mt-2 justify-center gap-1",
-                    {gamestate().curr_played_cards.iter().enumerate().map(|(i, card)| rsx!(
-                        CardComponent {
-                            onclick: move |_| { info!("Clicked a card: {:?}", "fake card") },
-                            card: card.clone(),
-                            is_winning: gamestate.read().curr_winning_card.is_some() && gamestate.read().curr_winning_card.clone().unwrap() == card.clone(),
-                            show_player: true,
-                            show_order: true,
-                            order: i,
-                        }
-                    ))}
+                    {
+                        gamestate()
+                            .curr_played_cards
+                            .iter()
+                            .enumerate()
+                            .map(|(i, card)| rsx! {
+                                CardComponent {
+                                    onclick: move |_| { info!("Clicked a card: {:?}", "fake card") },
+                                    card: card.clone(),
+                                    is_winning: gamestate.read().curr_winning_card.is_some()
+                                        && gamestate.read().curr_winning_card.clone().unwrap() == card.clone(),
+                                    show_player: true,
+                                    show_order: true,
+                                    order: i,
+                                }
+                            })
+                    }
                 }
             }
             div { class: "col-start-1 row-start-4 justify-between gap-2 w-full h-full",
@@ -1588,36 +1623,52 @@ fn GameStateComponent(
                         "Your hand"
                     }
                     div { class: "flex flex-row flex-wrap mt-2 justify-center gap-1",
-                        {if cards_in_hand.is_none() {
-                                rsx!()
+                        {
+                            if cards_in_hand.is_none() {
+                                rsx! {}
                             } else {
-                                info!("[FE] calling to decrypt player hand: ${:?}, secret: ${:?}", cards_in_hand, user_config.read().client_secret.clone());
-                                let mut sortedcards = GameState::decrypt_player_hand(cards_in_hand.unwrap(), &user_config.read().client_secret.clone()).clone();
+                                info!(
+                                    "[FE] calling to decrypt player hand: ${:?}, secret: ${:?}",
+                                    cards_in_hand, user_config.read().client_secret.clone()
+                                );
+                                let mut sortedcards = GameState::decrypt_player_hand(
+                                        cards_in_hand.unwrap(),
+                                        &user_config.read().client_secret.clone(),
+                                    )
+                                    .clone();
                                 sortedcards.sort_by(|a, b| a.id.cmp(&b.id));
-
-                                rsx!(
-                                    {sortedcards.iter().enumerate()
-                                    .map(|(i, card)| {
-                                        return rsx!(CardComponent {
-                                            onclick: move |clicked_card: Card| {
-                                                ws_send().send(InnerMessage::GameMessage {
-                                                    msg: GameMessage {
-                                                        username: user_config.read().username.clone(),
-                                                        action: GameAction::PlayCard(clicked_card),
-                                                        timestamp: Utc::now(),
-                                                        lobby: user_config.read().lobby_code.clone(),
-                                                    },
-                                                });
-                                            },
-                                            card: card.clone(),
-                                            is_winning: gamestate.read().curr_winning_card.is_some() && gamestate.read().curr_winning_card.clone().unwrap() == card.clone(),
-                                            show_player: false,
-                                            show_order: false,
-                                            order: i,
-                                        });
-                                    })})
+                                rsx! {
+                                    {
+                                        sortedcards
+                                            .iter()
+                                            .enumerate()
+                                            .map(|(i, card)| {
+                                                return rsx! {
+                                                    CardComponent {
+                                                        onclick: move |clicked_card: Card| {
+                                                            ws_send()
+                                                                .send(InnerMessage::GameMessage {
+                                                                    msg: GameMessage {
+                                                                        username: user_config.read().username.clone(),
+                                                                        action: GameAction::PlayCard(clicked_card),
+                                                                        timestamp: Utc::now(),
+                                                                        lobby: user_config.read().lobby_code.clone(),
+                                                                    },
+                                                                });
+                                                        },
+                                                        card: card.clone(),
+                                                        is_winning: gamestate.read().curr_winning_card.is_some()
+                                                            && gamestate.read().curr_winning_card.clone().unwrap() == card.clone(),
+                                                        show_player: false,
+                                                        show_order: false,
+                                                        order: i,
+                                                    }
+                                                };
+                                            })
+                                    }
                                 }
                             }
+                        }
                     }
                 }
             }
@@ -1630,72 +1681,60 @@ fn GameStateComponent(
                     div { class: "flex flex-col items-center h-[100px]",
                         label { class: "text-base", "How many hands do you want to win?" }
                         ul { class: "flex flex-row gap-2 items-center p-2 justify-center",
-                            {(0..=gamestate().curr_round).map(|i| {
-                                if user_config.read().username == gamestate().get_dealer() && (i + gamestate().bids.values().map(|x| x.unwrap()).sum::<i32>()) == gamestate().curr_round {
-                                    rsx!(
-                                        button {
-                                            class: "styles::BID_BUTTON bg-bg-color",
-                                            // disabled: true,
-                                            onclick: move |_| {
-                                                info!("Clicked on bid {i}");
-                                                ws_send().send(InnerMessage::GameMessage {
-                                                    msg: GameMessage {
-                                                        username: user_config.read().username.clone(),
-                                                        action: GameAction::Bid(i),
-                                                        lobby: user_config.read().lobby_code.clone(),
-                                                        timestamp: Utc::now(),
-                                                }});
-                                            },
-                                            "{i}"
+                            {
+                                (0..=gamestate().curr_round)
+                                    .map(|i| {
+                                        if user_config.read().username == gamestate().get_dealer()
+                                            && (i + gamestate().bids.values().map(|x| x.unwrap()).sum::<i32>())
+                                                == gamestate().curr_round
+                                        {
+                                            rsx! {
+                                                button {
+                                                    class: "styles::BID_BUTTON bg-bg-color",
+                                                    // disabled: true,
+                                                    onclick: move |_| {
+                                                        info!("Clicked on bid {i}");
+                                                        ws_send()
+                                                            .send(InnerMessage::GameMessage {
+                                                                msg: GameMessage {
+                                                                    username: user_config.read().username.clone(),
+                                                                    action: GameAction::Bid(i),
+                                                                    lobby: user_config.read().lobby_code.clone(),
+                                                                    timestamp: Utc::now(),
+                                                                },
+                                                            });
+                                                    },
+                                                    "{i}"
+                                                }
+                                            }
+                                        } else {
+                                            rsx! {
+                                                button {
+                                                    class: "{styles::BID_BUTTON}",
+                                                    onclick: move |_| {
+                                                        info!("Clicked on bid {i}");
+                                                        ws_send()
+                                                            .send(InnerMessage::GameMessage {
+                                                                msg: GameMessage {
+                                                                    username: user_config.read().username.clone(),
+                                                                    action: GameAction::Bid(i),
+                                                                    lobby: user_config.read().lobby_code.clone(),
+                                                                    timestamp: Utc::now(),
+                                                                },
+                                                            });
+                                                    },
+                                                    "{i}"
+                                                }
+                                            }
                                         }
-                                    )
-                                } else {
-                                    rsx!(
-                                        button {
-                                            class: "{styles::BID_BUTTON}",
-                                            onclick: move |_| {
-                                                info!("Clicked on bid {i}");
-                                                ws_send().send(InnerMessage::GameMessage {
-                                                    msg: GameMessage {
-                                                        username: user_config.read().username.clone(),
-                                                        action: GameAction::Bid(i),
-                                                        lobby: user_config.read().lobby_code.clone(),
-                                                        timestamp: Utc::now(),
-                                            }});
-                                        },
-                                            "{i}"
-                                        },
-                                    )
-                                }
-                            })}
+                                    })
+                            }
                         }
                     }
                 }
-                {if let GameplayState::PostHand(ps) = gamestate().gameplay_state {
-                    rsx!(
-                        button {
-                            class: "{styles::STANDARD_BUTTON} text-white",
-                            onclick: move |_| {
-                                ws_send()
-                                    .send(InnerMessage::GameMessage {
-                                        msg: GameMessage {
-                                            username: user_config.read().username.clone(),
-                                            action: GameAction::Ack,
-                                            lobby: user_config.read().lobby_code.clone(),
-                                            timestamp: Utc::now(),
-                                        },
-                                    });
-                            },
-                            "Acknowledge"
-                        }
-                    )
-                } else {
-                    rsx!()
-                }},
-                if let GameplayState::PostRound = gamestate().gameplay_state {
-                    {rsx!(
-                        div {
-                            class: "container",
+                {
+                    if let GameplayState::PostHand(ps) = gamestate().gameplay_state {
+                        rsx! {
                             button {
                                 class: "{styles::STANDARD_BUTTON} text-white",
                                 onclick: move |_| {
@@ -1712,34 +1751,68 @@ fn GameStateComponent(
                                 "Acknowledge"
                             }
                         }
-                    )}
+                    } else {
+                        rsx! {}
+                    }
+                }
+                if let GameplayState::PostRound = gamestate().gameplay_state {
+                    {
+                        rsx! {
+                            div { class: "container",
+                                button {
+                                    class: "{styles::STANDARD_BUTTON} text-white",
+                                    onclick: move |_| {
+                                        ws_send()
+                                            .send(InnerMessage::GameMessage {
+                                                msg: GameMessage {
+                                                    username: user_config.read().username.clone(),
+                                                    action: GameAction::Ack,
+                                                    lobby: user_config.read().lobby_code.clone(),
+                                                    timestamp: Utc::now(),
+                                                },
+                                            });
+                                    },
+                                    "Acknowledge"
+                                }
+                            }
+                        }
+                    }
                 }
                 if let GameplayState::End = gamestate().gameplay_state {
-                    {rsx!(
-                        div {
-                            class: "container text-sm ",
-                            div {"GAME OVER"}
-                            {gamestate().score.iter().map(|(player, score)| {rsx!(li { "{player}: {score}" })})}
-                        }
-                        div {
-                            class: "container",
-                            button {
-                                class: "{styles::STANDARD_BUTTON} text-white",
-                                onclick: move |_| {
-                                    ws_send()
-                                        .send(InnerMessage::GameMessage {
-                                            msg: GameMessage {
-                                                username: user_config.read().username.clone(),
-                                                action: GameAction::Ack,
-                                                lobby: user_config.read().lobby_code.clone(),
-                                                timestamp: Utc::now(),
-                                            },
-                                        });
-                                },
-                                "Acknowledge"
+                    {
+                        rsx! {
+                            div { class: "container text-sm ",
+                                div { "GAME OVER" }
+                                {
+                                    gamestate()
+                                        .score
+                                        .iter()
+                                        .map(|(player, score)| {
+                                            rsx! {
+                                                li { "{player}: {score}" }
+                                            }
+                                        })
+                                }
+                            }
+                            div { class: "container",
+                                button {
+                                    class: "{styles::STANDARD_BUTTON} text-white",
+                                    onclick: move |_| {
+                                        ws_send()
+                                            .send(InnerMessage::GameMessage {
+                                                msg: GameMessage {
+                                                    username: user_config.read().username.clone(),
+                                                    action: GameAction::Ack,
+                                                    lobby: user_config.read().lobby_code.clone(),
+                                                    timestamp: Utc::now(),
+                                                },
+                                            });
+                                    },
+                                    "Acknowledge"
+                                }
                             }
                         }
-                    )}
+                    }
                 }
                 // must be your turn and there are errors
                 if gamestate.read().system_status.len() > 0
@@ -1753,9 +1826,11 @@ fn GameStateComponent(
             }
             div { class: "absolute flex flex-col items-center justify-center",
                 span {
-                    {gamestate.read().event_log.iter().map(|event|
-                        rsx!(span { class: "text-xs text-gray-500", "{event:?}" })
-                    )}
+                    {
+                        gamestate.read().event_log.iter().map(|event| rsx! {
+                            span { class: "text-xs text-gray-500", "{event:?}" }
+                        })
+                    }
                 }
             }
         }
@@ -1779,14 +1854,14 @@ fn get_trump_svg(trump: &Suit) -> Element {
                     "rx": "25",
                     "cx": "25",
                     "ry": "43.5",
-                    "fill": "black"
+                    "fill": "black",
                 }
                 rect {
                     "y": "40",
                     "x": "19",
                     width: "12",
                     "fill": "black",
-                    height: "68"
+                    height: "68",
                 }
             }
         ),
@@ -1805,15 +1880,15 @@ fn get_trump_svg(trump: &Suit) -> Element {
                     "cy": "25",
                     "ry": "25",
                     "transform": "rotate(180 76 25)",
-                    "fill": "#FF0000"
+                    "fill": "#FF0000",
                 }
                 path {
                     "fill": "#FF0000",
-                    "d": "M0 25C0 11.1929 11.1929 -3.8147e-06 25 -3.8147e-06C38.8071 -3.8147e-06 50 11.1929 50 25C50 38.8071 38.8071 50 25 50C11.1929 50 0 38.8071 0 25Z"
+                    "d": "M0 25C0 11.1929 11.1929 -3.8147e-06 25 -3.8147e-06C38.8071 -3.8147e-06 50 11.1929 50 25C50 38.8071 38.8071 50 25 50C11.1929 50 0 38.8071 0 25Z",
                 }
                 path {
                     "d": "M50.5 99.5L97 37.9291L53.5 14L50.5 18.5L47.5 14L4 37.9291L50.5 99.5Z",
-                    "fill": "#FF0000"
+                    "fill": "#FF0000",
                 }
             }
         ),
@@ -1831,7 +1906,7 @@ fn get_trump_svg(trump: &Suit) -> Element {
                     height: "80",
                     "y": "56.5685",
                     "fill": "#FF0000",
-                    "transform": "rotate(-45 0 56.5685)"
+                    "transform": "rotate(-45 0 56.5685)",
                 }
             }
         ),
@@ -1848,26 +1923,26 @@ fn get_trump_svg(trump: &Suit) -> Element {
                     "fill": "black",
                     "r": "25",
                     "cx": "25",
-                    "cy": "62"
+                    "cy": "62",
                 }
                 circle {
                     "cx": "75",
                     "cy": "62",
                     "r": "25",
-                    "fill": "black"
+                    "fill": "black",
                 }
                 circle {
                     "fill": "black",
                     "cy": "25",
                     "cx": "50",
-                    "r": "25"
+                    "r": "25",
                 }
                 rect {
                     "y": "40",
                     "x": "44",
                     width: "12",
                     height: "68",
-                    "fill": "black"
+                    "fill": "black",
                 }
             }
         ),
@@ -1883,14 +1958,14 @@ fn get_trump_svg(trump: &Suit) -> Element {
                     height: "112.137",
                     "y": "0.499969",
                     "x": "0.500031",
-                    width: "112.137"
+                    width: "112.137",
                 }
                 rect {
                     "x": "0.500031",
                     "y": "0.499969",
                     width: "112.137",
                     height: "112.137",
-                    "stroke": "black"
+                    "stroke": "black",
                 }
                 g { "filter": "url(#filter0_d_13_7)",
                     rect {
@@ -1900,7 +1975,7 @@ fn get_trump_svg(trump: &Suit) -> Element {
                         "transform": "rotate(-45 3.05176e-05 56.5685)",
                         width: "80",
                         "fill": "white",
-                        "y": "56.5685"
+                        "y": "56.5685",
                     }
                 }
                 defs {
@@ -1914,31 +1989,31 @@ fn get_trump_svg(trump: &Suit) -> Element {
                         id: "filter0_d_13_7",
                         feFlood {
                             "flood-opacity": "0",
-                            "result": "BackgroundImageFix"
+                            "result": "BackgroundImageFix",
                         }
                         feColorMatrix {
                             "values": "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0",
                             "result": "hardAlpha",
                             "in": "SourceAlpha",
-                            r#type: "matrix"
+                            r#type: "matrix",
                         }
                         feOffset { "dy": "4" }
                         feGaussianBlur { "stdDeviation": "2" }
                         feComposite { "operator": "out", "in2": "hardAlpha" }
                         feColorMatrix {
                             "values": "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0",
-                            r#type: "matrix"
+                            r#type: "matrix",
                         }
                         feBlend {
                             "mode": "normal",
                             "in2": "BackgroundImageFix",
-                            "result": "effect1_drop_13_7"
+                            "result": "effect1_drop_13_7",
                         }
                         feBlend {
                             "mode": "normal",
                             "in2": "effect1_drop_13_7",
                             "in": "SourceGraphic",
-                            "result": "shape"
+                            "result": "shape",
                         }
                     }
                 }
