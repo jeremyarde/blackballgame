@@ -206,7 +206,7 @@ impl SetupGameOptions {
             rounds: 9,
             deterministic: false,
             start_round: None,
-            max_players: 4,
+            max_players: 8,
             game_mode: "Standard".to_string(),
             visibility: GameVisibility::Public,
             password: None,

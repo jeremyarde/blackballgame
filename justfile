@@ -8,7 +8,7 @@ be:
     cd bb-server && cargo run
 
 tailwind:
-    cd bb-admin && npx tailwindcss -i ./input.css -o ./assets/tailwind.css --watch
+    cd bb-admin && npx tailwindcss -i ./input.css -o ./public/tailwind.css --watch
 
 
 build:

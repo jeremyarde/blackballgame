@@ -24,10 +24,10 @@ root {
 @keyframes subtle-pulse-winning {
   0%,
   100% {
-    border-color: rgb(255, 255, 0);
+    background-color: rgb(255, 255, 0);
   }
   50% {
-    border-color: rgba(255, 150, 13, 0.9);
+    background-color: rgba(230, 200, 13, 0.9);
   }
 }
 

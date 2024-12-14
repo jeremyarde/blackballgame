@@ -264,13 +264,7 @@ fn Home() -> Element {
                     }
                     div { class: "w-full",
                         button {
-                            onclick: move |evt| {
-                                if open_modal() == true {
-                                    open_modal.set(false);
-                                } else {
-                                    open_modal.set(true);
-                                }
-                            },
+                            onclick: move |evt| {},
                             class: "{styles::STANDARD_BUTTON} w-full bg-yellow-200 hover:bg-yellow-400",
                             "How to Play"
                         }
@@ -474,19 +468,18 @@ pub fn LobbyComponent(lobby: Lobby) -> Element {
     let mut current_route: Signal<String> = use_context::<Signal<String>>();
 
     rsx!(
-        div { class: "grid grid-cols-[200px_auto_auto] items-center w-full",
-            div { class: "break-words text-center", "{lobby.name}" }
-            div { class: "", "{lobby.players.len()}/{lobby.max_players}" }
-            div { class: "",
-                button {
+        // div { class: "grid grid-cols-[200px_auto_auto] items-center w-full",
+        div { class: "break-words text-center", "{lobby.name}" }
+        div { class: "", "{lobby.players.len()}/{lobby.max_players}" }
+        div { class: "",
+            button {
 
-                    onclick: move |evt| {
-                        user_config.write().lobby_code = lobby.name.clone();
-                        current_route.set("GameRoom".to_string());
-                    },
-                    class: "py-2 rounded-md text-sm font-medium w-full bg-yellow-300",
-                    "Join"
-                }
+                onclick: move |evt| {
+                    user_config.write().lobby_code = lobby.name.clone();
+                    current_route.set("GameRoom".to_string());
+                },
+                class: "py-2 rounded-md text-sm font-medium w-full bg-yellow-300",
+                "Join"
             }
         }
     )
@@ -559,108 +552,105 @@ pub fn LobbyList() -> Element {
     };
 
     rsx!(
-        div { class: "max-w-[300px]",
-            div { class: "flex flex-col justify-center space-between cursor-pointer p-2",
-                h1 { class: "text-2xl font-bold text-center", "Game Lobbies" }
-                div { class: "flex flex-col justify-center items-center w-full gap-2",
-                    div { class: "flex flex-row",
-                        input {
-                            class: "{styles::INPUT_FIELD} w-full sm:w-auto",
-                            r#type: "text",
-                            value: "{lobby_name.read()}",
-                            oninput: move |event| lobby_name.set(event.value()),
-                            "lobby"
-                        }
-                        button {
-                            class: "bg-yellow-400 border border-solid border-black text-center rounded-md w-1/4 p-2",
-                            onclick: move |_| {
-                                info!("Clicked create lobby");
-                                create_lobby_function(lobby_name.read().clone());
-                            },
-                            "create"
-                        }
-                        button {
-                            class: "bg-gray-300 flex flex-row text-center border border-solid border-black rounded-md justify-center items-center cursor-pointer w-1/6 p-2 hover:bg-gray-400",
-                            onclick: move |evt| {
-                                all_lobbies.restart();
-                            },
-                            svg {
-                                class: "w-6 h-6 transition-transform duration-300 hover:rotate-180",
-                                fill: "black",
-                                stroke: "currentColor",
-                                "stroke-width": "1",
-                                "view-box": "0 0 24 24",
-                                path {
-                                    "stroke-linecap": "round",
-                                    "stroke-linejoin": "round",
-                                    d: "M4 4v5h.582c.523-1.838 1.856-3.309 3.628-4.062A7.978 7.978 0 0112 4c4.418 0 8 3.582 8 8s-3.582 8-8 8a7.978 7.978 0 01-7.658-5.125c-.149-.348-.54-.497-.878-.365s-.507.537-.355.885A9.956 9.956 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2c-2.045 0-3.94.613-5.514 1.653A6.978 6.978 0 004.582 4H4z"
-                                }
-                            }
-                        }
-                    }
-                }
-                {if create_lobby_response_msg() == String::from("") { rsx!(div{}) } else { rsx!(div { class: "text-center", "{create_lobby_response_msg.read()}" }) }}
-            }
-            div { class: "flex flex-col",
-                div { class: "relative",
-                    svg {
-                        class: "absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5",
-                        "xmlns": "http://www.w3.org/2000/svg",
-                        height: "24",
-                        "stroke-linejoin": "round",
-                        "viewBox": "0 0 24 24",
-                        "stroke-width": "2",
-                        "fill": "none",
-                        "stroke-linecap": "round",
-                        "stroke": "currentColor",
-                        width: "24",
-                        class: "lucide lucide-search",
-                        circle { "r": "8", "cx": "11", "cy": "11" }
-                        path { "d": "m21 21-4.3-4.3" }
-                    }
+        // div { class: "max-w-[300px]",
+        div { class: "justify-center space-between p-2",
+            h1 { class: "text-2xl font-bold text-center", "Game Lobbies" }
+            div { class: "justify-center items-center w-full gap-2",
+                div { class: "flex flex-row",
                     input {
-                        class: "w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500",
+                        class: "{styles::INPUT_FIELD} w-full sm:w-auto",
                         r#type: "text",
-                        placeholder: "Search lobbies...",
-                        value: "",
-                        oninput: move |evt| {
-                            info!("Got search query: {evt:?}");
-                            searchterm.set(evt.value().clone());
+                        value: "{lobby_name.read()}",
+                        oninput: move |event| lobby_name.set(event.value()),
+                        "lobby"
+                    }
+                    button {
+                        class: "bg-yellow-400 border border-solid border-black text-center rounded-md w-1/4 p-2",
+                        onclick: move |_| {
+                            info!("Clicked create lobby");
+                            create_lobby_function(lobby_name.read().clone());
+                        },
+                        "create"
+                    }
+                    button {
+                        class: "bg-gray-300 flex flex-row text-center border border-solid border-black rounded-md justify-center items-center cursor-pointer w-1/6 p-2 hover:bg-gray-400",
+                        onclick: move |evt| {
+                            all_lobbies.restart();
+                        },
+                        svg {
+                            class: "w-6 h-6 transition-transform duration-300 hover:rotate-180",
+                            fill: "black",
+                            stroke: "currentColor",
+                            "stroke-width": "1",
+                            "view-box": "0 0 24 24",
+                            path {
+                                "stroke-linecap": "round",
+                                "stroke-linejoin": "round",
+                                d: "M4 4v5h.582c.523-1.838 1.856-3.309 3.628-4.062A7.978 7.978 0 0112 4c4.418 0 8 3.582 8 8s-3.582 8-8 8a7.978 7.978 0 01-7.658-5.125c-.149-.348-.54-.497-.878-.365s-.507.537-.355.885A9.956 9.956 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2c-2.045 0-3.94.613-5.514 1.653A6.978 6.978 0 004.582 4H4z"
+                            }
                         }
                     }
                 }
-                div { class: "bg-white border border-gray-300 w-full",
-                    div { class: "grid grid-cols-3 items-center bg-gray-200",
-                        div {
-                            // class: "px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider",
-                            "Lobby Name"
-                        }
-                        div {
-                            // class: "px-1 py-3 text-left text-xs text-gray-500 uppercase tracking-wider",
-                            "Players"
-                        }
-                        div {
-                            // class: "text-left text-xs text-gray-500 uppercase tracking-wider",
-                            "Action"
-                        }
-                        // if search_lobbies.len() == 0 {
-                        //     div { class: "text-center w-full p-4", "No lobbies found" }
-                        // } else {
-                        div {
-                            for lobby in search_lobbies.iter() {
-                                div { class: "break-words text-center", "{lobby.name}" }
-                                div { class: "", "{lobby.players.len()}/{lobby.max_players}" }
-                                div { class: "",
-                                    button {
-                                        onclick: move |evt| {
-                                            current_route.set("GameRoom".to_string());
-                                        },
-                                        class: "py-2 rounded-md text-sm font-medium w-full bg-yellow-300",
-                                        "Join"
-                                    }
-                                }
-                            }
-                        }
+            }
+            {if create_lobby_response_msg() == String::from("") { rsx!(div{}) } else { rsx!(div { class: "text-center", "{create_lobby_response_msg.read()}" }) }}
+        }
+        div { class: "flex flex-col",
+            div { class: "relative",
+                svg {
+                    class: "absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5",
+                    "xmlns": "http://www.w3.org/2000/svg",
+                    height: "24",
+                    "stroke-linejoin": "round",
+                    "viewBox": "0 0 24 24",
+                    "stroke-width": "2",
+                    "fill": "none",
+                    "stroke-linecap": "round",
+                    "stroke": "currentColor",
+                    width: "24",
+                    class: "lucide lucide-search",
+                    circle { "r": "8", "cx": "11", "cy": "11" }
+                    path { "d": "m21 21-4.3-4.3" }
+                }
+                input {
+                    class: "w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500",
+                    r#type: "text",
+                    placeholder: "Search lobbies...",
+                    value: "",
+                    oninput: move |evt| {
+                        info!("Got search query: {evt:?}");
+                        searchterm.set(evt.value().clone());
+                    }
+                }
+            }
+        }
+        // div { class: "bg-white border border-gray-300 w-full",
+        div { class: "grid grid-cols-3 items-center",
+            div { class: "bg-gray-200",
+                // class: "px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider",
+                "Lobby Name"
+            }
+            div { class: "bg-gray-200",
+                // class: "px-1 py-3 text-left text-xs text-gray-500 uppercase tracking-wider",
+                "Players"
+            }
+            div { class: "bg-gray-200",
+                // class: "text-left text-xs text-gray-500 uppercase tracking-wider",
+                "Action"
+            }
+            // if search_lobbies.len() == 0 {
+            //     div { class: "text-center w-full p-4", "No lobbies found" }
+            // } else {
+            // div {
+            for lobby in search_lobbies.iter() {
+                div { class: "break-words text-center", "{lobby.name}" }
+                div { class: "", "{lobby.players.len()}/{lobby.max_players}" }
+                div { class: "",
+                    button {
+                        onclick: move |evt| {
+                            current_route.set("GameRoom".to_string());
+                        },
+                        class: "py-2 rounded-md text-sm font-medium w-full bg-yellow-300",
+                        "Join"
                     }
                 }
             }
@@ -1183,11 +1173,11 @@ fn GameRoom(room_code: String) -> Element {
 // pub const SUIT_DIAMOND: manganis::ImageAsset = asset!("./assets/suits/diamond.png").image();
 // pub const SUIT_SPADE: manganis::ImageAsset = asset!("./assets/suits/spade.png").image();
 // pub const SUIT_NOTRUMP: ImageAsset = asset!("./assets/suits/notrump.png").image();
-pub const SUIT_CLUB: Asset = asset!("./assets/suits/club.png");
-pub const SUIT_HEART: Asset = asset!("./assets/suits/heart.png");
-pub const SUIT_DIAMOND: Asset = asset!("./assets/suits/diamond.png");
-pub const SUIT_SPADE: Asset = asset!("./assets/suits/spade.png");
-pub const SUIT_NOTRUMP: Asset = asset!("./assets/suits/notrump.png");
+pub const SUIT_CLUB: Asset = asset!("./public/suits/club.png");
+pub const SUIT_HEART: Asset = asset!("./public/suits/heart.png");
+pub const SUIT_DIAMOND: Asset = asset!("./public/suits/diamond.png");
+pub const SUIT_SPADE: Asset = asset!("./public/suits/spade.png");
+pub const SUIT_NOTRUMP: Asset = asset!("./public/suits/notrump.png");
 
 #[component]
 fn CardComponent(
@@ -1196,6 +1186,7 @@ fn CardComponent(
     is_winning: bool,
     show_player: bool,
     show_order: bool,
+    order: usize,
 ) -> Element {
     let suit = match card.suit {
         Suit::Heart => SUIT_HEART,
@@ -1222,19 +1213,24 @@ fn CardComponent(
                 onclick(card.clone());
             },
             div { class: "col-start-1 row-start-1 h-full w-full",
-                if is_winning {
-                    span { class: "bg-black text-white text-xs font-bold px-1 py-0.5 rounded-full",
-                        "W"
-                    }
-                }
                 div { class: "grid absolute w-full h-full z-20 place-items-center",
                     div { class: "col-start-1 row-start-1", {suit_svg} }
                     span { class: "col-start-1 row-start-1 text-white content-center text-center text-2xl self-center justify-center drop-shadow-[0_2.2px_2.2px_rgba(0,0,0,0.8)]",
                         "{textvalue}"
                     }
                     if show_player && card.played_by.is_some() {
-                        span { class: "absolute col-start-1 row-start-1 bottom-1 text-black text-[9px] rounded-md",
+                        span { class: "absolute col-start-1 row-start-1 bottom-1 text-black text-[9px] bg-green-200 border px-0.5 border-black rounded-md",
                             "{card.played_by.as_ref().unwrap()}"
+                        }
+                    }
+                    if show_order {
+                        span { class: "absolute top-1 left-1 text-white text-xs font-bold px-1.5 py-0.5 rounded-full bg-black",
+                            "{order}"
+                        }
+                    }
+                    if is_winning {
+                        span { class: "absolute top-1 right-1 text-black text-xs font-bold px-1 py-0.5 rounded-full border border-black bg-yellow-200 animate-subtle-pulse-winning",
+                            "W"
                         }
                     }
                 }
@@ -1460,7 +1456,7 @@ fn GameStateComponent(
     // testvec.sort_by(|a, b| a.id.cmp(&b.id));
 
     rsx!(
-        div { class: "grid grid-cols-1 grid-rows-[150px_44px_110px_110px_90px] gap-2 w-screen h-screen text-center bg-bg-color flex-nowrap justify-center p-2 overflow-hidden items-start align-middle self-center",
+        div { class: "grid grid-cols-1 grid-rows-[150px_44px_auto_auto_90px] gap-2 w-screen h-screen text-center bg-bg-color flex-nowrap justify-center p-2 overflow-hidden items-start align-middle self-center",
             // TransitionComponent { gamestate, visible: transition_visible }
             div { class: "col-start-1 row-start-1 bg-bg-color rounded-lg p-2 border border-black gap-2 max-w-[600px] min-w-[360px] w-full justify-self-center",
                 div { class: "flex flex-col justify-between gap-2",
@@ -1564,13 +1560,14 @@ fn GameStateComponent(
                     "Played cards"
                 }
                 div { class: "flex flex-row flex-wrap mt-2 justify-center gap-1",
-                    {gamestate().curr_played_cards.iter().map(|card| rsx!(
+                    {gamestate().curr_played_cards.iter().enumerate().map(|(i, card)| rsx!(
                         CardComponent {
                             onclick: move |_| { info!("Clicked a card: {:?}", "fake card") },
                             card: card.clone(),
                             is_winning: gamestate.read().curr_winning_card.is_some() && gamestate.read().curr_winning_card.clone().unwrap() == card.clone(),
                             show_player: true,
                             show_order: true,
+                            order: i,
                         }
                     ))}
                 }
@@ -1599,8 +1596,8 @@ fn GameStateComponent(
                                 sortedcards.sort_by(|a, b| a.id.cmp(&b.id));
 
                                 rsx!(
-                                    {sortedcards.iter()
-                                    .map(|card| {
+                                    {sortedcards.iter().enumerate()
+                                    .map(|(i, card)| {
                                         return rsx!(CardComponent {
                                             onclick: move |clicked_card: Card| {
                                                 ws_send().send(InnerMessage::GameMessage {
@@ -1616,6 +1613,7 @@ fn GameStateComponent(
                                             is_winning: gamestate.read().curr_winning_card.is_some() && gamestate.read().curr_winning_card.clone().unwrap() == card.clone(),
                                             show_player: false,
                                             show_order: false,
+                                            order: i,
                                         });
                                     })})
                                 }

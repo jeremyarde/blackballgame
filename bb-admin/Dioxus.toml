@@ -30,7 +30,7 @@ title = "Blackball"
 
 index_on_404 = true
 
-watch_path = ["src", "assets", "input.css"]
+watch_path = ["src", "public", "input.css"]
 
 [bundler]
 # Bundle identifier

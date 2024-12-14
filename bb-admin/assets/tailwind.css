@@ -770,9 +770,6 @@
   .grid-cols-\[200px_auto_auto\] {
     grid-template-columns: 200px auto auto;
   }
-  .grid-rows-3 {
-    grid-template-rows: repeat(3, minmax(0, 1fr));
-  }
   .grid-rows-\[150px_44px_110px_110px_90px\] {
     grid-template-rows: 150px 44px 110px 110px 90px;
   }
