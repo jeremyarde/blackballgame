@@ -72,12 +72,16 @@ impl ServerMessage {
     }
 }
 
+#[axum::debug_handler]
 pub async fn ws_handler(
+    // Path(room_code): Path<String>,
+    // ws: WebSocketUpgrade,
+    // user_agent: Option<TypedHeader<headers::UserAgent>>,
+    // ConnectInfo(addr): ConnectInfo<SocketAddr>,
     ws: WebSocketUpgrade,
     user_agent: Option<TypedHeader<headers::UserAgent>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     state: State<Arc<RwLock<AppState>>>,
-    // Path(room_code): Path<Option<String>>,
 ) -> impl IntoResponse {
     info!("ws_handler - got request");
     let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {

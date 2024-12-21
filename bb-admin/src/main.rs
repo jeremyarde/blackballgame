@@ -502,7 +502,7 @@ pub fn LobbyList() -> Element {
         use_resource(move || async move { server_client.read().get_rooms().await });
     let mut search_lobbies: Signal<Vec<Lobby>> = use_signal(|| vec![]);
 
-    use_effect(move || {
+    let search_results = use_memo(move || {
         let searchmatches = match &*all_lobbies.read_unchecked() {
             Some(Ok(vals)) => {
                 let searchmatches = vals
@@ -516,7 +516,8 @@ pub fn LobbyList() -> Element {
             Some(Err(err)) => vec![],
             None => vec![],
         };
-        search_lobbies.set(searchmatches);
+        searchmatches
+        // search_lobbies.set(searchmatches);
     });
 
     let create_lobby_function = move |lobby: String| {
@@ -551,6 +552,11 @@ pub fn LobbyList() -> Element {
             }
         });
     };
+
+    // let join_lobby = |lobby_code| {
+    //     current_route.set("GameRoom".to_string());
+    //     user_config.write().lobby_code = lobby.name.clone();
+    // };
 
     rsx!(
         // div { class: "max-w-[300px]",
@@ -654,7 +660,8 @@ pub fn LobbyList() -> Element {
         // } else {
         div { class: "border border-black rounded-md h-[400px]",
             div { class: "grid grid-cols-3 overflow-scroll items-baseline h-[400px]",
-                for lobby in search_lobbies.iter() {
+                for lobby in search_results.read().iter() {
+                    // let lobbynameclone = lobby.name.clone
                     div { class: "break-words text-center", "{lobby.name}" }
                     div { class: "", "{lobby.players.len()}/{lobby.max_players}" }
                     div { class: "",
@@ -1071,9 +1078,7 @@ fn GameRoom(room_code: String) -> Element {
                                                 div { class: "absolute left-1 top-1 bg-white w-4 md:w-6 h-4 md:h-6 rounded-full transition-transform duration-300 ease-in-out peer-checked:translate-x-6" }
                                             }
                                         }
-
                                         span { class: "text-sm md:text-base", "Private" }
-
                                     }
                                     {
                                         if setupgameoptions.read().visibility == GameVisibility::Private {

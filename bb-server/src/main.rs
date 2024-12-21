@@ -23,6 +23,7 @@ use axum::http::Uri;
 use axum::middleware;
 use axum::response::IntoResponse;
 use axum::response::Response;
+use axum::routing::any;
 use axum::routing::get;
 use axum::routing::post;
 use axum::Json;
@@ -519,11 +520,11 @@ async fn main() {
 
     println!("Setting up the app");
     let app = Router::new()
-        .route("/ws", get(ws_handler))
+        .route("/ws", any(ws_handler))
         // .route("/games/ws", get(ws_handler))
         .route("/rooms", get(get_rooms).post(create_room))
-        .route("/rooms/:room_code", get(get_room))
-        .route("/rooms/:room_code/ws", get(ws_handler))
+        .route("/rooms/{room_code}", get(get_room))
+        // .route("/rooms/{room_code}/ws", any(ws_handler))
         .route("/health", get(|| async { "ok" }))
         // .route(
         //     "/*path",
