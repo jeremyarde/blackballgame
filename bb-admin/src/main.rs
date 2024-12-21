@@ -442,7 +442,7 @@ fn Explorer() -> Element {
 
     let mut lobby_name = use_signal(|| String::new());
 
-    // let mut lobbies = use_signal(|| GetLobbiesResponse { lobbies: vec![] });
+    let mut lobbies = use_signal(|| GetLobbiesResponse { lobbies: vec![] });
 
     // use_effect(move || {
     //     spawn(async move {
@@ -455,7 +455,7 @@ fn Explorer() -> Element {
         div { class: "flex flex-col text-center bg-bg-color flex-nowrap gap-2 p-2 w-screen h-screen overflow-hidden items-center justify-center",
             // div { class: "flex flex-col justify-center align-top w-full h-full border border-black rounded-md p-2  items-start",
             div { class: "border border-solid border-black bg-white rounded-md p-2 md:max-w-[600px] h-full md:max-h-[600px]",
-                LobbyList {}
+                LobbyList { test_lobbies: lobbies.read().lobbies.clone() }
             }
         }
     }
@@ -487,7 +487,7 @@ pub fn LobbyComponent(lobby: Lobby) -> Element {
 }
 
 #[component]
-pub fn LobbyList() -> Element {
+pub fn LobbyList(test_lobbies: Vec<Lobby>) -> Element {
     let mut server_config: Signal<ServerConfig> = use_context::<Signal<ServerConfig>>();
     let mut server_client: Signal<ServerClient> = use_context::<Signal<ServerClient>>();
     let mut current_route: Signal<String> = use_context::<Signal<String>>();
@@ -500,25 +500,24 @@ pub fn LobbyList() -> Element {
 
     let mut all_lobbies =
         use_resource(move || async move { server_client.read().get_rooms().await });
-    let mut search_lobbies: Signal<Vec<Lobby>> = use_signal(|| vec![]);
+    // let mut search_lobbies: Signal<Vec<Lobby>> = use_signal(|| vec![]);
 
-    let search_results = use_memo(move || {
-        let searchmatches = match &*all_lobbies.read_unchecked() {
-            Some(Ok(vals)) => {
-                let searchmatches = vals
-                    .lobbies
-                    .iter()
-                    .filter(|lobby| lobby.name.contains(searchterm.read().as_str()))
-                    .cloned()
-                    .collect::<Vec<Lobby>>();
-                searchmatches
-            }
-            Some(Err(err)) => vec![],
-            None => vec![],
-        };
-        searchmatches
-        // search_lobbies.set(searchmatches);
-    });
+    // let test_lobbies: Vec<Lobby> = match &*all_lobbies.read_unchecked() {
+    //     Some(Ok(vals)) => {
+    //         let searchmatches = vals
+    //             .lobbies
+    //             .iter()
+    //             .filter(|lobby| lobby.name.contains(searchterm.read().as_str()))
+    //             .cloned()
+    //             .collect::<Vec<Lobby>>();
+    //         // search_lobbies.set(searchmatches);
+    //         searchmatches
+    //     }
+    //     Some(Err(err)) => vec![],
+    //     // Some(Err(err)) => search_lobbies.set(vec![]),
+    //     None => vec![],
+    //     // None => search_lobbies.set(vec![]),
+    // };
 
     let create_lobby_function = move |lobby: String| {
         #[derive(Deserialize, Serialize)]
@@ -557,6 +556,18 @@ pub fn LobbyList() -> Element {
     //     current_route.set("GameRoom".to_string());
     //     user_config.write().lobby_code = lobby.name.clone();
     // };
+
+    // let test_results = search_results.read().clone();
+    // let mut update_current_lobby = |evt, lobby_name| {
+    //     current_route.set("GameRoom".to_string());
+    //     user_config.write().lobby_code = lobby_name;
+    // };
+    // search results rsx
+
+    let mut update_lobby_details = move |lobby_code: String| {
+        current_route.set("GameRoom".to_string());
+        user_config.write().lobby_code = lobby_code.clone();
+    };
 
     rsx!(
         // div { class: "max-w-[300px]",
@@ -655,24 +666,25 @@ pub fn LobbyList() -> Element {
                 "Action"
             }
         }
-        // if search_lobbies.len() == 0 {
-        //     div { class: "text-center w-full p-4", "No lobbies found" }
-        // } else {
         div { class: "border border-black rounded-md h-[400px]",
             div { class: "grid grid-cols-3 overflow-scroll items-baseline h-[400px]",
-                for lobby in search_results.read().iter() {
-                    // let lobbynameclone = lobby.name.clone
-                    div { class: "break-words text-center", "{lobby.name}" }
-                    div { class: "", "{lobby.players.len()}/{lobby.max_players}" }
-                    div { class: "",
-                        button {
-                            onclick: move |evt| {
-                                current_route.set("GameRoom".to_string());
-                            },
-                            class: "py-2 rounded-md text-sm font-medium w-full bg-yellow-300",
-                            "Join"
-                        }
-                    }
+                {
+                    test_lobbies
+                        .iter()
+                        .map(|lobby| {
+                            rsx! {
+                                // let lobbynameclone = lobby.name.clone
+                                div { class: "break-words text-center", "{lobby.name}" }
+                                div { class: "", "{lobby.players.len()}/{lobby.max_players}" }
+                                div { class: "",
+                                    button {
+                                        onclick: move |evt| update_lobby_details(lobby.name.clone()),
+                                        class: "py-2 rounded-md text-sm font-medium w-full bg-yellow-300",
+                                        "Join"
+                                    }
+                                }
+                            }
+                        })
                 }
             }
         }

@@ -13,3 +13,5 @@ todo
   - fix card positioning
 - change location of name of player on cards, should be bottom middle?
 - make bottom section actually grid
+
+- re-add the router
