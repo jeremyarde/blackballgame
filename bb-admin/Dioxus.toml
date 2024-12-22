@@ -24,7 +24,7 @@ level = "4"
 [web.app]
 
 # HTML title tag content
-base_path = "blackballgame"
+# base_path = "blackballgame"
 title = "Blackball"
 
 [web.watcher]
@@ -35,7 +35,7 @@ watch_path = ["src", "public", "input.css"]
 
 [bundler]
 # Bundle identifier
-identifier = "io.github.jeremyarde"
+# identifier = "io.github.jeremyarde"
 
 # Bundle publisher
 publisher = "."
