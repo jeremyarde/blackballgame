@@ -19,7 +19,7 @@ buildfe:
     cd bb-admin && dx build --release
 
 deployfe:
-    cd bb-admin && dx build --release
+    cd bb-admin && export STAGE=production && dx build --release
     # git checkout deploy
     # git add -f target/dx/bb-admin/release/web/public/*
     # git commit -m "deploy"
