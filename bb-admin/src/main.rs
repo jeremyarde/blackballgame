@@ -498,8 +498,14 @@ pub fn LobbyList(test_lobbies: Vec<Lobby>) -> Element {
     let lobby = String::from("test");
     let mut searchterm = use_signal(|| String::new());
 
-    let mut all_lobbies =
-        use_resource(move || async move { server_client.read().get_rooms().await });
+    let mut all_lobbies = use_resource(move || async move {
+        let resp = server_client.read().get_rooms().await;
+        let lobbies = match resp {
+            Ok(x) => x.lobbies,
+            Err(err) => vec![],
+        };
+        lobbies
+    });
     // let mut search_lobbies: Signal<Vec<Lobby>> = use_signal(|| vec![]);
 
     // let test_lobbies: Vec<Lobby> = match &*all_lobbies.read_unchecked() {
@@ -667,24 +673,37 @@ pub fn LobbyList(test_lobbies: Vec<Lobby>) -> Element {
             }
         }
         div { class: "border border-black rounded-md h-[400px]",
-            div { class: "grid grid-cols-3 overflow-scroll items-baseline h-[400px]",
-                {
-                    test_lobbies
-                        .iter()
-                        .map(|lobby| {
-                            rsx! {
-                                // let lobbynameclone = lobby.name.clone
-                                div { class: "break-words text-center", "{lobby.name}" }
-                                div { class: "", "{lobby.players.len()}/{lobby.max_players}" }
-                                div { class: "",
-                                    button {
-                                        onclick: move |evt| update_lobby_details(lobby.name.clone()),
-                                        class: "py-2 rounded-md text-sm font-medium w-full bg-yellow-300",
-                                        "Join"
-                                    }
-                                }
+            div { class: "grid grid-cols-3 overflow-scroll items-baseline",
+                match &*all_lobbies.read_unchecked() {
+                    Some(vals) => {
+                        let searchmatches = vals
+                            .iter()
+                            .filter(|lobby| lobby.name.contains(searchterm.read().as_str()))
+                            .cloned()
+                            .collect::<Vec<Lobby>>();
+                        rsx! {
+                            {
+                                searchmatches
+                                    .into_iter()
+                                    .map(|lobby| {
+                                        rsx! {
+                                            div { class: "break-words text-center", "{lobby.name}" }
+                                            div { class: "", "{lobby.players.len()}/{lobby.max_players}" }
+                                            div { class: "",
+                                                button {
+                                                    onclick: move |evt| update_lobby_details(lobby.name.clone()),
+                                                    class: "py-2 rounded-md text-sm font-medium w-full bg-yellow-300",
+                                                    "Join"
+                                                }
+                                            }
+                                        }
+                                    })
                             }
-                        })
+                        }
+                    }
+                    None => rsx! {
+                        div { "No matches" }
+                    },
                 }
             }
         }

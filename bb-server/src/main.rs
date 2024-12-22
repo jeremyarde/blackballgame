@@ -547,7 +547,6 @@ async fn main() {
         .await
         .expect("Failed to bind to port");
 
-    println!("Server is starting...");
     axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
