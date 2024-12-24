@@ -119,6 +119,8 @@ pub struct GameState {
     #[serde(skip)]
     pub deck: Vec<Card>,
     pub curr_round: i32,
+    pub max_rounds: i32,
+    pub cards_to_deal: i32,
     pub trump: Suit,
     pub player_order: Vec<String>,
     pub curr_played_cards: Vec<Card>,

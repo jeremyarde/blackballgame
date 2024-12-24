@@ -12,6 +12,10 @@ root {
   overflow: hidden;
 }
 
+html {
+  overscroll-behavior: none;
+}
+
 @keyframes subtle-pulse {
   0%,
   100% {

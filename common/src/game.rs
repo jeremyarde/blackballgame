@@ -57,7 +57,7 @@ impl GameState {
                 }
             }
             GameplayState::PostRound => {
-                if self.curr_round > self.setup_game_options.rounds as i32 {
+                if self.curr_round > self.max_rounds {
                     GameplayState::End
                 } else {
                     self.curr_played_cards = vec![];
@@ -473,6 +473,13 @@ impl GameState {
         self.curr_played_cards = vec![];
         self.curr_winning_card = None;
         self.player_bids = vec![];
+
+        self.cards_to_deal = if self.curr_round > self.max_rounds {
+            self.curr_round - 1
+        } else {
+            self.curr_round
+        };
+
         self.deal();
         self.update_to_next_state();
 
@@ -550,6 +557,7 @@ impl GameState {
         });
 
         let num_players = self.players.len() as i32;
+        // self.cards_to_deal = self.curr_round;
 
         self.curr_round = if self.setup_game_options.start_round.is_some() {
             self.setup_game_options
@@ -561,6 +569,8 @@ impl GameState {
             1
         };
 
+        // self.cards_to_deal = self.curr_round.clone();
+        // self.cards_to_deal = self.curr_round;
         self.deal();
         self.update_to_next_state();
 
@@ -591,7 +601,7 @@ impl GameState {
 
         match validate_bid(
             bid,
-            self.curr_round,
+            self.cards_to_deal,
             &self.bids,
             self.curr_dealer == client.id,
         ) {
@@ -617,7 +627,7 @@ impl GameState {
             fastrand::shuffle(&mut self.deck);
         }
 
-        for i in 1..=self.curr_round {
+        for i in 1..=self.cards_to_deal {
             // get random card, give to a player
             for player_id in self.player_order.iter() {
                 let card = self.deck.pop().expect("Could not get card");
@@ -680,6 +690,8 @@ impl GameState {
             updated_at: Utc::now(),
             created_at: Utc::now(),
             trump_played_in_round: false,
+            max_rounds: 0,
+            cards_to_deal: 0,
         }
     }
 
@@ -822,13 +834,13 @@ fn find_winning_card(curr_played_cards: Vec<Card>, trump: Suit) -> Card {
 
 fn validate_bid(
     bid: &i32,
-    curr_round: i32,
+    cards_to_deal: i32,
     curr_bids: &HashMap<String, Option<i32>>,
     is_dealer: bool,
 ) -> Result<i32, BidError> {
     // can bid between 0..=round number
     // dealer can't bid a number that will equal the round number
-    if *bid > curr_round {
+    if *bid > cards_to_deal {
         return Err(BidError::High);
     }
 
@@ -836,7 +848,7 @@ fn validate_bid(
         return Err(BidError::Low);
     }
     let bid_sum = curr_bids.values().map(|x| x.unwrap()).sum::<i32>();
-    if is_dealer && (bid + bid_sum) == curr_round {
+    if is_dealer && (bid + bid_sum) == cards_to_deal {
         return Err(BidError::EqualsRound);
     }
 
