@@ -57,6 +57,7 @@ impl GameState {
                 }
             }
             GameplayState::PostRound => {
+                println!("jere/ curr, max: {} {}", self.curr_round, self.max_rounds);
                 if self.curr_round > self.max_rounds {
                     GameplayState::End
                 } else {
@@ -557,7 +558,6 @@ impl GameState {
         });
 
         let num_players = self.players.len() as i32;
-        // self.cards_to_deal = self.curr_round;
 
         self.curr_round = if self.setup_game_options.start_round.is_some() {
             self.setup_game_options
@@ -569,8 +569,8 @@ impl GameState {
             1
         };
 
-        // self.cards_to_deal = self.curr_round.clone();
-        // self.cards_to_deal = self.curr_round;
+        self.cards_to_deal = self.curr_round;
+        self.max_rounds = self.setup_game_options.rounds as i32 * 2;
         self.deal();
         self.update_to_next_state();
 

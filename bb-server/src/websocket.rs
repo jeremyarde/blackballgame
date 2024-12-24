@@ -14,6 +14,7 @@ use serde_json::Value;
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 use tower_http::timeout::ResponseBodyTimeout;
+use tracing::debug;
 use tracing::error;
 
 use std::collections::HashMap;
@@ -190,7 +191,7 @@ async fn handle_socket(
         // let user_ip_addr = user_ip.clone();
 
         while let Ok(game_event_result) = broadcast_channel.recv().await {
-            info!(
+            debug!(
                 "[CLIENT-SENDER] Got a message from broadcast channel: {:?}",
                 game_event_result
             );
