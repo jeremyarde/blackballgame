@@ -45,7 +45,7 @@ mod styles {
         "w-full text-2xl font-semibold text-black bg-white border border-gray-700 rounded-md 
          placeholder-gray-500  focus:outline-none focus:ring-2 focus:ring-indigo-500 
          focus:border-indigo-500 hover:scale-102 transition-transform duration-200 ease-in-out text-center";
-    pub const ROUND_DETAILS_TAILWIND: &str = "w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg  text-center p-2 relative z-10";
+    pub const ROUND_DETAILS_TAILWIND: &str = "w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg  text-center p-2 relative z-20";
     pub const STANDARD_BUTTON: &str = "px-4 py-2 bg-gray-800 font-semibold rounded-lg  hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75";
     pub const BID_BUTTON: &str = "
         px-2.5 py-2 rounded-md text-lg font-semibold text-gray-800
