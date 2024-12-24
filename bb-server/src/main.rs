@@ -165,8 +165,8 @@ pub async fn get_rooms(
                     .map(|(roomkey, room)| Lobby {
                         name: room.lobby_code.clone(),
                         players: room.players.keys().cloned().collect::<Vec<String>>(),
-                        max_players: room.setup_game_options.max_players.clone(),
-                        game_mode: room.setup_game_options.game_mode.clone(),
+                        max_players: room.get_max_players().clone(),
+                        game_mode: room.get_game_mode().clone(),
                     })
                     .collect::<Vec<Lobby>>(),
             }),
@@ -323,8 +323,8 @@ pub async fn get_room(
                 lobby: Lobby {
                     name: room.lobby_code.clone(),
                     players: room.players.keys().cloned().collect::<Vec<String>>(),
-                    max_players: room.setup_game_options.max_players.clone(),
-                    game_mode: room.setup_game_options.game_mode.clone(),
+                    max_players: room.get_max_players(),
+                    game_mode: room.get_game_mode().clone(),
                 },
             })),
         );

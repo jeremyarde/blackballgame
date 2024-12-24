@@ -34,7 +34,7 @@ impl GameState {
 
     pub fn update_to_next_state(&mut self) {
         let newstate = match &self.gameplay_state {
-            GameplayState::Bid => GameplayState::Play(PlayState::new()),
+            GameplayState::Bid => GameplayState::Play(PlayState::from(1, self.cards_to_deal)),
             GameplayState::Pregame => GameplayState::Bid,
             GameplayState::Play(ps) => {
                 // move to new "hand" in the round when each player played a card
@@ -45,15 +45,10 @@ impl GameState {
                 }
             }
             GameplayState::PostHand(ps) => {
-                if ps.hand_num
-                    >= self
-                        .curr_round
-                        .try_into()
-                        .expect("Could not convert round to usize")
-                {
+                if ps.hand_num >= ps.hands {
                     GameplayState::PostRound
                 } else {
-                    GameplayState::Play(PlayState::from(ps.hand_num + 1))
+                    GameplayState::Play(PlayState::from(ps.hand_num + 1, ps.hands))
                 }
             }
             GameplayState::PostRound => {
@@ -222,9 +217,10 @@ impl GameState {
                             cardloc = Some(i)
                         }
                     });
-                    player
-                        .hand
-                        .remove(cardloc.expect("Did not find card location in hand"));
+                    player.hand.remove(cardloc.expect(&format!(
+                        "Did not find card location in hand: {:?}",
+                        cardloc
+                    )));
 
                     // encrypt player hand again
                     self.encrypt_player_hand(&player_id);
@@ -475,11 +471,22 @@ impl GameState {
         self.curr_winning_card = None;
         self.player_bids = vec![];
 
-        self.cards_to_deal = if self.curr_round > self.max_rounds {
-            self.curr_round - 1
+        if self.max_rounds % 2 == 0 {
+            self.cards_to_deal = if self.curr_round <= self.max_rounds / 2 {
+                self.cards_to_deal + 1
+            } else if self.curr_round == self.max_rounds / 2 + 1 {
+                self.cards_to_deal
+            } else {
+                self.cards_to_deal - 1
+            };
         } else {
-            self.curr_round
-        };
+            let midpoint = (self.max_rounds as f32 / 2.0).ceil() as i32;
+            self.cards_to_deal = if self.curr_round <= midpoint {
+                self.cards_to_deal + 1
+            } else {
+                self.cards_to_deal - 1
+            };
+        }
 
         self.deal();
         self.update_to_next_state();
@@ -832,7 +839,7 @@ fn find_winning_card(curr_played_cards: Vec<Card>, trump: Suit) -> Card {
     curr_winning_card
 }
 
-fn validate_bid(
+pub fn validate_bid(
     bid: &i32,
     cards_to_deal: i32,
     curr_bids: &HashMap<String, Option<i32>>,
@@ -1184,7 +1191,7 @@ mod tests {
         );
         assert_eq!(
             game.gameplay_state,
-            GameplayState::Play(crate::PlayState::new())
+            GameplayState::Play(crate::PlayState::from(1, game.cards_to_deal))
         );
 
         // Time to play
@@ -1230,7 +1237,10 @@ mod tests {
                 .expect("Could not get first card"),
             p1_card.clone()
         );
-        assert_eq!(game.gameplay_state, GameplayState::Play(PlayState::from(1)));
+        assert_eq!(
+            game.gameplay_state,
+            GameplayState::Play(PlayState::from(1, game.cards_to_deal.try_into().unwrap()))
+        );
 
         game.process_event(GameMessage {
             username: has_second_turn.clone(),
@@ -1242,7 +1252,10 @@ mod tests {
 
         assert_eq!(
             game.gameplay_state,
-            GameplayState::PostHand(PlayState::from(1))
+            GameplayState::PostHand(PlayState::from(
+                1,
+                game.cards_to_deal.try_into().expect("Conversion failed")
+            ))
         );
         assert_eq!(game.curr_played_cards.len(), 2);
 

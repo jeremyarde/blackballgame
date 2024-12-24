@@ -19,6 +19,7 @@ buildfe:
     cd bb-admin && dx build --release
 
 deployfe:
+    cd bb-admin && npx tailwindcss -i ./input.css -o ./public/tailwind.css --watch
     cd bb-admin && export STAGE=production && dx build --release
     # git checkout deploy
     # git add -f target/dx/bb-admin/release/web/public/*

@@ -2,12 +2,15 @@
 //     println!("Hello, world!");
 // }
 
-use std::{cmp, collections::HashMap};
+use std::{
+    cmp,
+    collections::{HashMap, HashSet},
+};
 
 use once_cell::sync::Lazy;
 use tracing::info;
 
-use crate::{Card, GameAction, GameState, GameplayState, Suit};
+use crate::{game::validate_bid, Card, GameAction, GameState, GameplayState, Suit};
 
 static CARD_VALUE_MATRIX: Lazy<HashMap<i32, i32>> = Lazy::new(|| {
     return serde_json::from_str(include_str!("../card_value_matrix.json")).unwrap();
@@ -74,7 +77,21 @@ pub fn get_bid(gamestate: &GameState) -> GameAction {
         }
     }
 
-    // can't bid more than the number of rounds
+    // we need to take into account bids that are valid
+
+    let is_valid = validate_bid(
+        &sugg_bid,
+        gamestate.cards_to_deal,
+        &gamestate.bids,
+        gamestate.curr_player_turn == Some(gamestate.get_dealer()),
+    );
+    if is_valid.is_err() {
+        if sugg_bid == 0 {
+            sugg_bid = 1
+        } else {
+            sugg_bid -= 1
+        }
+    }
     return GameAction::Bid(sugg_bid);
 }
 

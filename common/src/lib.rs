@@ -27,24 +27,29 @@ pub enum Destination {
 
 #[derive(Debug, Clone, Serialize, PartialEq, Deserialize)]
 pub struct PlayState {
-    pub hand_num: usize,
+    pub hand_num: i32,
+    pub hands: i32,
 }
 
-impl Default for PlayState {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+// impl Default for PlayState {
+//     fn default() -> Self {
+//         Self::new()
+//     }
+// }
 
 impl PlayState {
-    pub fn new() -> PlayState {
-        PlayState { hand_num: 1 }
-    }
-    pub fn from(new_hand_num: usize) -> PlayState {
+    // pub fn new() -> PlayState {
+    //     PlayState {
+    //         hand_num: 1,
+    //         hands: 1,
+    //     }
+    // }
+    pub fn from(new_hand_num: i32, hands: i32) -> PlayState {
         PlayState {
             hand_num: new_hand_num
                 .try_into()
                 .expect("Failed to convert hand num into usize"),
+            hands: hands,
         }
     }
 }
@@ -111,7 +116,7 @@ impl fmt::Display for GameClient {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameState {
     pub lobby_code: String,
-    pub setup_game_options: SetupGameOptions,
+    setup_game_options: SetupGameOptions,
     secret_key: String,
     pub players: HashMap<String, GameClient>,
     #[serde(skip)]
@@ -143,6 +148,13 @@ pub struct GameState {
 }
 
 impl GameState {
+    pub fn get_game_mode(&self) -> String {
+        return self.setup_game_options.game_mode.clone();
+    }
+    pub fn get_max_players(&self) -> usize {
+        return self.setup_game_options.max_players;
+    }
+
     pub fn decrypt_player_hand(hand: String, player_secret: &String) -> Vec<Card> {
         // info!("Decrypting hand: {:?}, {:?}", hand, player_secret);
         if player_secret.is_empty() {

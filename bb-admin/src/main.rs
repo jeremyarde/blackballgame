@@ -45,7 +45,7 @@ mod styles {
         "w-full text-2xl font-semibold text-black bg-white border border-gray-700 rounded-md 
          placeholder-gray-500  focus:outline-none focus:ring-2 focus:ring-indigo-500 
          focus:border-indigo-500 hover:scale-102 transition-transform duration-200 ease-in-out text-center";
-    pub const ROUND_DETAILS_TAILWIND: &str = "w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg  text-center p-2";
+    pub const ROUND_DETAILS_TAILWIND: &str = "w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg  text-center p-2 relative";
     pub const STANDARD_BUTTON: &str = "px-4 py-2 bg-gray-800 font-semibold rounded-lg  hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75";
     pub const BID_BUTTON: &str = "
         px-2.5 py-2 rounded-md text-lg font-semibold text-gray-800
@@ -1528,7 +1528,7 @@ fn GameStateComponent(
                                         span { class: "text-sm  font-bold", "End of hand {ps.hand_num}" }
                                     },
                                     GameplayState::Play(ps) => rsx! {
-                                        span { class: "text-sm  font-bold", "Playing hand {ps.hand_num}/{gamestate().curr_round}" }
+                                        span { class: "text-sm  font-bold", "Playing hand {ps.hand_num}/{ps.hands}" }
                                     },
                                     _ => rsx! {
                                         span { class: "text-sm  font-bold", "{gamestate().gameplay_state:?}" }
@@ -1542,7 +1542,7 @@ fn GameStateComponent(
                             div { class: "flex flex-col items-center justify-between",
                                 span { class: "font-semibold text-sm ", "Round" }
                                 span { class: "text-sm ",
-                                    "{gamestate().curr_round}/{gamestate().setup_game_options.rounds}"
+                                    "{gamestate().curr_round}/{gamestate().max_rounds}"
                                 }
                             }
                         }
@@ -1719,7 +1719,7 @@ fn GameStateComponent(
                         label { class: "text-base", "How many hands do you want to win?" }
                         ul { class: "flex flex-row gap-2 items-center p-2 justify-center",
                             {
-                                (0..=gamestate().curr_round)
+                                (0..=gamestate().cards_to_deal)
                                     .map(|i| {
                                         if user_config.read().username == gamestate().get_dealer()
                                             && (i + gamestate().bids.values().map(|x| x.unwrap()).sum::<i32>())
