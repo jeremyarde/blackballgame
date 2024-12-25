@@ -28,6 +28,9 @@ deployfe:
     mkdir -p docs
     cp -r target/dx/bb-admin/release/web/public/* docs
 
+deploybe:
+    fly deploy
+    
 lint:
     earthly --no-sat +lint
 
@@ -35,8 +38,8 @@ docker:
     earthly --no-sat +docker
 
 push:
-    # echo $DOCKERHUB_TOKEN | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-    # docker login --username "$DOCKERHUB_USERNAME" --password "$DOCKERHUB_TOKEN"
+    echo $DOCKERHUB_TOKEN | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+    docker login --username "$DOCKERHUB_USERNAME" --password "$DOCKERHUB_TOKEN"
     earthly --no-sat --push +docker
 
 test:
