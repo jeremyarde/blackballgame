@@ -774,9 +774,6 @@
   .grid-cols-3 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  .grid-rows-\[150px_44px_140px_140px_90px\] {
-    grid-template-rows: 150px 44px 140px 140px 90px;
-  }
   .grid-rows-\[150px_44px_160px_160px_90px\] {
     grid-template-rows: 150px 44px 160px 160px 90px;
   }
