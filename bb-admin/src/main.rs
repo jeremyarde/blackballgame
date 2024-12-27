@@ -469,7 +469,6 @@ pub fn LobbyComponent(lobby: Lobby) -> Element {
     let mut current_route: Signal<String> = use_context::<Signal<String>>();
 
     rsx!(
-        // div { class: "grid grid-cols-[200px_auto_auto] items-center w-full",
         div { class: "break-words text-center", "{lobby.name}" }
         div { class: "", "{lobby.players.len()}/{lobby.max_players}" }
         div { class: "",
@@ -1513,7 +1512,8 @@ fn GameStateComponent(
     // testvec.sort_by(|a, b| a.id.cmp(&b.id));
 
     rsx!(
-        div { class: "grid grid-cols-1 grid-rows-[150px_44px_auto_auto_90px] gap-2 w-screen h-screen text-center bg-bg-color flex-nowrap justify-center p-2 overflow-hidden items-start align-middle self-center",
+        div { class: "grid grid-cols-1 grid-rows-[150px_44px_160px_160px_90px] gap-2 w-screen h-screen text-center bg-bg-color flex-nowrap justify-center p-2 overflow-hidden items-start align-middle self-center",
+            // div { class: "grid grid-cols-1 grid-rows-[150px_44px_auto_auto_90px] gap-2 w-screen h-screen text-center bg-bg-color flex-nowrap justify-center p-2 overflow-hidden items-start align-middle self-center",
             // TransitionComponent { gamestate, visible: transition_visible }
             div { class: "col-start-1 row-start-1 bg-bg-color rounded-lg p-2 border border-black gap-2 max-w-[600px] min-w-[360px] w-full justify-self-center",
                 div { class: "flex flex-col justify-between gap-2",
