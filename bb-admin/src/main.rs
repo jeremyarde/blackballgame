@@ -830,7 +830,7 @@ fn GameRoom(room_code: String) -> Element {
             let mut error_count = 0;
             while error_count < 10 {
                 while let Some(Ok(Message::Text(message))) = listener.next().await {
-                    info!("[SERVER-LISTENER] Got messages: {:?}", message);
+                    info!("[SERVER-LISTENER] Got messages:");
 
                     match serde_json::from_str::<GameActionResponse>(&message) {
                         Ok(gar) => {
@@ -842,11 +842,11 @@ fn GameRoom(room_code: String) -> Element {
                                         con.secret.unwrap_or(String::new());
                                 }
                                 common::GameActionResponse::GameState(gs) => {
-                                    info!("Got game state: {gs:?}");
+                                    info!("Got game state");
                                     gamestate.set(gs);
                                 }
                                 common::GameActionResponse::Message(text) => {
-                                    info!("Got message: {text}");
+                                    info!("Got message");
                                 }
                             }
                         }
@@ -1512,10 +1512,10 @@ fn GameStateComponent(
     // testvec.sort_by(|a, b| a.id.cmp(&b.id));
 
     rsx!(
-        div { class: "grid grid-cols-1 grid-rows-[150px_44px_160px_160px_90px] gap-2 w-screen h-screen text-center bg-bg-color flex-nowrap justify-center p-2 overflow-hidden items-start align-middle self-center",
-            // div { class: "grid grid-cols-1 grid-rows-[150px_44px_auto_auto_90px] gap-2 w-screen h-screen text-center bg-bg-color flex-nowrap justify-center p-2 overflow-hidden items-start align-middle self-center",
+        // div { class: "grid grid-cols-1 grid-rows-[150px_44px_160px_160px_90px] gap-2 w-screen h-screen text-center bg-bg-color flex-nowrap justify-center p-2 overflow-hidden items-start align-middle self-center",
+        div { class: "grid grid-cols-1 grid-rows-[150px_44px_auto_auto_90px] gap-2 w-screen h-screen max-w-[600px] min-w-[360px] text-center bg-bg-color flex-nowrap justify-center p-2 overflow-hidden items-start align-middle self-center",
             // TransitionComponent { gamestate, visible: transition_visible }
-            div { class: "col-start-1 row-start-1 bg-bg-color rounded-lg p-2 border border-black gap-2 max-w-[600px] min-w-[360px] w-full justify-self-center",
+            div { class: "col-start-1 row-start-1 bg-bg-color rounded-lg p-2 border border-black gap-2 w-full justify-self-center",
                 div { class: "flex flex-col justify-between gap-2",
                     div { class: "bg-bg-color rounded-lg flex flex-col w-full items-center justify-between",
                         div { class: "flex flex-row w-full gap-2 items-center",
@@ -1583,7 +1583,7 @@ fn GameStateComponent(
                                                 div { class: "flex flex-col items-baseline w-full text-center",
                                                     div {
                                                         class: format!(
-                                                            "w-full {}",
+                                                            "w-full rounded-lg {}",
                                                             if *playername == user_config.read().username { "bg-name-tag" } else { "" },
                                                         ),
                                                         span { class: "font-semibold text-sm", "{playername}" }

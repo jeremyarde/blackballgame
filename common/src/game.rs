@@ -7,11 +7,6 @@ use fastrand::shuffle;
 use nanoid::nanoid_gen;
 use serde_json::json;
 use tracing::{error, info};
-// use crate::{
-//     create_deck, Card, Connect, Destination, GameAction, GameClient, GameError, GameEventResult,
-//     GameMessage, GameState, GameplayState, PlayState, PlayerDetails, PlayerRole, SetupGameOptions,
-//     Suit,
-// };
 
 use crate::{
     ai, create_deck, Card, Connect, Destination, GameAction, GameActionResponse, GameClient,
@@ -434,7 +429,7 @@ impl GameState {
     }
 
     pub fn start_next_round(&mut self) {
-        tracing::info!("Bids won: {:#?}\nBids wanted: {:#?}", self.wins, self.bids);
+        tracing::info!("Bids won: {:?}\nBids wanted: {:?}", self.wins, self.bids);
         for (player_id, player) in self.players.iter_mut() {
             // let player = self.players.get_mut(player_id).expect();
 
@@ -656,7 +651,6 @@ impl GameState {
     }
 
     fn player_status(&self) {
-        // tracing::info!("{:?}", self.players);
         tracing::info!("Score:\n{:?}", self.score);
     }
 
@@ -755,19 +749,6 @@ impl GameState {
             GameplayState::Pregame => return None,
             GameplayState::PostHand(ps) => return None,
             GameplayState::Play(ps) => {
-                // let player = gamestate.players.get(&self.username).unwrap();
-
-                // let cards = GameState::decrypt_player_hand(
-                //     self.
-                //         .players
-                //         .get(&username)
-                //         .unwrap()
-                //         .encrypted_hand
-                //         .clone(),
-                //     &secret_key,
-                // );
-                // info!("Cards: {:?}", cards);
-                // GameAction::PlayCard(cards.get(0).unwrap().clone())
                 let mut toplay: GameAction = GameAction::PlayCard(Card::new(Suit::Heart, 1));
                 for card in &self.players[&username].hand {
                     let valid = self.is_played_card_valid(username.clone(), card.clone());
@@ -909,19 +890,9 @@ mod tests {
 
     #[test]
     fn test_decrypt_hand_v2() {
-        // INFO bb-admin/src/main.rs:685 Got game state: GameState { lobby_code: "a", setup_game_options:
-        // SetupGameOptions { rounds: 4, deterministic: true, start_round: None, max_players: 4, game_mode: "Standard", visibility: Public, password: None },
-        // secret_key: "mysecretkey", players: {"e": GameClient { id: "e", hand: [], encrypted_hand: "KBBbNhVHXklWRRAWDgVMUxc0GyZTX0YfTEUQFRcNQRRJSRozBAdGVkwfUwoXARcMQl8EAg==", num_cards: 0, role: Player, details: PlayerDetails { username: "e", ip: "127.0.0.1:49678", client_secret: "sky_qedzni2fbd56" } }, "a": GameClient { id: "a", hand: [], encrypted_hand: "KBBbNgxFD0ICFFVBDlYTFxc0GyZKXRcWERRVQhdeHlBJSQovCQNQVR8aAVAOQg9QSVpNIjU=", num_cards: 0, role: Player, details: PlayerDetails { username: "a", ip: "127.0.0.1:49684", client_secret: "sky_hg5w38w1b7jr" } }}, players_secrets: {}, deck: [], curr_round: 1, trump: Heart, player_order: ["a", "e"], curr_played_cards: [], curr_player_turn: Some("e"), curr_player_turn_idx: 0, curr_winning_card: None, curr_dealer: "a", curr_dealer_idx: 0, bids: {}, bid_order: [], wins: {"e": 0, "a": 0}, score: {"a": 0, "e": 0}, gameplay_state: Bid, event_log: [], system_status: [], is_public: true, latest_update: 2024-11-03T23:55:39.023714Z }
-
         let hand =
             "KBBbNhxKVl4GFEcCAAkUAhc0GyZaUk4bW1kcFx5ZT0tRGAw2DEpWSURIBBYJSkFFBQoVKh1KVloDRTg=";
         let secret = "sky_xhlk78erlhmg";
-
-        // let hand = "KBBbNhxQXF5TTxsKCA8fFhc0GyZaSEQeDQUbVkYdExoHSUN9Gx4TD0lPGwwFAhMWUVFIawUv";
-        // let secret = "sky_xrfmkc9zdnfs";
-
-        // let hand = "KBBbNh5LU0NBShMZDw1MFxc0GyZYU0sBDgNDS09ORgcaH1tlWAoFBRtEHUsVDVkHFklDbk4UNA==";
-        // let secret = "sky_5d7hjenh3c2k";
 
         let decrypted_hand = GameState::decrypt_player_hand(hand.to_string(), &secret.to_string());
         println!("Decrypted: {:?}", decrypted_hand);

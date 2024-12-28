@@ -440,8 +440,6 @@ async fn main() {
         tokio::spawn(async move {
             info!("[GAME-CLIENT] Waiting for messages");
             while let Some((msg)) = toclient_recv.recv().await {
-                info!("[GAME-CLIENT] Got message: {:?}", msg);
-
                 let broadcast_result = gamechannel_broadcast_send.send(msg);
                 info!(
                     "[GAME-CLIENT] Sent message to client: {:?}",
