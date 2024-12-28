@@ -6,7 +6,7 @@ use data_encoding::BASE64;
 use fastrand::shuffle;
 use nanoid::nanoid_gen;
 use serde_json::json;
-use tracing::{error, info};
+use tracing::info;
 
 use crate::{
     ai, create_deck, Card, Connect, Destination, GameAction, GameActionResponse, GameClient,
@@ -342,27 +342,6 @@ impl GameState {
 
         player.encrypted_hand = secret_data;
     }
-
-    // pub fn decrypt_player_hand(hand: String, player_secret: &String) -> Vec<Card> {
-    //     info!("Decrypting hand: {:?}, {:?}", hand, player_secret);
-    //     if player_secret.is_empty() {
-    //         error!("Player secret is empty");
-    //         return vec![];
-    //     }
-
-    //     if hand.is_empty() {
-    //         info!("Hand is empty");
-    //         return vec![];
-    //     }
-    //     let hand = BASE64
-    //         .decode(hand.as_bytes())
-    //         .expect("Could not decode hand");
-    //     let str_hand = String::from_utf8(hand).expect("Could not convert hand to string");
-    //     let secret_data = xor_encrypt_decrypt(&str_hand, player_secret);
-    //     let actual_hand: Vec<Card> =
-    //         serde_json::from_slice(&secret_data).expect("Could not parse hand");
-    //     actual_hand
-    // }
 
     pub fn get_state_for_lobby(&mut self) -> Self {
         let mut state_copy = self.clone();
