@@ -870,7 +870,7 @@ fn GameRoom(room_code: String) -> Element {
 
         info!("Ready to listen to player actions");
         'pauseloop: while let Some(internal_msg) = rx.next().await {
-            info!("Received internal message: {:?}", internal_msg);
+            // info!("Received internal message: {:?}", internal_msg);
 
             if server_websocket_sender.read().is_none() {
                 info!("No websocket sender");
@@ -880,7 +880,7 @@ fn GameRoom(room_code: String) -> Element {
             let mut send = server_websocket_sender.write();
             let sender = send.as_mut().unwrap();
 
-            info!("Received internal message: {:?}", internal_msg);
+            // info!("Received internal message: {:?}", internal_msg);
             match internal_msg {
                 InnerMessage::UpdateWsState { new } => ws_action.set(new),
                 InnerMessage::GameMessage { msg } => {
