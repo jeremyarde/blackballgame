@@ -116,6 +116,7 @@ impl fmt::Display for GameClient {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameState {
     pub lobby_code: String,
+    #[serde(skip)]
     setup_game_options: SetupGameOptions,
     secret_key: String,
     pub players: HashMap<String, GameClient>,
@@ -130,9 +131,11 @@ pub struct GameState {
     pub player_order: Vec<String>,
     pub curr_played_cards: Vec<Card>,
     pub curr_player_turn: Option<String>,
+    #[serde(skip)]
     curr_player_turn_idx: usize,
     pub curr_winning_card: Option<Card>,
     pub curr_dealer: String,
+    #[serde(skip)]
     curr_dealer_idx: usize,
     pub bids: HashMap<String, Option<i32>>,
     pub player_bids: Vec<(String, i32)>,

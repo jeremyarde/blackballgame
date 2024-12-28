@@ -1723,7 +1723,7 @@ fn GameStateComponent(
                                     .map(|i| {
                                         if user_config.read().username == gamestate().get_dealer()
                                             && (i + gamestate().bids.values().map(|x| x.unwrap()).sum::<i32>())
-                                                == gamestate().curr_round
+                                                == gamestate().cards_to_deal
                                         {
                                             rsx! {
                                                 button {
