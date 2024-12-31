@@ -838,8 +838,9 @@ fn GameRoom(room_code: String) -> Element {
                             match gar {
                                 common::GameActionResponse::Connect(con) => {
                                     info!("Got connect message: {con:?}");
-                                    user_config.write().client_secret =
-                                        con.secret.unwrap_or(String::new());
+                                    let client_secret = con.secret.unwrap_or(String::new());
+                                    user_config.write().client_secret = client_secret.clone();
+                                    LocalStorage::set(CLIENT_SECRET_KEY, client_secret);
                                 }
                                 common::GameActionResponse::GameState(gs) => {
                                     info!("Got game state");

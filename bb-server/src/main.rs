@@ -441,10 +441,14 @@ async fn main() {
             info!("[GAME-CLIENT] Waiting for messages");
             while let Some((msg)) = toclient_recv.recv().await {
                 let broadcast_result = gamechannel_broadcast_send.send(msg);
-                info!(
-                    "[GAME-CLIENT] Sent message to client: {:?}",
-                    broadcast_result
-                );
+                match broadcast_result {
+                    Ok(x) => {
+                        info!("[GAME-CLIENT] Sent message to client: {:?}", x);
+                    }
+                    Err(err) => {
+                        info!("[GAME-CLIENT] Error sending message to client: {:?}", err);
+                    }
+                }
             }
             info!("[GAME-CLIENT] done recieving messages from game");
         })

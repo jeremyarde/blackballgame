@@ -15,3 +15,11 @@ todo
 - make bottom section actually grid
 
 - re-add the router
+
+
+
+2024-12-31
+- [ ] add refresh/ go back button  on end game screen
+- [ ] fix reconnection issues (passwords don't match???/ cards are not showing up)
+- [ ] delete a game once its actually finished
+- [ ] dealer tag is not updating properly

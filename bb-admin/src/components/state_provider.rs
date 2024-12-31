@@ -7,7 +7,7 @@ pub mod state_provider {
 
     use crate::{
         environment, server_client::server_client::ServerClient, AppProps, Env, Home, ServerConfig,
-        UserConfig, USERNAME_KEY,
+        UserConfig, CLIENT_SECRET_KEY, USERNAME_KEY,
     };
 
     fn get_string_from_local_storage(key: &str) -> String {
@@ -43,20 +43,21 @@ pub mod state_provider {
             })
         });
 
-        let localstorage: String =
+        let client_name_local_storage: String =
             use_context_provider(|| get_string_from_local_storage(USERNAME_KEY));
+        let client_secret_local_storage: String =
+            use_context_provider(|| get_string_from_local_storage(CLIENT_SECRET_KEY));
 
-        info!("jere/ localstorage: {:?}", localstorage);
+        info!(
+            "jere/ localstorage: {:?}, {:?}",
+            client_name_local_storage, client_secret_local_storage
+        );
         let mut current_route = use_context_provider(|| Signal::new("Home".to_string()));
         let mut user_config = use_context_provider(|| {
             Signal::new(UserConfig {
-                username: if is_prod {
-                    localstorage
-                } else {
-                    String::from("player2")
-                },
+                username: client_name_local_storage,
                 lobby_code: String::new(),
-                client_secret: String::new(),
+                client_secret: client_secret_local_storage,
             })
         });
 
